@@ -4,61 +4,6 @@
   const { TAU, clamp, rnd, rint, lerp, buf, layer, blit, lut, diffuse, fade, hsv, scale } = window.FK;
   const S = window.FASC;
 
-  /* ─────────── LES SPIRALES ─────────── */
-  S.push({
-    id: 'spirales', name: 'Les Spirales', cat: 'Motifs', glyph: '🌀',
-    blurb: 'Automate cyclique : des galaxies naissent du bruit',
-    hint: 'Glissez pour perturber ou lisser : chaque cicatrice devient une spirale.',
-    tools: [{ id: 'perturber', label: 'perturber' }, { id: 'lisser', label: 'lisser' }],
-    make(env) {
-      const ctx = env.ctx;
-      const GW = 260, GH = Math.max(100, Math.round(GW * env.h / env.w));
-      const N = GW * GH, ST = 14;
-      let cur = new Uint8Array(N), nxt = new Uint8Array(N);
-      for (let i = 0; i < N; i++) cur[i] = rint(ST);
-      const b = buf(GW, GH);
-      const L = new Uint8Array(ST * 3);
-      return {
-        frame(t) {
-          for (let s = 0; s < ST; s++) {
-            const c = hsv(s / ST + t * 0.02, 0.72, 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(s / ST * TAU + t * 0.6)));
-            L[s * 3] = c[0]; L[s * 3 + 1] = c[1]; L[s * 3 + 2] = c[2];
-          }
-          for (let y = 0; y < GH; y++) {
-            const yp = ((y - 1 + GH) % GH) * GW, yn = ((y + 1) % GH) * GW, yo = y * GW;
-            for (let x = 0; x < GW; x++) {
-              const i = yo + x, v = cur[i], want = (v + 1) % ST;
-              const xp = (x - 1 + GW) % GW, xn = (x + 1) % GW;
-              nxt[i] = (cur[yo + xp] === want || cur[yo + xn] === want || cur[yp + x] === want || cur[yn + x] === want ||
-                cur[yp + xp] === want || cur[yn + xn] === want || cur[yp + xn] === want || cur[yn + xp] === want) ? want : v;
-            }
-          }
-          const tm = cur; cur = nxt; nxt = tm;
-          const d = b.d;
-          for (let i = 0; i < N; i++) {
-            const c = cur[i] * 3, o = i * 4;
-            d[o] = L[c]; d[o + 1] = L[c + 1]; d[o + 2] = L[c + 2];
-          }
-          b.flush();
-          ctx.globalCompositeOperation = 'source-over';
-          blit(ctx, b, env.w, env.h);
-        },
-        down(p) { this.move({ ...p, down: true }); },
-        move(p) {
-          if (!p.down) return;
-          const gx = p.x / env.w * GW, gy = p.y / env.h * GH, r = 11;
-          const uni = rint(ST);
-          for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) {
-            if (x * x + y * y > r * r) continue;
-            const px = ((gx + x) | 0) , py = ((gy + y) | 0);
-            if (px < 0 || py < 0 || px >= GW || py >= GH) continue;
-            cur[py * GW + px] = env.tool === 'lisser' ? uni : rint(ST);
-          }
-        },
-      };
-    },
-  });
-
   /* ─────────── LES CYMATIQUES ─────────── */
   S.push({
     id: 'chladni', name: 'Les Cymatiques', cat: 'Motifs', glyph: '◈',

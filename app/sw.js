@@ -5,7 +5,7 @@ const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/fascination.css',
   './js/fk.js', './js/fkgl.js', './js/fk-son.js', './js/shell.js', './js/bruits.js',
   './js/machines/s-lucioles.js', './js/machines/s-murmu.js', './js/machines/s-feu.js', './js/machines/s-eau.js', './js/machines/s-flux.js', './js/machines/s-sable3d.js', './js/machines/s-sable.js', './js/machines/s-foudre.js', './js/machines/s-cristal.js',
-  './js/machines/s-motifs.js', './js/machines/s-fractales.js', './js/machines/s-illusions.js', './js/machines/s-vie.js', './js/machines/s-galaxie.js', './js/machines/s-tunnel.js', './js/machines/s-lave.js', './js/machines/s-bulles.js', './js/machines/s-spectre.js', './js/machines/s-harpe.js', './js/machines/s-pendules.js', './js/machines/s-sonillus.js', './js/machines/s-quantique.js', './js/machines/s-abysses.js',
+  './js/machines/s-motifs.js', './js/machines/s-rd.js', './js/machines/s-fractales.js', './js/machines/s-illusions.js', './js/machines/s-vie.js', './js/machines/s-galaxie.js', './js/machines/s-tunnel.js', './js/machines/s-lave.js', './js/machines/s-bulles.js', './js/machines/s-spectre.js', './js/machines/s-harpe.js', './js/machines/s-pendules.js', './js/machines/s-sonillus.js', './js/machines/s-quantique.js', './js/machines/s-abysses.js',
   './js/machines/s-four-corps.js', './js/machines/s-fourmis.js', './js/machines/s-myce.js', './js/machines/s-blob.js',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
 ];

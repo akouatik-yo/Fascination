@@ -4,66 +4,6 @@
   const { TAU, clamp, rnd, rint, lerp, buf, layer, blit, lut, diffuse, fade, hsv, scale } = window.FK;
   const S = window.FASC;
 
-  /* ─────────── LES CYMATIQUES ─────────── */
-  S.push({
-    id: 'chladni', name: 'Les Cymatiques', cat: 'Motifs', glyph: '◈',
-    blurb: 'Le son rendu visible : figures de Chladni',
-    hint: 'Glissez pour changer le mode : la plaque chante la fréquence que vous entendez.',
-    tools: [{ id: 'jouer', label: 'jouer' }, { id: 'secouer', label: 'secouer' }],
-    make(env) {
-      const ctx = env.ctx;
-      const P = [];
-      for (let i = 0; i < 14000; i++) P.push({ x: rnd(1, -1), y: rnd(1, -1) });
-      let m = 3, n = 5, tm = 3, tn = 5;
-      const dr = env.audio.drone(220, 'sine', 0.05);
-      const acc = layer(env.w, env.h);
-      const f = (x, y) => Math.sin(n * Math.PI * x) * Math.sin(m * Math.PI * y) + Math.sin(m * Math.PI * x) * Math.sin(n * Math.PI * y);
-      return {
-        frame(t, dt) {
-          m += (tm - m) * 0.06; n += (tn - n) * 0.06;
-          const g = acc.g;
-          g.globalCompositeOperation = 'source-over';
-          g.globalAlpha = 0.14; g.fillStyle = '#07060f'; g.fillRect(0, 0, acc.w, acc.h); g.globalAlpha = 1;
-          g.globalCompositeOperation = 'lighter';
-          const R = Math.min(env.w, env.h) * 0.44, cx = env.w / 2, cy = env.h / 2;
-          for (const p of P) {
-            const v = Math.abs(f(p.x, p.y));
-            const st = clamp(v, 0.0012, 1) * 0.055;
-            p.x = clamp(p.x + rnd(st, -st), -1, 1);
-            p.y = clamp(p.y + rnd(st, -st), -1, 1);
-            const sx = cx + p.x * R, sy = cy + p.y * R;
-            const c = hsv(0.55 + v * 0.4 + t * 0.02, 0.5, 1);
-            g.fillStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${0.5 - v * 0.3})`;
-            g.fillRect(sx, sy, 1.5, 1.5);
-          }
-          g.globalCompositeOperation = 'source-over';
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.fillStyle = '#07060f'; ctx.fillRect(0, 0, env.w, env.h);
-          ctx.strokeStyle = 'rgba(150,160,220,.18)'; ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.arc(cx, cy, R * 1.06, 0, TAU); ctx.stroke();
-          ctx.globalCompositeOperation = 'lighter';
-          ctx.drawImage(acc.c, 0, 0, env.w, env.h);
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.fillStyle = 'rgba(230,235,255,.4)';
-          ctx.font = '11px ui-monospace, monospace';
-          ctx.fillText(`mode ${tn}:${tm}   ${(110 * (tn + tm) / 2).toFixed(0)} Hz`, 16, env.h - 16);
-          if (dr) dr.set(110 * (n + m) / 2);
-        },
-        down(p) { this.move({ ...p, down: true }); },
-        move(p) {
-          if (!p.down) return;
-          if (env.tool === 'secouer') {
-            for (let i = 0; i < 2500; i++) { const q = P[rint(P.length)]; q.x = rnd(1, -1); q.y = rnd(1, -1); }
-            return;
-          }
-          tn = 1 + Math.round(clamp(p.x / env.w, 0, 1) * 9);
-          tm = 1 + Math.round(clamp(p.y / env.h, 0, 1) * 9);
-        },
-        dispose() { if (dr) dr.stop(); },
-      };
-    },
-  });
-
   /* ─────────── LE KALÉIDOSCOPE ─────────── */
   S.push({
     id: 'kaleido', name: 'Le Kaléidoscope', cat: 'Motifs', glyph: '✺',

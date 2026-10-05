@@ -34,7 +34,7 @@ Ce qui a changé :
 - les commandes du panneau (`sim.ui()`) sont reconstruites seulement quand leur structure change, sinon mises à jour sur place toutes les 500 ms (un curseur qu'on tire n'est jamais remplacé) ;
 - `env.dpr` est fourni aux machines (utile au WebGL) ;
 - l'ancre de l'adresse choisit la machine (`#feu`), à l'ouverture comme en cours de route ;
-- PHOTO affiche l'image en surimpression (appui long pour l'enregistrer), car les artefacts claude.ai bloquent les téléchargements ;
+- PHOTO passe par la capacité « downloads » dans un artefact claude.ai (le visiteur confirme l'enregistrement), sinon par un lien de téléchargement, et en dernier recours affiche l'image en surimpression (appui long pour l'enregistrer) ;
 - nouveau bouton **BRUITS** (touche `N`) qui ouvre le générateur de bruits ;
 - configuration facultative : `window.FASC_CONFIG = { startSim, speed, sound, psyche, autoplay }` avant les scripts ;
 - crochet de test : si `window.FASC_DEBUG = {}` existe, le Feu y expose `FASC_DEBUG.feu` (champs, scènes, mesures).

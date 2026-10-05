@@ -202,18 +202,30 @@
     const i = defs.findIndex((x) => x.id === S.id);
     select(defs[(i + d + defs.length) % defs.length].id);
   }
+  // Dans un artefact claude.ai, la capacité « downloads » propose le fichier au visiteur ;
+  // ailleurs (ou si elle est indisponible), lien de téléchargement puis image en surimpression.
+  let dl = null;
+  const inClaude = !!(window.claude && window.claude.use);
+  if (inClaude) { try { window.claude.use('downloads').then((d) => { dl = d; }, () => {}); } catch (e) { /* rien */ } }
   function photo() {
-    try {
-      const url = canvas.toDataURL('image/png');
-      const name = 'fascination-' + (S.id || 'image') + '.png';
-      // Le téléchargement direct est bloqué dans certains cadres (artefact claude.ai) :
-      // on montre donc l'image, qu'un appui long permet d'enregistrer.
-      try { const a = document.createElement('a'); a.download = name; a.href = url; a.click(); } catch (e) { /* bloqué */ }
+    let url;
+    try { url = canvas.toDataURL('image/png'); } catch (e) { console.warn(e); return; }
+    const name = 'fascination-' + (S.id || 'image') + '.png';
+    const show = () => {
       const box = h('div', { class: 'shot', onclick: () => box.remove() },
         h('img', { src: url, alt: 'Photo de la machine ' + (S.id || '') }),
         h('p', null, 'Appui long ou clic droit sur l’image pour l’enregistrer · toucher pour fermer'));
       $('stage').append(box);
-    } catch (e) { console.warn(e); }
+    };
+    if (dl) {
+      canvas.toBlob((blob) => {
+        if (!blob) { show(); return; }
+        dl.save({ filename: name, data: blob }).catch((e) => { if (!e || (e.code !== 'declined' && e.code !== 'rate_limited')) show(); });
+      }, 'image/png');
+      return;
+    }
+    if (!inClaude) { try { const a = document.createElement('a'); a.download = name; a.href = url; a.click(); return; } catch (e) { /* bloqué */ } }
+    show();
   }
 
   $('bLeft').onclick = toggleLeft;

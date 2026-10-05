@@ -109,6 +109,8 @@ Machines refaites (niveau final) :
 - **Écoulement** (octobre 2026, WebGL2) : voir §10.
 - **Sable** (octobre 2026, 3D WebGL2 + coupes 2D) : voir §11.
 - **Foudre** (octobre 2026, claquage diélectrique + ciel WebGL2) : voir §12.
+- **Cristal** (octobre 2026, WebGL2) : voir §13.
+- **Fractales** (octobre 2026, WebGL2 + 2D ; ancien « Le Fractal ») : voir §14.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -116,7 +118,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -204,4 +206,20 @@ Tiroir indépendant (bouton BRUITS, touche `N`), avec son propre contexte audio 
 - **Son** : tonnerre retardé de distance ÷ 343 m/s, fait de plusieurs grondements filtrés, un par morceau du canal (d'où le roulement), claquement sec si l'orage est à moins de 2 km, boum grave ; pluie en fond.
 - **Scènes** : Orage, Haute atmosphère (limbe terrestre vu d'orbite, lueur nocturne verte à 95 km avec ondes de gravité, farfadets rouges à tentacules bleus, jets bleus, jets géants, elfes ; son de récepteur VLF : craquements et siffleurs), Figure de Lichtenberg (même moteur DBM, bloc de plexiglas, la figure se grave et reste, dimension fractale mesurée par comptage de boîtes), Globe à plasma (filaments sur une sphère, répulsion, convection, attirés par le doigt ; trois gaz).
 - **Limites connues** : échelle verticale comprimée ; traceur très ralenti ; dimension fractale mesurée sur une petite figure, plus faible que la valeur asymptotique (~1,7 à η = 1) ; perf. réelle sur tablette non mesurée (testé en rendu logiciel seulement).
+
+## 13. Le Cristal — `app/js/machines/s-cristal.js` (id `cristal`)
+
+- `s-elem.js` a disparu : il ne contenait plus que l'ancien Cristal, gardé comme repli 2D (agrégation limitée par diffusion) dans `s-cristal.js`.
+- **Flocon** : automate de Reiter (2005) sur grille hexagonale en coordonnées axiales (texture N×N, N = 220 / 300 / 380). Deux passes par pas : (u, v) = vapeur qui diffuse / glace, puis diffusion α. Quatre conditions rangées sur le diagramme de Nakaya (plaque, plaque à secteurs, étoile, fougère : couples (β, γ, α) calibrés à l'œil) ; « Voyage dans le nuage » enchaîne 3 ou 4 conditions pendant la croissance. Vitesse adaptative : le nombre de pas par image est réglé sur les pas nécessaires par case gagnée (mesurés par lecture de la grille le long des six axes), pour qu'un flocon pousse en ~8 s de simulation quelle que soit sa forme. Rendu : bilinéaire manuel en coordonnées axiales, relief par gradient de l'épaisseur, éclairage coloré par l'arrière.
+- **Givre, Surfusion, Chaufferette** : champ de phase de Kobayashi (1993) : φ, T, orientation du grain, date de gel (RGBA32F). Deux passes par pas : (ε², εε'φx, εε'φy) puis φ et T. dx = 0,03, dt = 1,5·10⁻⁴, τ = 3·10⁻⁴, α = 0,9, γ = 10, K = 2,1 à 2,2 (chaleur latente), anisotropie 6 (glace), 4 (cubique, succinonitrile), 2 avec δ = 0,25 (aiguilles d'acétate de sodium). L'orientation se propage vers les cases qui gagnent en φ. Lumière polarisée : couleurs d'interférence sin²(πΔ/λ) × sin²(2θ).
+- **Piège rencontré** : les textures RGBA32F filtrées en LINEAR sont lues comme vides sans l'extension OES_texture_float_linear (absente en SwiftShader et sur beaucoup de mobiles). Simulation en NEAREST, lissage bilinéaire fait à la main dans le shader d'affichage.
+
+## 14. Les Fractales — `app/js/machines/s-fractales.js` (id `fractal` conservé)
+
+- **Mandelbrot profond** : orbite de référence en double précision (JS) au centre de la vue, envoyée en texture RGBA32F (1024 × n) ; chaque pixel calcule son écart δ en float32 : δ ← (2Z + δ)δ + δc, avec rebasage (Zhuoran 2021) quand |Z + δ| < |δ| ou en fin d'orbite. Intérieur détecté par la dérivée dz/dz₁ (cycle attractif). Ombrage : estimation de distance + carte de normales (z / dz/dc). Itérations : 160 + 60·log₂(zoom) + 0,9·log₂²(zoom). Zoom limité vers 10⁻¹³ (précision du centre en double). Les variantes (z³, Burning Ship, Tricorne) sont en calcul direct float32 : zoom ≤ 10⁻⁵.
+- **Résolution adaptative** : si l'intervalle entre images dépasse 42 ms, la zone calculée rétrécit (jusqu'à 35 %), puis remonte sous 24 ms.
+- **Destinations** : vallée des hippocampes, point de Feigenbaum (jusqu'à 2·10⁻⁵ seulement : au-delà les orbites s'échappent trop lentement), point de Misiurewicz M(3,1) (−0,10109636384562 + 0,95628651080914 i, vérifié : z₃ = z₄), dendrite c = i, mini-Mandelbrot de période 3 (racine de c³ + 2c² + c + 1 calculée par Newton), vallée des éléphants.
+- **Son** : glissando de Shepard (7 sinusoïdes à l'octave sous une cloche gaussienne), une octave pour deux doublements de zoom.
+- **Julia** (c qui longe la cardioïde, médaillon de Mandelbrot), **Flammes et fougères** (jeu du chaos sur processeur, densité log, cadrage sur centiles), **Courbes** (dragon par pliages animés, Koch avec périmètre et aire, arbre de Pythagore qui se balance).
+- **Limites connues** : à grand zoom, l'image est lourde à calculer (plusieurs milliers d'itérations par pixel) ; la résolution adaptative la rend fluide au prix de la netteté. Non mesuré sur la tablette.
 

@@ -7881,89 +7881,644 @@ void main(){
 })();
 
 ;
-/* ═════ js/machines/s-elem.js ═════ */
-/* Fascination — les éléments */
+/* ═════ js/machines/s-cristal.js ═════ */
+/* Fascination — Le Cristal · flocons, givre, surfusion et chaufferette (WebGL2)
+   Flocons : automate hexagonal de Reiter (2005) — vapeur qui diffuse, cases réceptives qui gèlent ;
+   les conditions changent pendant la chute, comme dans le diagramme de Nakaya.
+   Givre, surfusion, chaufferette : champ de phase de Kobayashi (1993) — un champ φ (solide/liquide)
+   couplé à la température, anisotropie de la tension de surface (6 pour la glace, 4 pour un cristal
+   cubique, 2 pour des aiguilles), chaleur latente libérée au front. Chaque grain garde son orientation,
+   d'où les couleurs en lumière polarisée. Repli sur l'ancien Cristal (agrégation 2D) sans WebGL2. */
 (function boot() {
-  if(!window.FK) return setTimeout(boot,12);
-  const { TAU, clamp, rnd, rint, lerp, buf, layer, blit, lut, diffuse, fade, hsv } = window.FK;
-  const S = window.FASC;
+  if (!window.FK || !window.FKGL) return setTimeout(boot, 12);
+  const { TAU, clamp, rnd, rint, buf, blit, hsv } = window.FK;
+  const { GLKit, HEAD } = window.FKGL;
 
-  /* ─────────── LE SABLE ─────────── */
-  /* ─────────── LA FOUDRE ─────────── */
-  /* ─────────── LE CRISTAL ─────────── */
-  S.push({
-    id: 'cristal', name: 'Le Cristal', cat: 'Éléments', glyph: '❉',
-    blurb: 'Agrégation limitée par diffusion : le givre',
-    hint: 'Cliquez pour poser un germe · l’outil brise incline la croissance.',
-    tools: [{ id: 'germe', label: 'germe' }, { id: 'brise', label: 'brise' }],
+  const QUAL = {
+    legere: { flake: 220, pf: 300, spf: 22, sfl: 30 },
+    normale: { flake: 300, pf: 420, spf: 36, sfl: 44 },
+    haute: { flake: 380, pf: 540, spf: 50, sfl: 60 },
+  };
+  const PAPER = [0.953, 0.933, 0.89];
+  const fr = (x, d = 1) => x.toFixed(d).replace('.', ',');
+
+  /* ───────── flocon : automate de Reiter sur grille hexagonale (coordonnées axiales) ───────── */
+  const HEX = `
+uniform sampler2D uS; uniform int uN; uniform float uBeta, uRmax;
+const ivec2 NB[6] = ivec2[6](ivec2(1,0), ivec2(-1,0), ivec2(0,1), ivec2(0,-1), ivec2(1,-1), ivec2(-1,1));
+int hexd(ivec2 c){ ivec2 q = c - ivec2(uN / 2); return (abs(q.x) + abs(q.y) + abs(q.x + q.y)) / 2; }
+bool outside(ivec2 c){ return c.x < 0 || c.y < 0 || c.x >= uN || c.y >= uN || float(hexd(c)) > uRmax; }
+float S(ivec2 c){ return outside(c) ? uBeta : texelFetch(uS, c, 0).r; }
+`;
+  const FS_R1 = HEAD + HEX + `
+uniform float uGam; out vec4 o;
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  float s = S(c);
+  bool rec = s >= 1.;
+  for (int k = 0; k < 6; k++) if (S(c + NB[k]) >= 1.) rec = true;
+  // u : part qui diffuse (vapeur), v : part figée (glace)
+  o = rec ? vec4(0., s + uGam, 1., 0.) : vec4(s, 0., 0., 0.);
+}`;
+  const FS_R2 = HEAD + HEX + `
+uniform sampler2D uUV; uniform float uAlp, uStep; out vec4 o;
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy);
+  vec4 me = texelFetch(uS, c, 0);
+  if (outside(c)) { o = vec4(uBeta, 0., 0., 0.); return; }
+  vec4 a = texelFetch(uUV, c, 0);
+  float su = 0.;
+  for (int k = 0; k < 6; k++){ ivec2 d = c + NB[k]; su += outside(d) ? uBeta : texelFetch(uUV, d, 0).r; }
+  float u = a.r + uAlp * .5 * (su / 6. - a.r);
+  float s = u + a.g;
+  // g : moment où la case a gelé (pour colorer les cernes de croissance)
+  float born = me.g; if (me.r < 1. && s >= 1.) born = uStep;
+  o = vec4(s, born, 0., 0.);
+}`;
+  const FS_FLAKE = HEAD + `
+uniform sampler2D uS; uniform int uN; uniform vec2 uRes, uC; uniform float uCell, uDecor, uInk, uTime, uStep, uRot;
+out vec4 o;
+float sAt(vec2 a){ // bilinéaire manuel en coordonnées axiales
+  vec2 f = a + float(uN / 2) - .5; vec2 i = floor(f), t = f - i; ivec2 b = ivec2(i);
+  float s00 = texelFetch(uS, b, 0).r, s10 = texelFetch(uS, b + ivec2(1,0), 0).r, s01 = texelFetch(uS, b + ivec2(0,1), 0).r, s11 = texelFetch(uS, b + ivec2(1,1), 0).r;
+  return mix(mix(s00, s10, t.x), mix(s01, s11, t.x), t.y);
+}
+float gAt(vec2 a){ vec2 f = a + float(uN / 2) - .5; return texelFetch(uS, ivec2(floor(f + .5)), 0).g; }
+vec2 axial(vec2 p){ float r = p.y * 1.1547005; return vec2(p.x - r * .5, r); }
+void main(){
+  vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  vec2 p = (px - uC) / uCell;
+  float cs = cos(uRot), sn = sin(uRot); p = mat2(cs, -sn, sn, cs) * p;
+  vec2 a = axial(p);
+  float s = sAt(a);
+  float e = .7;
+  float sx = sAt(axial(p + vec2(e, 0.))) - sAt(axial(p - vec2(e, 0.)));
+  float sy = sAt(axial(p + vec2(0., e))) - sAt(axial(p - vec2(0., e)));
+  float ice = smoothstep(.985, 1.02, s);
+  float th = clamp((s - 1.) * 1.6, 0., 1.);
+  vec2 g = vec2(sx, sy) * 1.4;
+  float edge = clamp(length(g) * 1.2, 0., 1.);
+  // fond : éclairage coloré par l'arrière, comme sur les photographies de flocons
+  vec2 q = px / uRes.y;
+  vec3 bg = mix(vec3(.02, .035, .09), vec3(.07, .05, .12), q.x / max(1., uRes.x / uRes.y));
+  bg += vec3(.05, .09, .2) * exp(-dot(px - uC, px - uC) / (uRes.y * uRes.y * .25));
+  vec3 lightA = vec3(.55, .78, 1.), lightB = vec3(1., .78, .45);
+  float lam = dot(normalize(vec3(-g, 1.)), normalize(vec3(.5, .6, .62)));
+  float lb = dot(normalize(vec3(-g, 1.)), normalize(vec3(-.6, -.4, .7)));
+  vec3 iceC = bg * .55 + lightA * (.16 + .55 * pow(max(lam, 0.), 6.)) + lightB * .35 * pow(max(lb, 0.), 8.);
+  iceC += vec3(.75, .88, 1.) * edge * .6 + vec3(.2, .3, .45) * th;
+  float age = gAt(a), ring = .5 + .5 * sin(age * .025);
+  iceC *= .9 + .1 * ring;
+  iceC += vec3(1.) * pow(max(lam, 0.), 40.) * .5;
+  vec3 col = mix(bg, iceC, ice);
+  if (uDecor < .5){
+    vec3 base = uInk > .5 ? vec3(${PAPER.join(',')}) : vec3(0.);
+    vec3 line = uInk > .5 ? vec3(.12, .14, .3) : vec3(.85, .93, 1.);
+    float v = ice * (.18 + .5 * th) + edge * ice * .9;
+    col = mix(base, line, clamp(v, 0., 1.));
+  }
+  o = vec4(col, 1.);
+}`;
+
+  /* ───────── champ de phase (Kobayashi) ───────── */
+  const FS_PF1 = HEAD + `
+uniform sampler2D uS; uniform vec2 uPx; uniform float uDx, uEps, uDel, uJ; out vec4 o;
+void main(){
+  vec4 c = texture(uS, vUv);
+  float l = texture(uS, vUv - vec2(uPx.x, 0.)).r, r = texture(uS, vUv + vec2(uPx.x, 0.)).r;
+  float b = texture(uS, vUv - vec2(0., uPx.y)).r, t = texture(uS, vUv + vec2(0., uPx.y)).r;
+  vec2 g = vec2(r - l, t - b) / (2. * uDx);
+  float th = dot(g, g) > 1e-10 ? atan(g.y, g.x) : 0.;
+  float e = uEps * (1. + uDel * cos(uJ * (th - c.b)));
+  float de = -uEps * uJ * uDel * sin(uJ * (th - c.b));
+  o = vec4(e * e, e * de * g.x, e * de * g.y, 0.);
+}`;
+  const FS_PF2 = HEAD + `
+uniform sampler2D uS, uQ; uniform vec2 uPx, uRes; uniform float uDx, uDt, uTau, uAlp, uGam, uK, uTeq, uCool, uTime, uSeedT;
+uniform int uNS; uniform vec4 uSd[16]; uniform vec4 uSd2[16];
+out vec4 o;
+float h(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031 + uTime * 13.7); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main(){
+  vec4 c = texture(uS, vUv);
+  vec2 dx = vec2(uPx.x, 0.), dy = vec2(0., uPx.y);
+  vec4 L = texture(uS, vUv - dx), R = texture(uS, vUv + dx), B = texture(uS, vUv - dy), T = texture(uS, vUv + dy);
+  vec4 qL = texture(uQ, vUv - dx), qR = texture(uQ, vUv + dx), qB = texture(uQ, vUv - dy), qT = texture(uQ, vUv + dy), q = texture(uQ, vUv);
+  float id2 = 1. / (uDx * uDx), i2 = .5 / uDx;
+  float p = c.r;
+  vec2 gp = vec2(R.r - L.r, T.r - B.r) * i2;
+  float lap = (L.r + R.r + B.r + T.r - 4. * p) * id2;
+  float t1 = (qT.g - qB.g) * i2;           // ∂y(εε' φx)
+  float t2 = (qR.b - qL.b) * i2;           // ∂x(εε' φy)
+  float div = q.r * lap + (qR.r - qL.r) * i2 * gp.x + (qT.r - qB.r) * i2 * gp.y;
+  float m = uAlp / 3.14159265 * atan(uGam * (uTeq - c.g));
+  float nz = .007 * p * (1. - p) * (h(gl_FragCoord.xy) - .5);
+  float pn = p + uDt / uTau * (t1 - t2 + div + p * (1. - p) * (p - .5 + m) + nz);
+  pn = clamp(pn, 0., 1.);
+  float lapT = (L.g + R.g + B.g + T.g - 4. * c.g) * id2;
+  float Tn = c.g + uDt * lapT + uK * (pn - p) - uCool * uDt;
+  float ori = c.b, born = c.a;
+  // un grain qui gagne une case lui donne son orientation
+  if (p < .5){ float mx = p + .002; if (L.r > mx){ mx = L.r; ori = L.b; } if (R.r > mx){ mx = R.r; ori = R.b; } if (B.r > mx){ mx = B.r; ori = B.b; } if (T.r > mx){ mx = T.r; ori = T.b; } }
+  if (p < .5 && pn >= .5) born = uSeedT;
+  // germes, chaleur et froid apportés par les doigts
+  vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  for (int i = 0; i < 16; i++){
+    if (i >= uNS) break;
+    vec4 s = uSd[i], s2 = uSd2[i];
+    float d = length(px - s.xy);
+    if (s2.x > .5){ if (d < s.z){ pn = 1.; ori = s.w; born = uSeedT; } }
+    else { Tn += s2.y * exp(-d * d / (s.z * s.z)); }
+  }
+  o = vec4(pn, Tn, ori, born);
+}`;
+  const FS_PFR = HEAD + `
+uniform sampler2D uS; uniform vec2 uPx, uRes; uniform float uMode, uDecor, uInk, uTime, uPol, uTeq, uSeedT;
+out vec4 o;
+vec4 bl(vec2 uv){ // bilinéaire à la main
+  vec2 sz = 1. / uPx, f = uv * sz - .5, i = floor(f), t = f - i;
+  ivec2 b = ivec2(i), mx = ivec2(sz) - 1;
+  vec4 a = texelFetch(uS, clamp(b, ivec2(0), mx), 0), c = texelFetch(uS, clamp(b + ivec2(1, 0), ivec2(0), mx), 0);
+  vec4 d = texelFetch(uS, clamp(b + ivec2(0, 1), ivec2(0), mx), 0), e = texelFetch(uS, clamp(b + ivec2(1, 1), ivec2(0), mx), 0);
+  return mix(mix(a, c, t.x), mix(d, e, t.x), t.y);
+}
+float h1(float x){ return fract(sin(x * 127.1) * 43758.5453); }
+vec3 heat(float t){ t = clamp(t, 0., 1.); return clamp(vec3(1.6 * t - .25, 1.9 * t * t - .15, .45 + .9 * t - 1.6 * t * t), 0., 1.); }
+void main(){
+  vec4 c = bl(vUv);
+  // l'orientation ne s'interpole pas : on prend celle de la case la plus proche
+  c.b = texelFetch(uS, ivec2(vUv / uPx), 0).b;
+  vec2 dx = vec2(uPx.x, 0.), dy = vec2(0., uPx.y);
+  float l = bl(vUv - dx).r, r = bl(vUv + dx).r, b = bl(vUv - dy).r, t = bl(vUv + dy).r;
+  vec2 g = vec2(r - l, t - b);
+  float p = smoothstep(.2, .8, c.r), edge = clamp(length(g) * 1.6, 0., 1.);
+  vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  vec3 n = normalize(vec3(-g * 2.2, 1.));
+  float spec = pow(max(dot(n, normalize(vec3(.4, .5, .8))), 0.), 24.);
+  vec3 col;
+  if (uMode < .5){
+    // givre sur une vitre, la nuit : lumières floues de la rue derrière
+    vec2 q = px / uRes.y;
+    vec3 bg = mix(vec3(.02, .025, .05), vec3(.05, .04, .06), vUv.y);
+    for (int i = 0; i < 9; i++){
+      float fi = float(i);
+      vec2 lp = vec2(h1(fi + 1.) * uRes.x / uRes.y, .35 + .5 * h1(fi + 7.));
+      float rr = .05 + .07 * h1(fi + 3.), d = length(q - lp);
+      vec3 lc = mix(vec3(1., .62, .25), vec3(.6, .75, 1.), step(.7, h1(fi + 11.)));
+      bg += lc * .22 * smoothstep(rr, rr * .7, d) * (.6 + .4 * sin(uTime * .3 + fi));
+    }
+    float frost = p * (.55 + .35 * fract(sin(dot(floor(px * .5), vec2(12.9898, 78.233))) * 43758.5)) ;
+    vec3 ice = vec3(.78, .86, .95) * (.5 + .5 * frost) + vec3(.9, .95, 1.) * (edge * .7 + spec * .8);
+    col = mix(bg, ice + bg * .4, clamp(p * .78 + edge * .3, 0., 1.));
+  } else if (uMode < 1.5){
+    // entre polariseurs croisés : un grain s'allume selon l'angle de son axe, en couleurs d'interférence
+    float hsh = h1(c.b * 17.3 + 3.1);
+    float D = (320. + 700. * hsh) * (.75 + .25 * p);
+    vec3 lam = vec3(650., 532., 450.);
+    vec3 ic = pow(sin(3.14159265 * D / lam), vec3(2.));
+    float k = pow(sin(2. * (c.b - uPol)), 2.);
+    col = ic * k * p * 1.1 + vec3(.9) * edge * p * .15;
+    col += vec3(.012, .012, .02);
+  } else if (uMode < 2.5){
+    // surfusion : le liquide coloré par sa température, le cristal argenté
+    vec3 liq = heat(clamp(c.g + .25, 0., 1.5) / 1.25) * .85;
+    vec3 sol = vec3(.62, .66, .72) * (.55 + .45 * n.z) + vec3(1.) * spec * .9 + heat(c.g / uTeq) * .15;
+    col = mix(liq, sol, p) + vec3(.9, .95, 1.) * edge * .25;
+  } else {
+    // chaufferette : liquide limpide, aiguilles laiteuses, chaleur rayonnée
+    vec3 liq = vec3(.86, .82, .7) * .22 + vec3(.05, .04, .02);
+    float warm = clamp(c.g / uTeq, 0., 1.);
+    vec3 sol = vec3(.92, .9, .86) * (.62 + .3 * n.z) + spec * .4;
+    col = mix(liq, sol, p) + vec3(.45, .12, .02) * warm * .5 + vec3(1.) * edge * .15;
+  }
+  if (uDecor < .5){
+    vec3 base = uInk > .5 ? vec3(${PAPER.join(',')}) : vec3(0.);
+    vec3 line = uInk > .5 ? vec3(.12, .14, .3) : vec3(.88, .93, 1.);
+    if (uMode > .5 && uMode < 1.5) col = uInk > .5 ? base * (vec3(1.) - .75 * clamp(col, 0., 1.)) : col;
+    else col = mix(base, line, clamp(p * .32 + edge * p * .9, 0., 1.));
+  }
+  o = vec4(col, 1.);
+}`;
+
+  window.FASC.push({
+    id: 'cristal', name: 'Le Cristal', cat: 'Éléments', glyph: '❉', decor: true, smoothTime: true,
+    blurb: 'Flocons, givre, surfusion et chaufferette',
+    hint: 'OBSERVER : touchez un cristal ou le liquide · GERME : touchez pour faire naître un cristal · CHALEUR : glissez pour faire fondre · FROID : glissez pour refroidir.',
+    intro: 'Un flocon pousse dans un nuage, et chacune de ses branches raconte la même histoire : les mêmes températures, les mêmes vapeurs, au même instant. Sur une vitre en hiver, la glace dessine des fougères. Et dans une chaufferette de poche, un liquide qui attendait de geler se solidifie d’un coup, en rendant sa chaleur.',
+    legend: [
+      { color: '#cfe6ff', name: 'Flocon de neige', role: 'glace hexagonale · 1 à 5 mm', desc: 'La molécule d’eau, avec son angle de 104,5°, s’empile en réseau hexagonal : d’où les six branches. Leur forme dépend de la température et de l’humidité du nuage traversé.' },
+      { color: '#9fd8ff', name: 'Dendrite', role: 'branche qui se ramifie', desc: 'Une pointe qui avance trouve plus de vapeur (ou évacue mieux sa chaleur) : elle accélère, se déstabilise et lance des branches latérales. Du grec dendron, l’arbre.' },
+      { color: '#e8eef8', name: 'Plaque hexagonale', role: 'croissance lente · faces planes', desc: 'Quand la vapeur est rare, les faces plates du cristal ont le temps de se remplir : on obtient des plaques, parfois creusées de nervures.' },
+      { color: '#d8e4ff', name: 'Givre de vitre', role: 'glace en fougère', desc: 'Sur une vitre froide, l’eau gèle à partir d’une rayure ou d’une poussière, puis la glace court en dendrites le long du verre.' },
+      { color: '#ffd27a', name: 'Lumière polarisée', role: 'biréfringence de la glace', desc: 'La glace dédouble la lumière selon l’orientation de son réseau. Entre deux filtres polarisants croisés, chaque grain s’allume d’une couleur qui dépend de son orientation et de son épaisseur.' },
+      { color: '#ff8a3c', name: 'Chaleur latente', role: 'libérée au front de cristallisation', desc: 'Geler rend de la chaleur : 334 joules par gramme d’eau. Le liquide se réchauffe autour du cristal, ce qui freine sa croissance et façonne les branches.' },
+      { color: '#c8ccd8', name: 'Succinonitrile', role: 'analogue transparent des métaux', desc: 'Cristal cubique qui fond à 58 °C. Les métallurgistes l’observent au microscope pour voir pousser des dendrites comme celles des métaux qui refroidissent, invisibles car opaques.' },
+      { color: '#efe8d8', name: 'Acétate de sodium', role: 'chaufferette · 58 °C', desc: 'Dissous dans son eau de cristallisation, il reste liquide bien en dessous de 58 °C. Un clic sur la pastille de métal libère un germe : tout cristallise et la poche monte à 54 °C environ.' },
+    ],
+    about: [
+      'En 1611, Johannes Kepler offre à son protecteur un petit livre, « L’étrennes, ou la neige à six angles », où il se demande pourquoi les flocons ont six branches. La réponse attendra les rayons X, au XXᵉ siècle : les molécules d’eau s’empilent en réseau hexagonal. En 1885, Wilson Bentley, un fermier du Vermont, photographie le premier flocon au microscope ; il en photographiera plus de cinq mille.',
+      'Dans les années 1930, Ukichiro Nakaya fait pousser des flocons artificiels sur un poil de lapin et dresse leur diagramme : vers −2 °C, des plaques ; vers −5 °C, des aiguilles et des colonnes ; vers −15 °C, des étoiles ramifiées, d’autant plus fines que l’air est humide ; en dessous de −22 °C, à nouveau des plaques et des colonnes. « Un flocon est une lettre envoyée du ciel », écrivait-il : sa forme dit le chemin qu’il a parcouru.',
+      'Pourquoi les six branches se ressemblent-elles ? Parce qu’elles poussent ensemble, à quelques dixièmes de millimètre l’une de l’autre : elles traversent les mêmes conditions au même moment. Et pourquoi deux flocons ne se ressemblent-ils jamais ? Parce qu’ils ne suivent jamais exactement le même chemin dans le nuage. La simulation des flocons est l’automate de Clifford Reiter (2005) : la vapeur diffuse sur une grille hexagonale et les cases au contact de la glace gèlent peu à peu.',
+      'Le givre, la surfusion et la chaufferette sont calculés par un champ de phase (Ryo Kobayashi, 1993) : une grandeur passe continûment de liquide à solide, la tension de surface dépend de l’orientation (six directions pour la glace, quatre pour un cristal cubique, deux pour des aiguilles), et chaque case qui gèle libère sa chaleur latente. Les dendrites apparaissent d’elles-mêmes, par l’instabilité de Mullins et Sekerka (1964) : une bosse sur le front avance plus vite que ses voisines.',
+      'Un liquide peut rester liquide sous son point de fusion s’il n’a rien sur quoi commencer à cristalliser : c’est la surfusion. Dans les nuages, des gouttelettes restent liquides jusqu’à −40 °C ; elles gèlent instantanément sur les ailes des avions (le givrage). La chaufferette de poche pousse l’idée jusqu’au bout : on la recharge en la faisant bouillir, et elle garde sa chaleur des mois, jusqu’au clic.',
+    ],
+    tools: [
+      { id: 'observer', label: 'observer', desc: 'Touchez la glace ou le liquide : orientation du grain, température, sursaturation de la vapeur.' },
+      { id: 'germe', label: 'germe', desc: 'Touchez pour faire naître un cristal (un nouveau flocon dans la scène du nuage).' },
+      { id: 'chaleur', label: 'chaleur', desc: 'Glissez pour réchauffer : la glace fond sous le doigt. Pour le flocon, de l’air sec qui le sublime.' },
+      { id: 'froid', label: 'froid', desc: 'Glissez pour refroidir : la croissance repart. Pour le flocon, de la vapeur en plus.' },
+    ],
     make(env) {
-      const ctx = env.ctx;
-      const GW = 300, GH = Math.max(120, Math.round(GW * env.h / env.w));
-      const N = GW * GH;
-      const occ = new Uint8Array(N);
-      const b = buf(GW, GH);
-      const d = b.d;
-      for (let i = 0; i < N; i++) { const o = i * 4; d[o] = 6; d[o + 1] = 5; d[o + 2] = 14; }
-      let age = 0, wind = 0;
-      const walkers = [];
-      const spawn = () => ({ x: rint(GW), y: rint(GH) });
-      for (let i = 0; i < 500; i++) walkers.push(spawn());
-      function germ(x, y) {
-        for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
-          const px = clamp((x + ox) | 0, 1, GW - 2), py = clamp((y + oy) | 0, 1, GH - 2);
-          occ[py * GW + px] = 1; put(px, py);
-        }
+      try { return makeGL(env); } catch (e) {
+        console.warn('Le Cristal : repli en 2D', e);
+        return legacy(env);
       }
-      function put(x, y) {
-        const c = hsv(0.5 + age * 0.00004 + Math.sin(age * 0.0002) * 0.2, 0.55, 1);
-        const o = (y * GW + x) * 4;
-        d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2];
-      }
-      germ(GW / 2, GH / 2);
-      for (let i = 0; i < 3; i++) germ(rnd(GW - 30, 30), rnd(GH - 30, 30));
-      const near = (x, y) => occ[(y - 1) * GW + x] || occ[(y + 1) * GW + x] || occ[y * GW + x - 1] || occ[y * GW + x + 1];
-      return {
-        frame(t, dt) {
-          wind *= 0.96;
-          for (let step = 0; step < 7; step++) {
-            for (let i = 0; i < walkers.length; i++) {
-              const w = walkers[i];
-              w.x += (Math.random() < 0.5 ? -1 : 1) + (Math.random() < Math.abs(wind) ? Math.sign(wind) : 0);
-              w.y += Math.random() < 0.5 ? -1 : 1;
-              if (w.x < 1 || w.y < 1 || w.x >= GW - 1 || w.y >= GH - 1) { walkers[i] = spawn(); continue; }
-              const id = w.y * GW + w.x;
-              if (occ[id]) { walkers[i] = spawn(); continue; }
-              if (near(w.x, w.y)) {
-                occ[id] = 1; age++; put(w.x, w.y);
-                if (Math.random() < 0.004) env.audio.note(FK.scale(rint(10), 660), 0.5, 'sine', 0.03);
-                walkers[i] = spawn();
-              }
-            }
-          }
-          b.flush();
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.fillStyle = '#06050e'; ctx.fillRect(0, 0, env.w, env.h);
-          ctx.globalCompositeOperation = 'lighter';
-          blit(ctx, b, env.w, env.h);
-          ctx.globalAlpha = 0.35;
-          ctx.filter = 'blur(6px)';
-          blit(ctx, b, env.w, env.h);
-          ctx.filter = 'none';
-          ctx.globalAlpha = 1;
-          ctx.globalCompositeOperation = 'source-over';
-        },
-        down(p) {
-          const gx = p.x / env.w * GW, gy = p.y / env.h * GH;
-          if (env.tool === 'germe') { germ(gx, gy); env.audio.note(FK.scale(rint(8), 880), 0.7, 'triangle', 0.06); }
-        },
-        move(p) {
-          if (!p.down) return;
-          if (env.tool === 'brise') wind = clamp(p.dx * 0.05, -0.9, 0.9);
-          else if (Math.random() < 0.2) germ(p.x / env.w * GW, p.y / env.h * GH);
-        },
-      };
     },
   });
+
+  function makeGL(env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    const kS = clamp(Math.min(W, H) / 800, 0.6, 1.5);
+    const snd = () => au && au.on && au.ctx;
+    const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
+    const cfg = { scene: 'flocon', q: 'haute', cond: 'voyage', auto: true, pol: false, polRot: true, aniso: 4, under: 0.5, cool: 0.3, nucl: 0.4 };
+    let VT = 0;
+
+    /* ───────── ressources GPU ───────── */
+    let R = null;
+    function initGL(qk) {
+      const Q = QUAL[qk];
+      const K = GLKit(Math.round(W), Math.round(H));
+      const gl = K.gl, N = gl.NEAREST, Lf = gl.LINEAR;
+      const r = { K, Q, pg: { r1: K.program(FS_R1), r2: K.program(FS_R2), flake: K.program(FS_FLAKE), pf1: K.program(FS_PF1), pf2: K.program(FS_PF2), pfr: K.program(FS_PFR) } };
+      r.FN = Q.flake;
+      r.F = K.double(r.FN, r.FN, 'f32', N); r.UV = K.target(r.FN, r.FN, 'f32', N);
+      r.PW = Q.pf; r.PH = Math.max(64, Math.round((Q.pf * H) / W));
+      // filtrage au plus proche : le lissage des textures flottantes 32 bits manque sur beaucoup d'appareils
+      r.P = K.double(r.PW, r.PH, 'f32', N); r.Qd = K.target(r.PW, r.PH, 'f32', N);
+      return r;
+    }
+    R = initGL(cfg.q);
+
+    /* ───────── le flocon ───────── */
+    // conditions (β : vapeur ambiante, γ : apport, α : diffusion), rangées sur le diagramme de Nakaya
+    const COND = {
+      plaque: { nom: 'Plaque hexagonale', t: '−2 °C, air peu humide', b: 0.9, g: 0.0025, a: 1.0 },
+      secteurs: { nom: 'Plaque à secteurs', t: '−10 °C, humidité moyenne', b: 0.45, g: 0.0012, a: 1.2 },
+      etoile: { nom: 'Étoile', t: '−13 °C, air humide', b: 0.6, g: 0.0035, a: 1.6 },
+      fougere: { nom: 'Étoile en fougère', t: '−15 °C, air saturé', b: 0.36, g: 0.0007, a: 1.4 },
+    };
+    const fl = { step: 0, path: [], done: false, doneT: 0, rot: 0, cond: COND.etoile, b: 0.45, g: 0.0012, a: 1.2, r: 0 };
+    function newFlake() {
+      const { K } = R;
+      const N = R.FN, data = new Float32Array(N * N * 4);
+      for (let i = 0; i < N * N; i++) data[i * 4] = 0.42;
+      const c = (N >> 1) * N + (N >> 1); data[c * 4] = 1;
+      for (const t of [R.F.r, R.F.w]) { K.gl.bindTexture(K.gl.TEXTURE_2D, t.tex); K.gl.texImage2D(K.gl.TEXTURE_2D, 0, K.full ? K.gl.RGBA32F : K.gl.RGBA16F, N, N, 0, K.gl.RGBA, K.gl.FLOAT, data); }
+      fl.step = 0; fl.done = false; fl.rot = rnd(0.5, -0.5); fl.r = 0; fl.spc = 40; fl.lastR = 0; fl.lastS = 0; fl.acc = 0;
+      // un chemin dans le nuage : trois ou quatre étapes de conditions
+      const keys = Object.keys(COND);
+      if (cfg.cond === 'voyage') { fl.path = []; let n = 3 + rint(2); for (let i = 0; i < n; i++) fl.path.push({ k: keys[rint(keys.length)], len: rnd(1, 0.5) }); }
+      else fl.path = [{ k: cfg.cond, len: 1 }];
+      const tot = fl.path.reduce((s, p) => s + p.len, 0); let acc = 0;
+      for (const p of fl.path) { p.t0 = acc / tot; acc += p.len; p.t1 = acc / tot; }
+      setCond(0);
+      if (snd()) au.note(1568, 1.2, 'sine', 0.03);
+    }
+    function setCond(f) {
+      const i = Math.max(0, fl.path.findIndex((p) => f >= p.t0 && f < p.t1));
+      const P = fl.path[i] || fl.path[fl.path.length - 1], Q2 = fl.path[Math.min(fl.path.length - 1, i + 1)];
+      const k = clamp((f - P.t0) / (P.t1 - P.t0), 0, 1), m = k > 0.8 ? (k - 0.8) / 0.2 : 0;
+      const A = COND[P.k], B = COND[Q2.k];
+      fl.cond = A; fl.b = A.b + (B.b - A.b) * m; fl.g = A.g + (B.g - A.g) * m; fl.a = A.a + (B.a - A.a) * m;
+    }
+    const Rmax = () => (R.FN >> 1) - 3;
+    function flakeStep(n) {
+      const { K, pg } = R, N = R.FN;
+      for (let i = 0; i < n; i++) {
+        const f = clamp(fl.r / (Rmax() * 0.86), 0, 0.999);
+        setCond(f);
+        pg.r1.use().t('uS', R.F.r).i('uN', N).f('uBeta', fl.b).f('uRmax', Rmax()).f('uGam', fl.g * fl.gk);
+        K.run(pg.r1, R.UV);
+        pg.r2.use().t('uS', R.F.r).t('uUV', R.UV).i('uN', N).f('uBeta', fl.b).f('uRmax', Rmax()).f('uAlp', fl.a).f('uStep', fl.step);
+        K.run(pg.r2, R.F.w); R.F.swap();
+        fl.step++;
+      }
+    }
+    fl.gk = 1;
+    // rayon atteint : on lit la grille le long des six axes de temps en temps
+    function flakeRadius() {
+      const N = R.FN, c = N >> 1;
+      let best = 0;
+      for (let d = 0; d < 6; d++) {
+        const dir = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]][d];
+        let lo = fl.r * 0.9, hi = Rmax();
+        for (let r = Math.max(2, Math.floor(lo)); r < hi; r += 2) { const v = R.K.read(R.F.r, c + dir[0] * r, c + dir[1] * r)[0]; if (v < 1) { best = Math.max(best, r); break; } }
+      }
+      fl.r = Math.max(fl.r, best);
+      // pas de calcul nécessaires par case gagnée : sert à régler la vitesse de croissance
+      if (fl.r > fl.lastR + 2) { const k = (fl.step - fl.lastS) / (fl.r - fl.lastR); fl.spc = clamp(fl.spc * 0.5 + k * 0.5, 4, 400); fl.lastR = fl.r; fl.lastS = fl.step; }
+      else if (fl.step - fl.lastS > 6000) fl.stall = true;
+    }
+
+    /* ───────── champ de phase ───────── */
+    const PF = {
+      givre: { j: 6, del: 0.04, K: 2.1, gam: 10, eps: 0.01, teq: 1, t0: 0, mode: 0 },
+      surfusion: { j: 4, del: 0.035, K: 2.2, gam: 10, eps: 0.01, teq: 1, t0: 0, mode: 2 },
+      chaufferette: { j: 2, del: 0.12, K: 2.3, gam: 10, eps: 0.008, teq: 1, t0: 0, mode: 3 },
+    };
+    let seeds = [], seedT = 0, pfStart = 0, growth = 0;
+    function pfReset() {
+      const { K } = R, n = R.PW * R.PH, data = new Float32Array(n * 4);
+      const P = PF[cfg.scene];
+      for (let i = 0; i < n; i++) { data[i * 4 + 1] = P.t0 - (cfg.scene === 'surfusion' ? cfg.under * 0.4 : 0); data[i * 4 + 2] = 0; data[i * 4 + 3] = -1; }
+      for (const t of [R.P.r, R.P.w]) { K.gl.bindTexture(K.gl.TEXTURE_2D, t.tex); K.gl.texImage2D(K.gl.TEXTURE_2D, 0, K.full ? K.gl.RGBA32F : K.gl.RGBA16F, R.PW, R.PH, 0, K.gl.RGBA, K.gl.FLOAT, data); }
+      seeds = []; seedT = 0; pfStart = VT; growth = 0;
+      const v = view();
+      if (cfg.scene === 'givre') {
+        // la glace part des bords du cadre et de quelques rayures
+        for (let i = 0; i < 7; i++) seed(v.x0 + rnd(v.w), H - rnd(4, 0), rnd(Math.PI));
+        for (let i = 0; i < 3; i++) seed(v.x0 + rnd(4, 0) + (i % 2) * (v.w - 4), rnd(H), rnd(Math.PI));
+        for (let i = 0; i < 3; i++) seed(v.x0 + rnd(v.w * 0.8, v.w * 0.2), rnd(H * 0.7, H * 0.2), rnd(Math.PI));
+      } else if (cfg.scene === 'surfusion') seed(v.cx, H / 2, rnd(Math.PI));
+      else chaufT = 0;
+    }
+    function seed(x, y, ori, r) { if (seeds.length < 16) seeds.push({ x, y, r: (r || 3.2) * (W / R.PW), ori: ori == null ? rnd(Math.PI) : ori, seed: true }); }
+    function brush(x, y, amt) { if (seeds.length < 16) seeds.push({ x, y, r: 26 * kS, amt, seed: false }); }
+    let chaufT = 0, disc = null;
+    function pfStep(n, dt) {
+      const { K, pg } = R, P = PF[cfg.scene];
+      const px = [1 / R.PW, 1 / R.PH], DX = 0.03;
+      // germes au premier sous-pas seulement ; chaleur et froid répartis sur tous
+      const pack = (list) => { const A = new Float32Array(64), B = new Float32Array(64); list.forEach((s, i) => { A.set([s.x, s.y, s.r, s.ori || 0], i * 4); B.set([s.seed ? 1 : 0, (s.amt || 0) / n, 0, 0], i * 4); }); return [A, B, list.length]; };
+      const first = pack(seeds), rest = pack(seeds.filter((s) => !s.seed));
+      const del = cfg.scene === 'surfusion' && cfg.aniso === 6 ? 0.04 : P.del;
+      const j = cfg.scene === 'surfusion' ? cfg.aniso : P.j;
+      const cool = cfg.scene === 'givre' ? cfg.cool * 3 : 0;
+      for (let i = 0; i < n; i++) {
+        const S = i === 0 ? first : rest;
+        pg.pf1.use().t('uS', R.P.r).f('uPx', px[0], px[1]).f('uDx', DX).f('uEps', P.eps).f('uDel', del).f('uJ', j);
+        K.run(pg.pf1, R.Qd);
+        pg.pf2.use().t('uS', R.P.r).t('uQ', R.Qd).f('uPx', px[0], px[1]).f('uRes', W, H).f('uDx', DX).f('uDt', 0.00015).f('uTau', 0.0003)
+          .f('uAlp', 0.9).f('uGam', P.gam).f('uK', P.K).f('uTeq', P.teq).f('uCool', cool).f('uTime', (VT * 7.31 + i * 0.013) % 100).f('uSeedT', seedT)
+          .i('uNS', S[2]).v4('uSd', S[0]).v4('uSd2', S[1]);
+        K.run(pg.pf2, R.P.w); R.P.swap();
+      }
+      seedT += dt;
+      seeds = [];
+    }
+
+    /* ───────── scènes ───────── */
+    function setScene(id) {
+      cfg.scene = id; label = null;
+      if (id === 'flocon') newFlake();
+      else {
+        pfReset();
+        if (id === 'chaufferette') { const v = view(); disc = { x: v.cx + Math.min(v.w, H) * 0.22, y: H * 0.42, r: 16 * kS }; }
+      }
+    }
+    function setQuality(q) {
+      if (q === cfg.q) return;
+      try { const old = R; R = initGL(q); cfg.q = q; old.K.lose(); setScene(cfg.scene); } catch (e) { console.warn(e); }
+    }
+
+    /* ───────── sons ───────── */
+    const PENTA = [0, 2, 4, 7, 9];
+    function chime() { if (!snd()) return; const n = PENTA[rint(5)] + 12 * rint(2); au.note(1046 * Math.pow(2, n / 12), rnd(1.6, 0.8), 'sine', 0.018); }
+    function crackle(k) { if (snd() && Math.random() < k) au.noise(0.02, 0.03, rnd(7000, 3500), 2, 'bandpass'); }
+
+    /* ───────── vie autonome ───────── */
+    function update(dt) {
+      VT += dt;
+      if (cfg.scene === 'flocon') {
+        if (!fl.done) {
+          // vitesse réglée pour qu'un flocon pousse en ~8 s de simulation, quelle que soit sa forme
+          fl.acc += dt * ((Rmax() * 0.86) / 8) * fl.spc;
+          const n = Math.min(R.Q.sfl * 1.6, Math.floor(fl.acc)); fl.acc = Math.min(fl.acc - n, 4);
+          if (n > 0) flakeStep(n);
+          if ((fl.chk = (fl.chk || 0) + dt) > 0.15) { fl.chk = 0; flakeRadius(); }
+          if (Math.random() < dt * 1.5) chime();
+          if (fl.r > Rmax() * 0.86 || fl.stall || fl.step > 60000) { fl.done = true; fl.doneT = VT; fl.stall = false; }
+        } else if (cfg.auto && VT - fl.doneT > 6) newFlake();
+        fl.rot += dt * 0.02;
+      } else {
+        const n = Math.max(1, Math.round(Math.min(R.Q.spf * 1.6, dt * R.Q.spf * 150)));
+        // germes spontanés (givre) : poussières et rayures
+        if (cfg.scene === 'givre' && Math.random() < dt * cfg.nucl * 0.6) { const v = view(); seed(v.x0 + rnd(v.w), rnd(H), rnd(Math.PI), 2.2); }
+        if (cfg.scene === 'givre' && cfg.auto && VT - pfStart > 90) pfReset();
+        if (cfg.scene === 'surfusion' && cfg.auto && VT - pfStart > 50) pfReset();
+        if (cfg.scene === 'chaufferette' && chaufT > 0) chaufT += dt;
+        if (cfg.scene === 'chaufferette' && cfg.auto && chaufT > 40) pfReset();
+        if (cfg.scene === 'chaufferette' && cfg.auto && chaufT === 0 && VT - pfStart > 4) click();
+        pfStep(n, dt);
+        growth = Math.max(0, 1 - (VT - pfStart) / 25);
+        crackle(dt * 20 * growth * (cfg.scene === 'chaufferette' ? (chaufT > 0 ? 3 : 0) : 1));
+      }
+      if (pol.on) pol.a += dt * 0.08;
+    }
+    const pol = { a: 0.3, get on() { return cfg.polRot; } };
+    function click() {
+      if (!disc) return;
+      chaufT = 0.001;
+      // le clic libère quelques germes d'orientations variées : une gerbe d'aiguilles en part
+      for (let i = 0; i < 9; i++) { const a = (i / 9) * TAU; seed(disc.x + Math.cos(a) * disc.r * 1.3, disc.y + Math.sin(a) * disc.r * 1.3, a + rnd(0.3, -0.3), 2.5); }
+      if (snd()) { au.noise(0.05, 0.12, 2500, 1.5, 'bandpass'); au.note(1800, 0.08, 'triangle', 0.05); }
+    }
+
+    /* ───────── rendu ───────── */
+    let pending = false;
+    function render() {
+      const { K, pg } = R;
+      const bare = env.decor === false, ink = bare && env.theme === 'light';
+      if (cfg.scene === 'flocon') {
+        const v = view(), size = Math.min(v.w, H) * 0.92;
+        const cell = size / (2 * Rmax() * 0.9);
+        pg.flake.use().t('uS', R.F.r).i('uN', R.FN).f('uRes', W, H).f('uC', v.cx, H / 2).f('uCell', cell).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uTime', VT).f('uStep', fl.step).f('uRot', fl.rot);
+        K.run(pg.flake, null);
+      } else {
+        const P = PF[cfg.scene];
+        const mode = cfg.scene === 'givre' ? (cfg.pol ? 1 : 0) : P.mode;
+        pg.pfr.use().t('uS', R.P.r).f('uPx', 1 / R.PW, 1 / R.PH).f('uRes', W, H).f('uMode', mode).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uTime', VT).f('uPol', pol.a).f('uTeq', P.teq).f('uSeedT', seedT);
+        K.run(pg.pfr, null);
+      }
+      ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
+      if (cfg.scene === 'chaufferette' && !bare) drawPouch();
+      if (cfg.scene === 'flocon' && !bare) {
+        ctx.save(); ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = 'rgba(220,232,255,.7)'; ctx.textAlign = 'left';
+        const v = view(); ctx.fillText((fl.cond.nom + ' · ' + fl.cond.t).toUpperCase(), v.x0 + 16, H - 16); ctx.restore();
+      }
+      drawLabel(ink);
+    }
+    function drawPouch() {
+      const v = view(), d = disc;
+      // la pastille de métal qu'on fait claquer
+      ctx.save();
+      const g = ctx.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, 1, d.x, d.y, d.r);
+      g.addColorStop(0, '#f4f4f8'); g.addColorStop(0.6, '#a8acb8'); g.addColorStop(1, '#5a5e6a');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(40,40,50,.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(d.x, d.y, d.r * 0.6, 0, TAU); ctx.stroke();
+      // thermomètre
+      const temp = chaufT > 0 ? 20 + 34 * (1 - Math.exp(-chaufT / 4)) : 20;
+      ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = 'rgba(255,236,210,.8)';
+      ctx.fillText(chaufT > 0 ? `CRISTALLISATION · ${Math.round(temp)} °C` : 'LIQUIDE SURFONDU À 20 °C · TOUCHEZ LA PASTILLE', v.x0 + 16, H - 16);
+      ctx.restore();
+    }
+    function frame(t, dt) {
+      if (dt > 0) { update(dt); if (label) { label.t += dt * 2.5; if ((label.rt += dt) > 0.3) { label.rt = 0; label.m = readAt(label.x, label.y); } } }
+      if (!pending) { pending = true; queueMicrotask(() => { pending = false; render(); }); }
+    }
+
+    /* ───────── identification ───────── */
+    let label = null;
+    function readAt(x, y) {
+      try {
+        if (cfg.scene === 'flocon') {
+          const v = view(), size = Math.min(v.w, H) * 0.92, cell = size / (2 * Rmax() * 0.9);
+          let px = (x - v.cx) / cell, py = (y - H / 2) / cell;
+          const cs = Math.cos(fl.rot), sn = Math.sin(fl.rot); [px, py] = [cs * px - sn * py, sn * px + cs * py];
+          const r = py * 1.1547, q = px - r / 2;
+          const s = R.K.read(R.F.r, Math.round(q + (R.FN >> 1)), Math.round(r + (R.FN >> 1)));
+          return { s: s[0], born: s[1], rmm: (Math.hypot(px, py) / (Rmax() * 0.86)) * 1.5 };
+        }
+        const s = R.K.read(R.P.r, (x / W) * R.PW, (1 - y / H) * R.PH);
+        return { phi: s[0], T: s[1], ori: s[2] };
+      } catch (e) { return null; }
+    }
+    function describe(l) {
+      const m = l.m;
+      if (!m) return ['Mesure indisponible', 'ce navigateur ne lit pas les textures flottantes', '#c8d0e0'];
+      if (cfg.scene === 'flocon') {
+        if (m.s >= 1) return ['Glace', `à ${fr(m.rmm, 2)} mm du centre · épaisseur relative ${fr(m.s - 1, 2)} · ${fl.cond.nom.toLowerCase()}`, '#cfe6ff'];
+        return ['Vapeur d’eau', `sursaturée · densité ${fr(m.s, 2)} (le nuage en fournit ${fr(fl.b, 2)}) · elle se dépose sur les pointes`, '#9fd8ff'];
+      }
+      const deg = Math.round((((m.ori % Math.PI) + Math.PI) % Math.PI) * 180 / Math.PI);
+      if (cfg.scene === 'givre') return m.phi > 0.5 ? ['Glace', `grain orienté à ${deg}° · ${fr((m.T - 1) * 12)} °C`, '#d8e4ff'] : ['Eau surfondue', `pellicule sur le verre · ${fr((m.T - 1) * 12)} °C · gèlera au contact de la glace`, '#9fd8ff'];
+      if (cfg.scene === 'surfusion') return m.phi > 0.5 ? ['Succinonitrile solide', `dendrite cubique · grain à ${deg}° · ${fr(58 + (m.T - 1) * 4)} °C`, '#c8ccd8'] : ['Succinonitrile liquide', `surfondu · ${fr(58 + (m.T - 1) * 4)} °C (fond à 58 °C) · réchauffé par la chaleur latente`, '#ff8a3c'];
+      return m.phi > 0.5 ? ['Acétate de sodium trihydraté', `aiguilles · ${Math.round(20 + 38 * clamp(m.T, 0, 1))} °C`, '#efe8d8'] : ['Solution surfondue', `${Math.round(20 + 38 * clamp(m.T, 0, 1))} °C · liquide bien sous 58 °C`, '#e8d8a8'];
+    }
+    function drawLabel(paper) {
+      if (!label) return;
+      const a = Math.min(1, label.t * 4, (6 - label.t) * 2);
+      if (a <= 0.01) { label = null; return; }
+      const { x, y } = label;
+      let [name, role, col] = describe(label);
+      if (paper) col = '#4a3a6a';
+      const v = view(), side = x > v.x0 + v.w * 0.5 ? -1 : 1, lx = x + side * 46, ly = y < 70 ? y + 50 : y - 40;
+      ctx.save();
+      ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, 13, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + side * 9, y + (ly > y ? 9 : -9)); ctx.lineTo(lx - side * 6, ly + (ly > y ? -12 : 6)); ctx.stroke();
+      ctx.shadowColor = paper ? 'rgba(250,246,238,.9)' : 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6;
+      ctx.textAlign = side > 0 ? 'left' : 'right';
+      ctx.fillStyle = paper ? 'rgba(30,24,40,.94)' : 'rgba(250,250,245,.96)';
+      ctx.font = 'italic 500 14px "Space Grotesk", sans-serif'; ctx.fillText(name, lx, ly);
+      ctx.fillStyle = col; ctx.font = '500 9.5px "JetBrains Mono", monospace'; ctx.fillText(role.toUpperCase(), lx, ly + 15);
+      ctx.restore();
+    }
+
+    if (window.FASC_DEBUG) window.FASC_DEBUG.cristal = { get R() { return R; }, cfg, fl, setScene, newFlake, seed, click, run(n, h) { for (let i = 0; i < n; i++) { update(h); render(); } }, render, readAt };
+
+    setScene('flocon');
+    let last = null;
+    return {
+      livePaused: true,
+      frame,
+      down(p) {
+        const tool = env.tool; last = { x: p.x, y: p.y };
+        if (tool === 'observer') { label = { x: p.x, y: p.y, t: 0, rt: 0, m: readAt(p.x, p.y) }; return; }
+        if (cfg.scene === 'flocon') {
+          if (tool === 'germe') newFlake();
+          else if (tool === 'chaleur') fl.gk = 0.25; else if (tool === 'froid') fl.gk = 2.5;
+          return;
+        }
+        if (cfg.scene === 'chaufferette' && Math.hypot(p.x - disc.x, p.y - disc.y) < disc.r * 1.6) { click(); return; }
+        if (tool === 'germe') { seed(p.x, p.y, rnd(Math.PI)); if (snd()) au.note(rnd(2400, 1600), 0.15, 'triangle', 0.03); }
+        else if (tool === 'chaleur') brush(p.x, p.y, 0.5);
+        else if (tool === 'froid') brush(p.x, p.y, -0.5);
+      },
+      move(p) {
+        if (!p.down) return;
+        if (cfg.scene === 'flocon') return;
+        const tool = env.tool;
+        if (tool === 'chaleur') brush(p.x, p.y, 0.35);
+        else if (tool === 'froid') brush(p.x, p.y, -0.35);
+        else if (tool === 'germe' && last && Math.hypot(p.x - last.x, p.y - last.y) > 30 * kS) { seed(p.x, p.y, rnd(Math.PI)); last = { x: p.x, y: p.y }; }
+      },
+      up() { fl.gk = 1; },
+      clear() { if (cfg.scene === 'flocon') newFlake(); else pfReset(); },
+      dispose() { R.K.lose(); },
+      ui() {
+        const L = [{ type: 'section', label: 'Scènes' }];
+        L.push({ type: 'buttons', items: [
+          { label: 'Flocon de neige', act: () => setScene('flocon') },
+          { label: 'Givre sur la vitre', act: () => setScene('givre') },
+          { label: 'Surfusion', act: () => setScene('surfusion') },
+          { label: 'Chaufferette', act: () => setScene('chaufferette') },
+        ] });
+        if (cfg.scene === 'flocon') {
+          L.push({ type: 'section', label: 'Le nuage' });
+          L.push({ type: 'note', text: `${fl.cond.nom} · ${fl.cond.t}.` + (cfg.cond === 'voyage' ? ' Parcours : ' + fl.path.map((p) => COND[p.k].nom.toLowerCase()).join(' → ') + '.' : '') });
+          L.push({ type: 'bar', label: 'Croissance', color: '#cfe6ff', value: clamp(fl.r / (Rmax() * 0.86), 0, 1), txt: fr((fl.r / (Rmax() * 0.86)) * 1.5, 1) + ' mm' });
+          L.push({ type: 'choice', label: 'Conditions', value: cfg.cond, set: (x) => { cfg.cond = x; newFlake(); }, options: [{ id: 'voyage', label: 'Voyage dans le nuage' }, ...Object.keys(COND).map((k) => ({ id: k, label: COND[k].nom }))] });
+          L.push({ type: 'buttons', items: [{ label: 'Nouveau flocon', act: () => newFlake() }] });
+          L.push({ type: 'toggle', label: 'Un nouveau flocon quand il est fini', value: cfg.auto, set: (x) => { cfg.auto = x; } });
+        } else {
+          L.push({ type: 'section', label: { givre: 'Givre', surfusion: 'Surfusion', chaufferette: 'Chaufferette' }[cfg.scene] });
+          if (cfg.scene === 'givre') {
+            L.push({ type: 'toggle', label: 'Entre deux polariseurs croisés', value: cfg.pol, set: (x) => { cfg.pol = x; } });
+            if (cfg.pol) L.push({ type: 'toggle', label: 'Tourner les polariseurs', value: cfg.polRot, set: (x) => { cfg.polRot = x; } });
+            L.push({ type: 'slider', label: 'Froid du dehors', min: 0, max: 1, step: 0.01, value: cfg.cool, fmt: (x) => (x < 0.15 ? 'redoux' : x < 0.6 ? 'nuit de gel' : 'grand froid'), set: (x) => { cfg.cool = x; } });
+            L.push({ type: 'slider', label: 'Poussières et rayures', min: 0, max: 1, step: 0.01, value: cfg.nucl, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { cfg.nucl = x; } });
+          }
+          if (cfg.scene === 'surfusion') {
+            L.push({ type: 'slider', label: 'Surfusion', min: 0, max: 1, step: 0.01, value: cfg.under, fmt: (x) => fr(1.5 + x * 2.5) + ' °C sous la fusion', set: (x) => { cfg.under = x; } });
+            L.push({ type: 'choice', label: 'Symétrie du cristal', value: cfg.aniso, set: (x) => { cfg.aniso = x; pfReset(); }, options: [{ id: 4, label: 'Cubique (4)' }, { id: 6, label: 'Hexagonale (6)' }] });
+          }
+          if (cfg.scene === 'chaufferette') L.push({ type: 'buttons', items: [{ label: 'Clic !', act: () => click() }, { label: 'Faire bouillir (recharger)', act: () => pfReset() }] });
+          else L.push({ type: 'buttons', items: [{ label: 'Recommencer', act: () => pfReset() }] });
+          L.push({ type: 'toggle', label: 'Recommencer tout seul', value: cfg.auto, set: (x) => { cfg.auto = x; } });
+        }
+        L.push({ type: 'section', label: 'Calcul' });
+        L.push({ type: 'choice', label: 'Définition', value: cfg.q, set: setQuality, options: [{ id: 'legere', label: 'Légère' }, { id: 'normale', label: 'Normale' }, { id: 'haute', label: 'Haute' }] });
+        L.push({ type: 'note', text: cfg.scene === 'flocon' ? `Grille hexagonale de ${R.FN}×${R.FN} cases · ${fl.step} pas.` : `Grille ${R.PW}×${R.PH} · champ de phase de Kobayashi.` });
+        return L;
+      },
+    };
+  }
+
+  /* ───────── repli : l'ancien Cristal (agrégation limitée par diffusion) ───────── */
+  function legacy(env) {
+    const ctx = env.ctx;
+    const GW = 300, GH = Math.max(120, Math.round(GW * env.h / env.w));
+    const N = GW * GH;
+    const occ = new Uint8Array(N);
+    const b = buf(GW, GH);
+    const d = b.d;
+    for (let i = 0; i < N; i++) { const o = i * 4; d[o] = 6; d[o + 1] = 5; d[o + 2] = 14; }
+    let age = 0;
+    const walkers = [];
+    const spawn = () => ({ x: rint(GW), y: rint(GH) });
+    for (let i = 0; i < 500; i++) walkers.push(spawn());
+    function put(x, y) { const c = hsv(0.5 + age * 0.00004 + Math.sin(age * 0.0002) * 0.2, 0.55, 1); const o = (y * GW + x) * 4; d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; }
+    function germ(x, y) { for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) { const px = clamp((x + ox) | 0, 1, GW - 2), py = clamp((y + oy) | 0, 1, GH - 2); occ[py * GW + px] = 1; put(px, py); } }
+    germ(GW / 2, GH / 2);
+    const near = (x, y) => occ[(y - 1) * GW + x] || occ[(y + 1) * GW + x] || occ[y * GW + x - 1] || occ[y * GW + x + 1];
+    return {
+      frame() {
+        for (let step = 0; step < 7; step++) for (let i = 0; i < walkers.length; i++) {
+          const w = walkers[i];
+          w.x += Math.random() < 0.5 ? -1 : 1; w.y += Math.random() < 0.5 ? -1 : 1;
+          if (w.x < 1 || w.y < 1 || w.x >= GW - 1 || w.y >= GH - 1) { walkers[i] = spawn(); continue; }
+          const id = w.y * GW + w.x;
+          if (occ[id]) { walkers[i] = spawn(); continue; }
+          if (near(w.x, w.y)) { occ[id] = 1; age++; put(w.x, w.y); walkers[i] = spawn(); }
+        }
+        b.flush();
+        ctx.fillStyle = '#06050e'; ctx.fillRect(0, 0, env.w, env.h);
+        blit(ctx, b, env.w, env.h);
+      },
+      down(p) { if (env.tool === 'germe') germ(p.x / env.w * GW, p.y / env.h * GH); },
+    };
+  }
 })();
 
 ;
@@ -8356,80 +8911,6 @@ void main(){
     },
   });
 
-  /* ─────────── LE FRACTAL ─────────── */
-  S.push({
-    id: 'fractal', name: 'Le Fractal', cat: 'Motifs', glyph: '❈',
-    blurb: 'Mandelbrot, Julia, et un puits sans fond',
-    hint: 'Cliquez pour plonger vers un point · l’outil Julia sculpte l’ensemble avec le curseur.',
-    tools: [{ id: 'plonger', label: 'plonger' }, { id: 'julia', label: 'julia' }, { id: 'sortir', label: 'reculer' }],
-    make(env) {
-      const ctx = env.ctx;
-      const RW = 260, RH = Math.max(100, Math.round(RW * env.h / env.w));
-      const b = buf(RW, RH);
-      const it = new Float32Array(RW * RH);
-      let cx = -0.743643887, cy = 0.131825904, zoom = 3.2, tzoom = 3.2;
-      let jx = -0.4, jy = 0.6, julia = false;
-      const MAXI = 190;
-      return {
-        frame(t, dt) {
-          zoom += (tzoom - zoom) * 0.05;
-          if (!julia) tzoom *= 1 - dt * 0.06;
-          if (tzoom < 4e-13) tzoom = 3.2;
-          const aspect = RW / RH;
-          const w = zoom, h = zoom / aspect;
-          for (let py = 0; py < RH; py++) {
-            const y0 = cy + (py / RH - 0.5) * h;
-            for (let px = 0; px < RW; px++) {
-              const x0 = cx + (px / RW - 0.5) * w;
-              let zx = julia ? x0 : 0, zy = julia ? y0 : 0;
-              const kx = julia ? jx : x0, ky = julia ? jy : y0;
-              let i = 0, zx2 = zx * zx, zy2 = zy * zy;
-              while (i < MAXI && zx2 + zy2 < 16) {
-                zy = 2 * zx * zy + ky; zx = zx2 - zy2 + kx;
-                zx2 = zx * zx; zy2 = zy * zy; i++;
-              }
-              let v = i;
-              if (i < MAXI) v = i + 1 - Math.log(Math.log(Math.sqrt(zx2 + zy2)) / Math.log(2)) / Math.log(2);
-              it[py * RW + px] = i >= MAXI ? -1 : v;
-            }
-          }
-          const d = b.d, n = RW * RH;
-          for (let i = 0; i < n; i++) {
-            const v = it[i], o = i * 4;
-            if (v < 0) { d[o] = 6; d[o + 1] = 4; d[o + 2] = 12; continue; }
-            const c = hsv(v * 0.012 + t * 0.05, 0.72, clamp(0.25 + v * 0.02, 0, 1));
-            d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2];
-          }
-          b.flush();
-          ctx.globalCompositeOperation = 'source-over';
-          blit(ctx, b, env.w, env.h);
-          ctx.fillStyle = 'rgba(255,255,255,.35)';
-          ctx.font = '11px ui-monospace, monospace';
-          ctx.fillText(julia ? `julia  c = ${jx.toFixed(3)} ${jy >= 0 ? '+' : '−'} ${Math.abs(jy).toFixed(3)}i` : `zoom ×${(3.2 / zoom).toExponential(1)}`, 16, env.h - 16);
-        },
-        down(p) {
-          if (env.tool === 'julia') { julia = true; return this.move({ ...p, down: true }); }
-          julia = false;
-          const aspect = RW / RH;
-          const nx = cx + (p.x / env.w - 0.5) * zoom, ny = cy + (p.y / env.h - 0.5) * zoom / aspect;
-          cx = nx; cy = ny;
-          if (env.tool === 'sortir') { tzoom = Math.min(3.2, zoom * 3); }
-          else tzoom = zoom * 0.35;
-          env.audio.note(rnd(300, 120), 0.7, 'sine', 0.07, rnd(900, 400));
-        },
-        move(p) {
-          if (!p.down) return;
-          if (env.tool === 'julia') {
-            julia = true;
-            jx = lerp(-1.1, 0.5, clamp(p.x / env.w, 0, 1));
-            jy = lerp(-0.9, 0.9, clamp(p.y / env.h, 0, 1));
-            cx = 0; cy = 0; tzoom = 3.2;
-          }
-        },
-      };
-    },
-  });
-
   /* ─────────── LE MOIRÉ ─────────── */
   S.push({
     id: 'moire', name: 'Le Moiré', cat: 'Motifs', glyph: '◎',
@@ -8482,6 +8963,720 @@ void main(){
       };
     },
   });
+})();
+
+;
+/* ═════ js/machines/s-fractales.js ═════ */
+/* Fascination — Les Fractales · Mandelbrot sans fond, Julia, flammes et courbes (WebGL2 + 2D)
+   Mandelbrot : plongée profonde par la méthode des perturbations — une orbite de référence calculée en double
+   précision (JS), et pour chaque pixel l'écart à cette orbite en simple précision sur la carte graphique, avec
+   « rebasage » (Zhuoran, 2021) pour éviter les défauts. Zoom jusqu'à ~10⁻¹³. Ombrage par estimation de distance
+   et carte de normales. Son : glissando de Shepard qui descend sans fin.
+   Julia : c qui voyage au bord de l'ensemble de Mandelbrot, carte en médaillon.
+   Flammes : jeu du chaos (fougère de Barnsley, Sierpiński, dragon, érable, flammes à variations) en densité log.
+   Courbes : dragon qui se déplie, flocon de Koch, arbre de Pythagore. */
+(function boot() {
+  if (!window.FK || !window.FKGL) return setTimeout(boot, 12);
+  const { TAU, clamp, rnd, rint } = window.FK;
+  const { GLKit, HEAD } = window.FKGL;
+  const fr = (x, d = 1) => x.toFixed(d).replace('.', ',');
+  const QUAL = { legere: { res: 0.5, pts: 40000, it: 0.7 }, normale: { res: 0.75, pts: 80000, it: 0.9 }, haute: { res: 1, pts: 140000, it: 1 } };
+
+  /* ───────── couleurs (communes aux deux shaders) ───────── */
+  const COLOR = `
+uniform int uPal; uniform float uRhy, uPhase, uRelief, uInk;
+vec3 cosp(float t, vec3 a, vec3 b, vec3 c, vec3 d){ return a + b * cos(6.2831853 * (c * t + d)); }
+vec3 classic(float t){
+  t = fract(t);
+  vec3 c0 = vec3(0., 7., 100.) / 255., c1 = vec3(32., 107., 203.) / 255., c2 = vec3(237., 255., 255.) / 255., c3 = vec3(255., 170., 0.) / 255., c4 = vec3(0., 2., 0.) / 255.;
+  if (t < .16) return mix(c4, c0, t / .16) * 0. + mix(c0, c1, t / .16);
+  if (t < .42) return mix(c1, c2, (t - .16) / .26);
+  if (t < .6425) return mix(c2, c3, (t - .42) / .2225);
+  if (t < .8575) return mix(c3, c4, (t - .6425) / .215);
+  return mix(c4, c0, (t - .8575) / .1425);
+}
+vec3 pal(float t){
+  if (uPal == 0) return classic(t);
+  if (uPal == 1) return cosp(t, vec3(.5), vec3(.5), vec3(1.), vec3(0., .1, .2));
+  if (uPal == 2) return cosp(t, vec3(.5), vec3(.5), vec3(1., .7, .4), vec3(0., .15, .2));
+  if (uPal == 3) return cosp(t, vec3(.5), vec3(.5), vec3(1.), vec3(0., .33, .67));
+  if (uPal == 4) return cosp(t, vec3(.8, .5, .4), vec3(.2, .4, .2), vec3(2., 1., 1.), vec3(0., .25, .25));
+  return vec3(.15, .13, .3);
+}
+// it : itérations lissées (-1 = intérieur) · z : valeur finale · der : dérivée · px : taille d'un pixel
+vec3 shade(float it, vec2 z, vec2 der, float px){
+  vec3 paper = vec3(.953, .933, .89);
+  if (it < 0.) return uPal == 5 ? vec3(.13, .11, .26) : vec3(.012, .01, .025);
+  float r = length(z), dist = .5 * r * log(r) / max(length(der), 1e-30);
+  float e = clamp(dist / px, 0., 4.);
+  vec2 u = z / der; u /= max(length(u), 1e-30);
+  float lt = clamp((dot(u, vec2(.7071)) + 1.5) / 2.5, 0., 1.);
+  if (uPal == 5){
+    float ink = 1. - smoothstep(0., 1.6, e);
+    return mix(paper, vec3(.13, .11, .26), clamp(ink * .9 + (1. - lt) * .25 * uRelief, 0., 1.));
+  }
+  vec3 c = pal(sqrt(max(it, 0.)) * .085 * uRhy + uPhase);
+  c *= mix(1., .35 + .9 * lt, uRelief);
+  c *= mix(.25, 1., smoothstep(0., 1.2, e));
+  return c;
+}
+vec2 cmul(vec2 a, vec2 b){ return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x); }
+`;
+  // Mandelbrot par perturbation autour d'une orbite de référence
+  const FS_PERT = HEAD + COLOR + `
+uniform sampler2D uRef; uniform int uRefN, uMaxI; uniform vec2 uRes, uOff; uniform float uScale;
+out vec4 o;
+vec2 Z(int n){ return texelFetch(uRef, ivec2(n % 1024, n / 1024), 0).xy; }
+void main(){
+  vec2 dc = uOff + (gl_FragCoord.xy - uRes * .5) * uScale;
+  vec2 dz = vec2(0.), der = vec2(0.), dzz = vec2(1., 0.), z = vec2(0.);
+  int n = 0, i = 0; bool esc = false;
+  for (i = 0; i < 20000; i++){
+    if (i >= uMaxI) break;
+    vec2 Zn = Z(n);
+    z = Zn + dz;
+    der = 2. * cmul(z, der) + vec2(1., 0.);
+    if (i > 0) dzz = 2. * cmul(z, dzz); // z₀ = 0 : on commence à z₁ = c
+    dz = cmul(2. * Zn + dz, dz) + dc;
+    n++;
+    z = Z(n) + dz;
+    float r2 = dot(z, z);
+    if (r2 > 1e8){ esc = true; break; }
+    if (dot(dzz, dzz) < 1e-12 && i > 8) break; // cycle attractif : intérieur
+    if (r2 < dot(dz, dz) || n >= uRefN - 1){ dz = z; n = 0; } // rebasage
+  }
+  float it = esc ? float(i) + 1. - log2(log(length(z))) : -1.;
+  o = vec4(shade(it, z, der, uScale), 1.);
+}`;
+  // calcul direct en simple précision : Julia et variantes
+  const FS_DIRECT = HEAD + COLOR + `
+uniform int uF, uMaxI; uniform vec2 uRes, uC0, uJc; uniform float uScale; uniform vec4 uMark;
+out vec4 o;
+void main(){
+  vec2 p = uC0 + (gl_FragCoord.xy - uRes * .5) * uScale;
+  bool jul = uF == 1;
+  vec2 c = jul ? uJc : p, z = jul ? p : vec2(0.), der = jul ? vec2(1., 0.) : vec2(0.);
+  int i = 0; bool esc = false;
+  for (i = 0; i < 4000; i++){
+    if (i >= uMaxI) break;
+    if (uF == 4){ der = 3. * cmul(cmul(z, z), der) + vec2(1., 0.); z = cmul(cmul(z, z), z) + c; }
+    else {
+      vec2 zz = z;
+      if (uF == 2) zz = vec2(abs(z.x), abs(z.y));
+      if (uF == 3) zz = vec2(z.x, -z.y);
+      der = 2. * cmul(zz, der) + (jul ? vec2(0.) : vec2(1., 0.));
+      z = cmul(zz, zz) + c;
+    }
+    if (dot(z, z) > 1e8){ esc = true; break; }
+  }
+  float it = esc ? float(i) + 1. - log2(log(length(z))) / log2(uF == 4 ? 3. : 2.) : -1.;
+  vec3 col = shade(it, z, der, uScale);
+  if (uMark.z > 0.){ float d = length(gl_FragCoord.xy - uMark.xy); col = mix(col, vec3(1.), smoothstep(2.5, 1., abs(d - uMark.z))); }
+  o = vec4(col, 1.);
+}`;
+
+  /* ───────── jeu du chaos : systèmes de fonctions itérées ───────── */
+  // x' = a x + b y + e ; y' = c x + d y + f ; p : probabilité ; k : couleur
+  const IFS = {
+    fougere: { nom: 'Fougère de Barnsley', m: [[0, 0, 0, 0.16, 0, 0, 0.01], [0.85, 0.04, -0.04, 0.85, 0, 1.6, 0.85], [0.2, -0.26, 0.23, 0.22, 0, 1.6, 0.07], [-0.15, 0.28, 0.26, 0.24, 0, 0.44, 0.07]] },
+    sierpinski: { nom: 'Triangle de Sierpiński', m: [[0.5, 0, 0, 0.5, 0, 0, 1], [0.5, 0, 0, 0.5, 0.5, 0, 1], [0.5, 0, 0, 0.5, 0.25, 0.433, 1]] },
+    dragon: { nom: 'Dragon de Heighway', m: [[0.5, -0.5, 0.5, 0.5, 0, 0, 1], [-0.5, -0.5, 0.5, -0.5, 1, 0, 1]] },
+    erable: { nom: 'Feuille d’érable', m: [[0.14, 0.01, 0, 0.51, -0.08, -1.31, 0.1], [0.43, 0.52, -0.45, 0.5, 1.49, -0.75, 0.35], [0.45, -0.49, 0.47, 0.47, -1.62, -0.74, 0.35], [0.49, 0, 0, 0.51, 0.02, 1.62, 0.2]] },
+  };
+  const VARS = ['linéaire', 'sinus', 'sphère', 'tourbillon', 'fer à cheval', 'mouchoir'];
+  function randFlame() {
+    const n = 3 + rint(2), m = [];
+    for (let i = 0; i < n; i++) {
+      const a = rnd(TAU), s = rnd(0.85, 0.35), sk = rnd(0.4, -0.4);
+      m.push([s * Math.cos(a), -s * Math.sin(a) + sk, s * Math.sin(a), s * Math.cos(a), rnd(1, -1), rnd(1, -1), rnd(1, 0.3), VARS.map(() => (Math.random() < 0.45 ? rnd(1, 0) : 0))]);
+    }
+    for (const t of m) { const sum = t[7].reduce((x, y) => x + y, 0); if (sum < 0.1) t[7][0] = 1; else t[7] = t[7].map((x) => x / sum); }
+    return { nom: 'Flamme', m, sym: [1, 2, 3, 5, 6][rint(5)], flame: true };
+  }
+
+  const MANDEL_TARGETS = [
+    { nom: 'Vallée des hippocampes', x: -0.7436438870371587, y: 0.13182590420531197, fin: 2e-12 },
+    { nom: 'Point de Feigenbaum', x: -1.4011551890920506, y: 0, fin: 2e-5 },
+    { nom: 'Point de Misiurewicz', x: -0.10109636384562, y: 0.95628651080914, fin: 4e-12 }, // z₃ = z₄ : l'orbite tombe sur un point fixe
+    { nom: 'Dendrite de c = i', x: 0, y: 1, fin: 4e-12 },
+    { nom: 'Mini-Mandelbrot', x: -1.7548776662466927, y: 0, fin: 0.004 },
+    { nom: 'Vallée des éléphants', x: 0.2925755, y: -0.0149977, fin: 2e-6 },
+  ];
+  // centre exact du mini-Mandelbrot de période 3 : racine de c³ + 2c² + c + 1 = 0
+  (() => { let c = -1.75; for (let i = 0; i < 60; i++) c -= (c * c * c + 2 * c * c + c + 1) / (3 * c * c + 4 * c + 1); MANDEL_TARGETS[4].x = c; })();
+
+  window.FASC.push({
+    id: 'fractal', name: 'Les Fractales', cat: 'Motifs', glyph: '❈', smoothTime: true,
+    blurb: 'Mandelbrot sans fond, Julia, flammes et courbes',
+    hint: 'OBSERVER : touchez pour savoir si le point appartient à l’ensemble · PLONGER : touchez pour zoomer, glissez pour vous déplacer · RECULER : touchez pour dézoomer · SCULPTER : glissez pour changer c (Julia), voir le Julia d’un point (Mandelbrot) ou plier la courbe.',
+    intro: 'Une seule ligne de calcul, z devient z² + c, répétée encore et encore. Selon le point de départ, le nombre reste sage ou s’envole. La frontière entre les deux est l’objet le plus compliqué des mathématiques : on peut y plonger mille milliards de fois sans jamais toucher le fond, et retrouver en chemin des copies de l’ensemble entier.',
+    legend: [
+      { color: '#202060', name: 'Ensemble de Mandelbrot', role: 'z → z² + c, z part de 0', desc: 'Les valeurs de c pour lesquelles la suite reste bornée. Il est connexe (Douady et Hubbard, 1982), et son bord a une dimension de Hausdorff égale à 2 (Shishikura, 1998).' },
+      { color: '#ffaa00', name: 'Bandes de couleur', role: 'vitesse de fuite', desc: 'Hors de l’ensemble, la couleur dit combien d’étapes il faut pour s’échapper. Les bandes sont lissées par le logarithme de la distance atteinte.' },
+      { color: '#9fd8ff', name: 'Ensemble de Julia', role: 'même formule, c fixé', desc: 'On fixe c et on fait varier le point de départ. Si c est dans l’ensemble de Mandelbrot, le Julia est d’un seul tenant ; sinon c’est une poussière de Cantor.' },
+      { color: '#e8c070', name: 'Mini-Mandelbrot', role: 'copie presque parfaite', desc: 'Le long des filaments se cachent une infinité de copies de l’ensemble entier, entourées chacune de leur propre décor.' },
+      { color: '#ff7a5a', name: 'Point de Feigenbaum', role: 'c ≈ −1,401155', desc: 'Là s’accumulent les doublements de période. En y plongeant, le même motif revient tous les 4,669… fois : la constante de Feigenbaum, qui régit aussi les robinets qui gouttent et les populations animales.' },
+      { color: '#79f3b4', name: 'Fougère de Barnsley', role: '4 transformations · jeu du chaos', desc: 'Quatre déplacements choisis au hasard, répétés des milliers de fois : une fougère apparaît. Michael Barnsley l’a montré en 1988.' },
+      { color: '#ff8ad8', name: 'Flamme fractale', role: 'Scott Draves, 1992', desc: 'Des transformations tordues par des fonctions (sinus, sphère, tourbillon), et une image tirée de la densité des points en échelle logarithmique, comme une photographie à pose longue.' },
+      { color: '#c09aff', name: 'Courbe du dragon', role: 'pliages successifs', desc: 'Pliez une bande de papier en deux, puis encore en deux, dix fois dans le même sens, et dépliez chaque pli à angle droit : vous tenez un dragon. La courbe ne se croise jamais.' },
+      { color: '#9fe0ff', name: 'Flocon de Koch', role: 'périmètre infini, aire finie', desc: 'Chaque côté est remplacé par quatre côtés trois fois plus courts. Le périmètre est multiplié par 4/3 à chaque étape et tend vers l’infini ; l’aire reste finie, 8/5 de celle du triangle de départ.' },
+    ],
+    about: [
+      'Le mot « fractale » est inventé en 1975 par Benoît Mandelbrot, du latin fractus, brisé. Il voulait nommer ces formes rugueuses à toutes les échelles qu’on avait longtemps traitées de « monstres » : la courbe de Koch (1904), le triangle de Sierpiński (1915), les ensembles que Gaston Julia et Pierre Fatou étudiaient en 1918, sans ordinateur pour les voir. Sa question de 1967 est restée célèbre : combien mesure la côte de la Bretagne ? Plus la règle est petite, plus la côte est longue.',
+      'L’ensemble de Mandelbrot apparaît pour la première fois sur une imprimante en 1980, au centre de recherche d’IBM. Sa définition tient en une ligne, mais son bord ne finit jamais : chaque zoom révèle des hippocampes, des spirales, des éclairs et des copies miniatures de l’ensemble entier, reliées par des filaments. Adrien Douady, qui l’a étudié avec John Hubbard, disait qu’il y avait là « de quoi occuper les mathématiciens pendant des siècles ».',
+      'Plonger profond demande de la précision : à 10⁻⁷, la simple précision des cartes graphiques ne distingue plus deux pixels voisins. La simulation calcule donc une seule orbite de référence en double précision, puis, pour chaque pixel, seulement l’écart à cette orbite, qui tient dans les nombres de la carte graphique. Quand l’écart menace de devenir plus grand que l’orbite elle-même, on rebase. La limite est ici vers 10⁻¹³, soit un grossissement de dix mille milliards : la taille d’un atome agrandi jusqu’à celle de la Terre.',
+      'Le son de la plongée est un glissando de Shepard : plusieurs notes à l’octave dont le volume suit une cloche, qui descendent ensemble ; en haut une nouvelle note naît en silence pendant qu’en bas une autre s’éteint. L’oreille entend une chute sans fin, comme le zoom. Jean-Claude Risset l’a rendu célèbre dans les années 1960.',
+      'Les fougères, les dragons et les flammes se dessinent au hasard : on part d’un point, on lui applique une transformation tirée au sort, puis une autre, des centaines de milliers de fois. Le nuage de points ne peut que tomber sur la figure, l’« attracteur » des transformations. Le chou romanesco, les poumons, les rivières vues d’avion et les éclairs de la machine Foudre suivent des règles voisines.',
+    ],
+    tools: [
+      { id: 'observer', label: 'observer', desc: 'Touchez un point : appartient-il à l’ensemble ? En combien d’étapes s’échappe-t-il ? Sur quel cycle tombe-t-il ?' },
+      { id: 'plonger', label: 'plonger', desc: 'Touchez pour zoomer vers ce point (la plongée automatique s’arrête). Glissez pour vous déplacer.' },
+      { id: 'reculer', label: 'reculer', desc: 'Touchez pour dézoomer.' },
+      { id: 'sculpter', label: 'sculpter', desc: 'Mandelbrot : glissez pour voir le Julia du point sous le doigt. Julia : glissez pour choisir c. Courbes : glissez pour plier. Flammes : touchez pour une nouvelle flamme.' },
+    ],
+    make(env) { return makeFract(env); },
+  });
+  // garde la machine à sa place dans la liste (après l'Attracteur)
+  (() => { const A = window.FASC, i = A.findIndex((d) => d.id === 'fractal'), j = A.findIndex((d) => d.id === 'attracteur'); if (i > 0 && j >= 0 && j !== i - 1) { const [d] = A.splice(i, 1); A.splice(j + 1, 0, d); } })();
+
+  function makeFract(env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    const dpr = env.dpr || Math.min(2, window.devicePixelRatio || 1);
+    const kS = clamp(Math.min(W, H) / 800, 0.6, 1.5);
+    const snd = () => au && au.on && au.ctx;
+    const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
+    const cfg = {
+      scene: 'mandel', q: 'haute', pal: env.theme === 'light' ? 5 : 0, rhy: 1, flow: true, relief: 0.6, auto: true, target: 0, speed: 0.5, formula: 0, iterK: 1,
+      jAuto: true, ifs: 'fougere', morph: true, curve: 'dragon', angle: 45,
+    };
+    let VT = 0;
+
+    /* ───────── WebGL ───────── */
+    let G = null;
+    function initGL() {
+      if (G) { G.K.lose(); G = null; }
+      try {
+        const s = Math.min(QUAL[cfg.q].res, dpr);
+        const K = GLKit(Math.max(64, Math.round(W * s)), Math.max(64, Math.round(H * s)));
+        const gl = K.gl;
+        const ref = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, ref);
+        for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST);
+        G = { K, gl, s, dyn: 1, last: 0, ft: 30, pert: K.program(FS_PERT), dir: K.program(FS_DIRECT), ref, iw: Math.round(W * s * 0.3), ih: Math.round(H * s * 0.3), refBuf: new Float32Array(1024 * 24 * 4) };
+      } catch (e) { console.warn('Les Fractales : sans WebGL2', e); G = null; }
+    }
+    initGL();
+
+    /* ───────── Mandelbrot : vue en double précision ───────── */
+    const M = { x: -0.6, y: 0, w: 3.6, tw: 3.6, tx: null, ty: null, pause: 0, phase: 'plonge' };
+    const maxIter = () => { const z = Math.max(0, Math.log2(3.6 / M.w)); return Math.round(clamp((160 + 60 * z + 0.9 * z * z) * cfg.iterK * QUAL[cfg.q].it, 120, 20000)); };
+    function refOrbit(cx, cy, N) {
+      const B = G.refBuf; let x = 0, y = 0, n = 0;
+      const cap = Math.min(N + 1, B.length / 4);
+      for (; n < cap; n++) {
+        B[n * 4] = x; B[n * 4 + 1] = y;
+        const nx = x * x - y * y + cx; y = 2 * x * y + cy; x = nx;
+        if (x * x + y * y > 1e8) { n++; B[n * 4] = x; B[n * 4 + 1] = y; n++; break; }
+      }
+      const rows = Math.ceil(n / 1024), gl = G.gl;
+      gl.bindTexture(gl.TEXTURE_2D, G.ref);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1024, rows, 0, gl.RGBA, gl.FLOAT, B.subarray(0, rows * 1024 * 4));
+      return n;
+    }
+    function setPalette(P) { const t = cfg.flow ? VT * 0.03 : 0; P.i('uPal', cfg.pal).f('uRhy', cfg.rhy).f('uPhase', t).f('uRelief', cfg.relief).f('uInk', cfg.pal === 5 ? 1 : 0); }
+    // résolution adaptative : si les images arrivent trop lentement, on calcule moins de pixels
+    function adapt() {
+      const now = performance.now(), d = now - G.last; G.last = now;
+      if (d > 0 && d < 500) G.ft += (d - G.ft) * 0.1;
+      if (G.ft > 42) G.dyn = Math.max(0.35, G.dyn * 0.97); else if (G.ft < 24) G.dyn = Math.min(1, G.dyn * 1.02);
+      const K = G.K; return { cw: Math.max(32, Math.round(K.canvas.width * G.dyn)), ch: Math.max(32, Math.round(K.canvas.height * G.dyn)) };
+    }
+    function blitOut(cw, ch) {
+      const K = G.K;
+      ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.imageSmoothingEnabled = true; ctx.drawImage(K.canvas, 0, K.canvas.height - ch, cw, ch, 0, 0, W, H); ctx.restore();
+    }
+    function drawMandel() {
+      const { K } = G, { cw, ch } = adapt(), sG = G.s * (cw / K.canvas.width);
+      const v = view();
+      // le centre de l'écran visible (entre les panneaux) est le centre de la vue
+      const sc = M.w / v.w; // unités complexes par pixel CSS
+      const cxScreen = M.x - (v.cx - W / 2) * sc;
+      if (cfg.formula === 0) {
+        const N = maxIter(), n = refOrbit(M.x, M.y, N);
+        const P = G.pert.use();
+        P.t('uRef', G.ref).i('uRefN', n).i('uMaxI', N).f('uRes', cw, ch).f('uOff', cxScreen - M.x, 0).f('uScale', sc / sG);
+        setPalette(P); K.run(P, { fb: null, w: cw, h: ch });
+      } else {
+        const P = G.dir.use();
+        P.i('uF', [0, 4, 2, 3][cfg.formula]).i('uMaxI', Math.min(4000, maxIter())).f('uRes', cw, ch).f('uC0', cxScreen, M.y).f('uScale', sc / sG).f('uJc', 0, 0).f('uMark', 0, 0, 0, 0);
+        setPalette(P); K.run(P, { fb: null, w: cw, h: ch });
+      }
+      blitOut(cw, ch);
+    }
+    function pickTarget(i) {
+      const T = MANDEL_TARGETS[i % MANDEL_TARGETS.length];
+      cfg.target = i % MANDEL_TARGETS.length; M.tx = T.x; M.ty = T.y; M.phase = 'plonge'; M.fin = T.fin;
+    }
+    function stepMandel(dt) {
+      if (cfg.auto && M.tx != null) {
+        if (M.phase === 'plonge') {
+          // on glisse vers la cible pendant qu'on zoome
+          const k = Math.min(1, dt * 1.2);
+          M.x += (M.tx - M.x) * k; M.y += (M.ty - M.y) * k;
+          M.w *= Math.exp(-dt * cfg.speed * 0.9);
+          if (M.w < M.fin) { M.w = M.fin; M.phase = 'pause'; M.pause = 0; }
+        } else if (M.phase === 'pause') { M.pause += dt; if (M.pause > 4) M.phase = 'remonte'; }
+        else if (M.phase === 'remonte') { M.w *= Math.exp(dt * 4); if (M.w > 3.6) { M.w = 3.6; pickTarget(cfg.target + 1); } }
+      } else if (M.tw) {
+        M.w *= Math.pow(M.tw / M.w, Math.min(1, dt * 3));
+        if (M.tx != null && !cfg.auto) { const k = Math.min(1, dt * 3); M.x += (M.tx - M.x) * k; M.y += (M.ty - M.y) * k; }
+      }
+      M.w = clamp(M.w, cfg.formula === 0 ? 1e-13 : 2e-5, 6);
+      if (cfg.formula !== 0 && M.w <= 2.01e-5 && cfg.auto) M.phase = 'pause';
+    }
+
+    /* ───────── son : glissando de Shepard ───────── */
+    let shep = null;
+    function shepard() {
+      if (!snd()) return;
+      if (!shep) shep = Array.from({ length: 7 }, () => au.drone(110, 'sine', 0));
+      const z = Math.log2(3.6 / M.w), base = 40;
+      const ph = ((z * 0.5) % 1 + 1) % 1; // une octave pour deux doublements de zoom
+      shep.forEach((d, i) => {
+        const o = i + 1 - ph, f = base * Math.pow(2, o);
+        const x = (o - 3.5) / 1.6, g = Math.exp(-x * x) * 0.022 * (cfg.scene === 'mandel' ? 1 : 0);
+        d.set(f); d.gain(g);
+      });
+    }
+
+    /* ───────── Julia ───────── */
+    const J = { c: [-0.4, 0.6], t: 0, w: 3.2, x: 0, y: 0, hover: null };
+    function stepJulia(dt) {
+      if (cfg.jAuto && !J.drag) {
+        J.t += dt * 0.12 * cfg.speed * 2;
+        // c longe le bord de la cardioïde principale, un peu à l'extérieur
+        const a = J.t, r = 1.02 + 0.03 * Math.sin(a * 3.1);
+        J.c = [r * (0.5 * Math.cos(a) - 0.25 * Math.cos(2 * a)), r * (0.5 * Math.sin(a) - 0.25 * Math.sin(2 * a))];
+      }
+    }
+    function drawJulia(c, big) {
+      const { K } = G, { cw, ch } = adapt(), sG = G.s * (cw / K.canvas.width), v = view();
+      const sc = J.w / Math.min(v.w, H);
+      const P = G.dir.use();
+      P.i('uF', 1).i('uMaxI', Math.round(300 * QUAL[cfg.q].it)).f('uRes', cw, ch).f('uC0', J.x - (v.cx - W / 2) * sc, J.y).f('uScale', sc / sG).f('uJc', c[0], c[1]).f('uMark', 0, 0, 0, 0);
+      setPalette(P); K.run(P, { fb: null, w: cw, h: ch });
+      blitOut(cw, ch);
+    }
+    // carte de Mandelbrot en médaillon, avec la position de c
+    function drawInset(c, juliaInset) {
+      const { K } = G, t = { fb: null, w: G.iw, h: G.ih }, v = view();
+      const w = t.w / G.s, h = t.h / G.s;
+      const P = G.dir.use();
+      if (juliaInset) P.i('uF', 1).i('uMaxI', 250).f('uRes', t.w, t.h).f('uC0', 0, 0).f('uScale', 3.2 / t.h).f('uJc', c[0], c[1]).f('uMark', 0, 0, 0, 0);
+      else {
+        const sc = 3 / t.h, mx = (c[0] + 0.6) / sc + t.w / 2, my = c[1] / sc + t.h / 2;
+        P.i('uF', 0).i('uMaxI', 200).f('uRes', t.w, t.h).f('uC0', -0.6, 0).f('uScale', sc).f('uJc', 0, 0).f('uMark', mx, my, 5, 0);
+      }
+      // dessiné dans un coin du canevas GL (l'image principale est déjà recopiée)
+      setPalette(P); K.run(P, t);
+      const x = v.x1 - w - 16, y = H - h - 16;
+      ctx.save();
+      ctx.drawImage(K.canvas, 0, K.canvas.height - t.h, t.w, t.h, x, y, w, h);
+      ctx.strokeStyle = cfg.pal === 5 ? 'rgba(40,30,80,.5)' : 'rgba(255,255,255,.45)'; ctx.lineWidth = 1; ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
+      ctx.font = '500 10px "JetBrains Mono", monospace'; ctx.fillStyle = cfg.pal === 5 ? 'rgba(40,30,80,.8)' : 'rgba(255,255,255,.75)';
+      ctx.fillText(juliaInset ? 'JULIA DE CE POINT' : 'c DANS LE PLAN DE MANDELBROT', x, y - 6);
+      ctx.restore();
+    }
+
+    /* ───────── flammes (jeu du chaos, sur le processeur) ───────── */
+    const F = { bw: Math.max(160, Math.round(W * 0.6)), bh: Math.max(100, Math.round(H * 0.6)), acc: null, img: null, cv: null, x: 0.1, y: 0.1, col: 0.5, A: null, B: null, mt: 0, box: null, tbox: null };
+    F.acc = new Float32Array(F.bw * F.bh * 4);
+    F.cv = document.createElement('canvas'); F.cv.width = F.bw; F.cv.height = F.bh; F.g = F.cv.getContext('2d'); F.img = F.g.createImageData(F.bw, F.bh);
+    const palJS = (t) => {
+      t = ((t % 1) + 1) % 1;
+      const p = cfg.pal;
+      const cosp = (a, b, c, d) => [0, 1, 2].map((k) => clamp(a[k] + b[k] * Math.cos(TAU * (c[k] * t + d[k])), 0, 1));
+      if (p === 0) { const S = [[0, 0, 7, 100], [0.16, 32, 107, 203], [0.42, 237, 255, 255], [0.6425, 255, 170, 0], [0.8575, 40, 2, 0], [1, 0, 7, 100]]; for (let i = 0; i < 5; i++) if (t <= S[i + 1][0]) { const k = (t - S[i][0]) / (S[i + 1][0] - S[i][0]); return [1, 2, 3].map((j) => (S[i][j] + (S[i + 1][j] - S[i][j]) * k) / 255); } }
+      if (p === 1) return cosp([0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [1, 1, 1], [0, 0.1, 0.2]);
+      if (p === 2) return cosp([0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [1, 0.7, 0.4], [0, 0.15, 0.2]);
+      if (p === 3) return cosp([0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [1, 1, 1], [0, 0.33, 0.67]);
+      if (p === 4) return cosp([0.8, 0.5, 0.4], [0.2, 0.4, 0.2], [2, 1, 1], [0, 0.25, 0.25]);
+      return [0.13, 0.11, 0.26];
+    };
+    function setIFS(key, keepMorph) {
+      cfg.ifs = key;
+      const sys = key === 'flamme' ? randFlame() : { ...IFS[key], m: IFS[key].m.map((r) => r.slice()) };
+      F.A = sys; F.B = null; F.mt = 0; F.box = null; F.tbox = null; F.acc.fill(0);
+      // tirage à blanc pour connaître la taille de la figure
+      let x = 0.1, y = 0.1; const xs = [], ys = [];
+      const tot = sys.m.reduce((q, t) => q + t[6], 0);
+      for (let i = 0; i < 30000; i++) {
+        let u = Math.random() * tot, j = 0; while (j < sys.m.length - 1 && (u -= sys.m[j][6]) > 0) j++;
+        const t = sys.m[j]; let nx = t[0] * x + t[1] * y + t[4], ny = t[2] * x + t[3] * y + t[5];
+        if (sys.flame) [nx, ny] = variation(t[7], nx, ny);
+        if (!isFinite(nx) || Math.abs(nx) > 1e4 || Math.abs(ny) > 1e4) { nx = rnd(1, -1); ny = rnd(1, -1); }
+        x = nx; y = ny;
+        if (i > 50 && i % 3 === 0) { xs.push(x); ys.push(y); }
+      }
+      // cadrage sur les centiles : quelques points égarés ne doivent pas rapetisser la figure
+      xs.sort((p, q) => p - q); ys.sort((p, q) => p - q);
+      const qt = (a, f) => a[Math.floor(f * (a.length - 1))], lo = sys.flame ? 0.03 : 0.001;
+      let b = [qt(xs, lo), qt(xs, 1 - lo), qt(ys, lo), qt(ys, 1 - lo)];
+      if (sys.flame) { const r = Math.max(Math.abs(b[0]), Math.abs(b[1]), Math.abs(b[2]), Math.abs(b[3]), 0.2); b = [-r, r, -r, r]; }
+      F.box = b; F.x = x; F.y = y;
+      if (!keepMorph) F.morphT = 0;
+    }
+    function variation(w, x, y) {
+      let ox = 0, oy = 0; const r2 = x * x + y * y + 1e-9, r = Math.sqrt(r2);
+      if (w[0]) { ox += w[0] * x; oy += w[0] * y; }
+      if (w[1]) { ox += w[1] * Math.sin(x); oy += w[1] * Math.sin(y); }
+      if (w[2]) { ox += (w[2] * x) / r2; oy += (w[2] * y) / r2; }
+      if (w[3]) { const s = Math.sin(r2), c = Math.cos(r2); ox += w[3] * (x * s - y * c); oy += w[3] * (x * c + y * s); }
+      if (w[4]) { ox += (w[4] * (x - y) * (x + y)) / r; oy += (w[4] * 2 * x * y) / r; }
+      if (w[5]) { const th = Math.atan2(x, y); ox += w[5] * r * Math.sin(th + r); oy += w[5] * r * Math.cos(th - r); }
+      return [ox, oy];
+    }
+    function stepFlame(dt) {
+      // métamorphose : les coefficients dérivent doucement (flammes) ou respirent (fougère)
+      const sys = F.A, m = sys.m;
+      if (cfg.morph) {
+        F.mt += dt;
+        if (sys.flame) { for (const t of m) { t[4] += Math.sin(VT * 0.31 + t[6] * 7) * dt * 0.05; t[5] += Math.cos(VT * 0.27 + t[6] * 5) * dt * 0.05; const a = dt * 0.04 * Math.sin(VT * 0.2 + t[6] * 3); const [p, q, r, s] = t; t[0] = p * Math.cos(a) - r * Math.sin(a); t[2] = p * Math.sin(a) + r * Math.cos(a); t[1] = q * Math.cos(a) - s * Math.sin(a); t[3] = q * Math.sin(a) + s * Math.cos(a); } }
+        else if (cfg.ifs === 'fougere') { const k = Math.sin(VT * 0.5) * 0.03; m[1][1] = 0.04 + k; m[1][2] = -0.04 - k; }
+      }
+      const tot = m.reduce((s, t) => s + t[6], 0);
+      const cum = []; let a = 0; for (const t of m) { a += t[6] / tot; cum.push(a); }
+      const n = QUAL[cfg.q].pts, acc = F.acc, bw = F.bw, bh = F.bh;
+      // boîte englobante : suivie en douceur
+      let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      const box = F.box || [-1, 1, -1, 1];
+      const v = view(), sx = (v.w / W) * bw * 0.86, sy = bh * 0.86;
+      const sc = Math.min(sx / (box[1] - box[0] || 1), sy / (box[3] - box[2] || 1));
+      const ox = ((v.cx / W) * bw) - ((box[0] + box[1]) / 2) * sc, oy = bh / 2 + ((box[2] + box[3]) / 2) * sc;
+      const sym = sys.sym || 1;
+      const k = cfg.morph ? Math.exp(-dt * 1.8) : 1;
+      if (k < 1) for (let i = 0; i < acc.length; i++) acc[i] *= k;
+      let x = F.x, y = F.y, c = F.col;
+      for (let i = 0; i < n; i++) {
+        const u = Math.random(); let j = 0; while (j < m.length - 1 && u > cum[j]) j++;
+        const t = m[j];
+        let nx = t[0] * x + t[1] * y + t[4], ny = t[2] * x + t[3] * y + t[5];
+        if (sys.flame) [nx, ny] = variation(t[7], nx, ny);
+        if (sym > 1 && Math.random() < 0.5) { const an = (TAU * (1 + rint(sym - 1))) / sym, cs = Math.cos(an), sn = Math.sin(an); [nx, ny] = [nx * cs - ny * sn, nx * sn + ny * cs]; }
+        if (!isFinite(nx) || Math.abs(nx) > 1e4 || Math.abs(ny) > 1e4) { nx = rnd(1, -1); ny = rnd(1, -1); }
+        x = nx; y = ny; c = (c + j / Math.max(1, m.length - 1)) * 0.5;
+        if (i < 20) continue;
+        if (i % 7 === 0) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        const px = (ox + x * sc) | 0, py = (oy - y * sc) | 0;
+        if (px < 0 || py < 0 || px >= bw || py >= bh) continue;
+        const o = (py * bw + px) * 4, col = palJS(c * 0.9 + (cfg.flow ? VT * 0.02 : 0));
+        acc[o] += col[0]; acc[o + 1] += col[1]; acc[o + 2] += col[2]; acc[o + 3] += 1;
+      }
+      F.x = x; F.y = y; F.col = c;
+      const nb = [x0, x1, y0, y1];
+      if (!F.box) F.box = nb; else if (!sys.flame) { const kk = Math.min(1, dt * 2); for (let i = 0; i < 4; i++) F.box[i] += (nb[i] - F.box[i]) * kk; }
+    }
+    function drawFlame(bare, ink) {
+      const acc = F.acc, d = F.img.data, n = F.bw * F.bh;
+      let mx = 1; for (let i = 3; i < acc.length; i += 4) if (acc[i] > mx) mx = acc[i];
+      const lm = Math.log(1 + mx), paper = cfg.pal === 5 || ink;
+      for (let i = 0; i < n; i++) {
+        const o = i * 4, a = acc[o + 3];
+        if (a <= 0) { if (paper) { d[o] = 243; d[o + 1] = 238; d[o + 2] = 227; } else { d[o] = 3; d[o + 1] = 2; d[o + 2] = 8; } d[o + 3] = 255; continue; }
+        const al = Math.pow(Math.log(1 + a) / lm, 0.45);
+        if (paper) { const v = al * 0.9; d[o] = 243 - v * 210; d[o + 1] = 238 - v * 210; d[o + 2] = 227 - v * 160; }
+        else { const s = (al * 255) / a; d[o] = Math.min(255, acc[o] * s); d[o + 1] = Math.min(255, acc[o + 1] * s); d[o + 2] = Math.min(255, acc[o + 2] * s); }
+        d[o + 3] = 255;
+      }
+      F.g.putImageData(F.img, 0, 0);
+      ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalCompositeOperation = 'copy'; ctx.drawImage(F.cv, 0, 0, W, H); ctx.restore();
+    }
+
+    /* ───────── courbes ───────── */
+    const C = { ord: 0, k: 0, pts: null, cam: null, hold: 0 };
+    function resetCurve() {
+      C.ord = 0; C.k = 0; C.hold = 0; C.cam = null;
+      if (cfg.curve === 'dragon') C.pts = [[0, 0], [1, 0]];
+      if (cfg.curve === 'koch') { const s = Math.sqrt(3) / 2; C.pts = [[0, 0], [0.5, s], [1, 0], [0, 0]]; }
+    }
+    function dragonPts(k) {
+      // la copie tourne autour du dernier point d'un angle k × 90°
+      const P = C.pts, n = P.length, [px, py] = P[n - 1], a = (-k * Math.PI) / 2, cs = Math.cos(a), sn = Math.sin(a);
+      const out = P.slice();
+      for (let i = n - 2; i >= 0; i--) { const dx = P[i][0] - px, dy = P[i][1] - py; out.push([px + dx * cs - dy * sn, py + dx * sn + dy * cs]); }
+      return out;
+    }
+    function kochPts(k) {
+      const P = C.pts, out = [];
+      for (let i = 0; i < P.length - 1; i++) {
+        const [ax, ay] = P[i], [bx, by] = P[i + 1], dx = bx - ax, dy = by - ay;
+        const mx = ax + dx / 2, my = ay + dy / 2, h = (Math.sqrt(3) / 6) * k;
+        out.push([ax, ay], [ax + dx / 3, ay + dy / 3], [mx - dy * h, my + dx * h], [ax + (2 * dx) / 3, ay + (2 * dy) / 3]);
+      }
+      out.push(P[P.length - 1]);
+      return out;
+    }
+    function stepCurve(dt) {
+      if (cfg.curve === 'arbre') return;
+      const maxO = cfg.curve === 'dragon' ? 14 : 6;
+      if (C.ord >= maxO) { C.hold += dt; if (C.hold > 6 && cfg.auto) resetCurve(); return; }
+      if (C.drag) return;
+      C.k += dt * 0.5 * cfg.speed * 2;
+      if (C.k >= 1) {
+        C.pts = cfg.curve === 'dragon' ? dragonPts(1) : kochPts(1);
+        C.ord++; C.k = 0;
+        if (snd()) au.pluck(220 * Math.pow(2, (C.ord % 12) / 12), 0.9, 0.04);
+      }
+    }
+    function drawCurve(bare, ink) {
+      const paper = ink || cfg.pal === 5;
+      ctx.save();
+      ctx.fillStyle = paper ? '#f3eee3' : '#05040a'; ctx.fillRect(0, 0, W, H);
+      const v = view();
+      if (cfg.curve === 'arbre') { drawTree(paper, v); ctx.restore(); return; }
+      const k = C.k * C.k * (3 - 2 * C.k);
+      const P = cfg.curve === 'dragon' ? dragonPts(k) : kochPts(k);
+      let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      for (const [x, y] of P) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      const tb = [x0, x1, y0, y1];
+      if (!C.cam) C.cam = tb.slice(); else for (let i = 0; i < 4; i++) C.cam[i] += (tb[i] - C.cam[i]) * 0.08;
+      const [a0, a1, b0, b1] = C.cam;
+      const sc = Math.min((v.w * 0.82) / (a1 - a0 || 1), (H * 0.78) / (b1 - b0 || 1));
+      const ox = v.cx - ((a0 + a1) / 2) * sc, oy = H / 2 + ((b0 + b1) / 2) * sc;
+      const n = P.length, chunks = Math.min(60, n - 1);
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      if (cfg.curve === 'koch') {
+        ctx.beginPath(); P.forEach(([x, y], i) => (i ? ctx.lineTo(ox + x * sc, oy - y * sc) : ctx.moveTo(ox + x * sc, oy - y * sc)));
+        ctx.fillStyle = paper ? 'rgba(80,90,180,.08)' : 'rgba(120,180,255,.08)'; ctx.fill();
+      }
+      ctx.lineWidth = Math.max(0.7, 3.2 - C.ord * 0.2) * kS;
+      for (let c = 0; c < chunks; c++) {
+        const i0 = Math.floor((c * (n - 1)) / chunks), i1 = Math.floor(((c + 1) * (n - 1)) / chunks);
+        const col = palJS(c / chunks * 0.8 + (cfg.flow ? VT * 0.02 : 0));
+        ctx.strokeStyle = paper ? `rgba(${30 + col[0] * 60 | 0},${25 + col[1] * 40 | 0},${70 + col[2] * 60 | 0},.9)` : `rgb(${col[0] * 255 | 0},${col[1] * 255 | 0},${col[2] * 255 | 0})`;
+        ctx.beginPath(); ctx.moveTo(ox + P[i0][0] * sc, oy - P[i0][1] * sc);
+        for (let i = i0 + 1; i <= i1; i++) ctx.lineTo(ox + P[i][0] * sc, oy - P[i][1] * sc);
+        ctx.stroke();
+      }
+      ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = paper ? 'rgba(40,30,80,.75)' : 'rgba(230,228,255,.7)';
+      const txt = cfg.curve === 'dragon' ? `${C.ord + (C.k > 0 ? 1 : 0)} PLI${C.ord ? 'S' : ''} · ${Math.pow(2, C.ord)} SEGMENTS`
+        : `ÉTAPE ${C.ord} · PÉRIMÈTRE × ${fr(Math.pow(4 / 3, C.ord), 2)} · AIRE × ${fr(1 + (3 / 5) * (1 - Math.pow(4 / 9, C.ord)), 3)} (→ 1,6)`;
+      ctx.fillText(txt, v.x0 + 16, H - 16);
+      ctx.restore();
+    }
+    function drawTree(paper, v) {
+      const a = (cfg.angle * Math.PI) / 180 + Math.sin(VT * 0.7) * 0.05 + Math.sin(VT * 1.9) * 0.015;
+      const s0 = Math.min(v.w, H) * 0.14, depth = cfg.q === 'legere' ? 9 : 11;
+      const rec = (x, y, s, ang, d) => {
+        const c = Math.cos(ang), sn = Math.sin(ang);
+        const p1 = [x, y], p2 = [x + s * c, y - s * sn], p3 = [p2[0] - s * sn, p2[1] - s * c], p4 = [x - s * sn, y - s * c];
+        const t = d / depth, col = palJS(0.15 + t * 0.6 + (cfg.flow ? VT * 0.02 : 0));
+        ctx.fillStyle = paper ? `rgba(${40 + t * 60 | 0},${30 + t * 80 | 0},${70 + t * 40 | 0},.85)` : `rgba(${col[0] * 255 | 0},${col[1] * 255 | 0},${col[2] * 255 | 0},.9)`;
+        ctx.beginPath(); ctx.moveTo(...p1); ctx.lineTo(...p2); ctx.lineTo(...p3); ctx.lineTo(...p4); ctx.fill();
+        if (d >= depth) return;
+        const s1 = s * Math.cos(a), s2 = s * Math.sin(a);
+        rec(p4[0], p4[1], s1, ang + a, d + 1);
+        const q = [p4[0] + s1 * Math.cos(ang + a), p4[1] - s1 * Math.sin(ang + a)];
+        rec(q[0], q[1], s2, ang + a - Math.PI / 2, d + 1);
+      };
+      rec(v.cx - s0 / 2, H * 0.94, s0, 0, 0);
+      ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = paper ? 'rgba(40,30,80,.75)' : 'rgba(230,228,255,.7)';
+      ctx.fillText(`ARBRE DE PYTHAGORE · ANGLE ${Math.round(cfg.angle)}° · ${Math.pow(2, depth + 1) - 1} CARRÉS`, v.x0 + 16, H - 16);
+    }
+
+    /* ───────── identification ───────── */
+    let label = null;
+    function screenToC(x, y) {
+      if (cfg.scene === 'mandel') { const v = view(), sc = M.w / v.w; return [M.x + (x - v.cx) * sc, M.y - (y - H / 2) * sc]; }
+      const v = view(), sc = J.w / Math.min(v.w, H); return [J.x + (x - v.cx) * sc, J.y - (y - H / 2) * sc];
+    }
+    function orbitInfo(cx, cy, julia) {
+      let x = julia ? cx : 0, y = julia ? cy : 0;
+      const c = julia ? J.c : [cx, cy], N = cfg.scene === 'mandel' ? Math.max(2000, maxIter()) : 2000;
+      for (let i = 0; i < N; i++) {
+        const nx = x * x - y * y + c[0]; y = 2 * x * y + c[1]; x = nx;
+        if (x * x + y * y > 4) return { esc: i + 1 };
+      }
+      // cherche la période du cycle sur lequel l'orbite est tombée
+      const sx = x, sy = y;
+      for (let p = 1; p <= 64; p++) { const nx = x * x - y * y + c[0]; y = 2 * x * y + c[1]; x = nx; if (Math.hypot(x - sx, y - sy) < 1e-9) return { per: p }; }
+      return { per: 0 };
+    }
+    const fmtC = (a, b, d) => `${a < 0 ? '−' : ''}${Math.abs(a).toFixed(d).replace('.', ',')} ${b < 0 ? '−' : '+'} ${Math.abs(b).toFixed(d).replace('.', ',')} i`;
+    function describe(l) {
+      if (cfg.scene === 'mandel' || cfg.scene === 'julia') {
+        const d = Math.max(4, Math.min(15, Math.ceil(-Math.log10(cfg.scene === 'mandel' ? M.w : J.w)) + 3));
+        const [cx, cy] = l.c, info = cfg.scene === 'julia' || cfg.formula === 0 ? orbitInfo(cx, cy, cfg.scene === 'julia') : null;
+        const nm = cfg.scene === 'julia' ? 'z₀ = ' + fmtC(cx, cy, d) : 'c = ' + fmtC(cx, cy, d);
+        if (!info) return [nm, 'formule variante : pas d’analyse d’orbite', '#c8d0e0'];
+        if (info.esc) return [nm, `s’échappe après ${info.esc} itération${info.esc > 1 ? 's' : ''} · hors de l’ensemble`, '#ffaa00'];
+        return [nm, info.per ? `dans l’ensemble · l’orbite tombe sur un cycle de période ${info.per}` : 'dans l’ensemble (ou si près du bord que 2000 étapes ne suffisent pas)', '#9fd8ff'];
+      }
+      if (cfg.scene === 'flamme') { const s = F.A; return [s.nom, s.flame ? `${s.m.length} transformations · symétrie d’ordre ${s.sym} · ${QUAL[cfg.q].pts.toLocaleString('fr-FR')} points par image` : `${s.m.length} transformations affines · le hasard dessine toujours la même figure`, '#ff8ad8']; }
+      if (cfg.curve === 'dragon') return ['Courbe du dragon', `${C.ord} plis · ${Math.pow(2, C.ord)} segments · dimension du bord ≈ 1,52`, '#c09aff'];
+      if (cfg.curve === 'koch') return ['Flocon de Koch', `étape ${C.ord} · dimension log 4 / log 3 ≈ 1,26`, '#9fe0ff'];
+      return ['Arbre de Pythagore', `chaque carré porte deux carrés sur un triangle rectangle d’angle ${Math.round(cfg.angle)}°`, '#79f3b4'];
+    }
+    function drawLabel(paper) {
+      if (!label) return;
+      const a = Math.min(1, label.t * 4, (7 - label.t) * 2);
+      if (a <= 0.01) { label = null; return; }
+      const { x, y } = label;
+      let [name, role, col] = describe(label);
+      if (paper) col = '#4a3a6a';
+      const v = view(), side = x > v.x0 + v.w * 0.5 ? -1 : 1, lx = x + side * 46, ly = y < 70 ? y + 50 : y - 40;
+      ctx.save();
+      ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, 13, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + side * 9, y + (ly > y ? 9 : -9)); ctx.lineTo(lx - side * 6, ly + (ly > y ? -12 : 6)); ctx.stroke();
+      ctx.shadowColor = paper ? 'rgba(250,246,238,.9)' : 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6;
+      ctx.textAlign = side > 0 ? 'left' : 'right';
+      ctx.fillStyle = paper ? 'rgba(30,24,40,.94)' : 'rgba(250,250,245,.96)';
+      ctx.font = 'italic 500 14px "Space Grotesk", sans-serif'; ctx.fillText(name, lx, ly);
+      ctx.fillStyle = col; ctx.font = '500 9.5px "JetBrains Mono", monospace'; ctx.fillText(role.toUpperCase(), lx, ly + 15);
+      ctx.restore();
+    }
+
+    /* ───────── scènes et boucle ───────── */
+    function setScene(id) {
+      cfg.scene = id; label = null;
+      if (id === 'mandel') { M.x = -0.6; M.y = 0; M.w = 3.6; M.tw = null; if (cfg.auto) pickTarget(cfg.target); }
+      if (id === 'julia') { J.x = 0; J.y = 0; J.w = 3.2; }
+      if (id === 'flamme') setIFS(cfg.ifs);
+      if (id === 'courbes') resetCurve();
+    }
+    function setQuality(q) { if (q === cfg.q) return; cfg.q = q; initGL(); }
+    function update(dt) {
+      VT += dt;
+      if (cfg.scene === 'mandel') stepMandel(dt);
+      if (cfg.scene === 'julia') stepJulia(dt);
+      if (cfg.scene === 'flamme') stepFlame(dt);
+      if (cfg.scene === 'courbes') stepCurve(dt);
+      if (snd()) shepard(); else if (shep) { shep.forEach((d) => d.gain(0)); }
+    }
+    let pending = false;
+    function render() {
+      const bare = env.decor === false, ink = env.theme === 'light' && cfg.pal === 5;
+      if ((cfg.scene === 'mandel' || cfg.scene === 'julia') && !G) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#ccc'; ctx.fillText('WebGL2 indisponible : choisissez Flammes ou Courbes.', 20, H / 2); return; }
+      if (cfg.scene === 'mandel') {
+        drawMandel();
+        if (J.hover) drawInset(J.hover, true);
+        const v = view();
+        ctx.save(); ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = cfg.pal === 5 ? 'rgba(40,30,80,.8)' : 'rgba(255,255,255,.7)';
+        const z = 3.6 / M.w;
+        ctx.fillText(`ZOOM × ${z < 1e4 ? Math.round(z).toLocaleString('fr-FR') : z.toExponential(1).replace('.', ',').replace('e+', ' × 10^')} · ${maxIter()} ITÉRATIONS` + (cfg.auto && M.tx != null ? ' · ' + MANDEL_TARGETS[cfg.target].nom.toUpperCase() : ''), v.x0 + 16, H - 16);
+        ctx.restore();
+      } else if (cfg.scene === 'julia') { drawJulia(J.c); drawInset(J.c, false); const v = view(); ctx.save(); ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = cfg.pal === 5 ? 'rgba(40,30,80,.8)' : 'rgba(255,255,255,.7)'; ctx.fillText('c = ' + fmtC(J.c[0], J.c[1], 4), v.x0 + 16, H - 16); ctx.restore(); }
+      else if (cfg.scene === 'flamme') drawFlame(bare, ink);
+      else drawCurve(bare, ink);
+      drawLabel(cfg.pal === 5 || ink);
+    }
+    function frame(t, dt) {
+      if (dt > 0) { update(dt); if (label) label.t += dt * 2.5; }
+      if (!pending) { pending = true; queueMicrotask(() => { pending = false; render(); }); }
+    }
+
+    if (window.FASC_DEBUG) window.FASC_DEBUG.fract = { cfg, M, J, F, C, setScene, setIFS, pickTarget, resetCurve, run(n, h) { for (let i = 0; i < n; i++) { update(h); render(); } }, render };
+
+    setScene('mandel');
+    let drag = null;
+    return {
+      livePaused: true,
+      frame,
+      down(p) {
+        const tool = env.tool;
+        drag = { x: p.x, y: p.y, moved: false };
+        if (tool === 'observer') { label = { x: p.x, y: p.y, t: 0, c: (cfg.scene === 'mandel' || cfg.scene === 'julia') ? screenToC(p.x, p.y) : null }; return; }
+        if (tool === 'sculpter') {
+          if (cfg.scene === 'mandel') J.hover = screenToC(p.x, p.y);
+          if (cfg.scene === 'julia') { J.drag = true; }
+          if (cfg.scene === 'flamme') setIFS('flamme');
+          if (cfg.scene === 'courbes') C.drag = true;
+        }
+      },
+      move(p) {
+        if (!p.down || !drag) return;
+        const tool = env.tool;
+        if (Math.hypot(p.x - drag.x, p.y - drag.y) > 6) drag.moved = true;
+        if (tool === 'sculpter') {
+          if (cfg.scene === 'mandel') J.hover = screenToC(p.x, p.y);
+          if (cfg.scene === 'julia') { const v = view(); J.c = [-2 + ((p.x - v.x0) / v.w) * 2.5, 1.25 - (p.y / H) * 2.5]; }
+          if (cfg.scene === 'courbes') { if (cfg.curve === 'arbre') cfg.angle = clamp(cfg.angle + p.dx * 0.15, 10, 80); else C.k = clamp(C.k + p.dx * 0.004, 0, 0.999); }
+          return;
+        }
+        if (tool === 'plonger' && drag.moved) {
+          if (cfg.scene === 'mandel') { const sc = M.w / view().w; M.x -= p.dx * sc; M.y += p.dy * sc; cfg.auto = false; M.tx = null; }
+          if (cfg.scene === 'julia') { const sc = J.w / Math.min(view().w, H); J.x -= p.dx * sc; J.y += p.dy * sc; }
+        }
+      },
+      up() {
+        const tool = env.tool, d = drag; drag = null;
+        J.hover = null; J.drag = false; C.drag = false;
+        if (!d || d.moved) return;
+        if (tool === 'plonger' || tool === 'reculer') {
+          const f = tool === 'plonger' ? 0.3 : 3.3;
+          if (cfg.scene === 'mandel') { const [x, y] = screenToC(d.x, d.y); cfg.auto = false; M.tx = x; M.ty = y; M.tw = M.w * f; if (snd()) au.note(tool === 'plonger' ? 220 : 330, 0.6, 'sine', 0.05, tool === 'plonger' ? 110 : 660); }
+          if (cfg.scene === 'julia') { const [x, y] = screenToC(d.x, d.y); J.x = x; J.y = y; J.w = clamp(J.w * f, 1e-4, 6); }
+        }
+      },
+      clear() { setScene(cfg.scene); },
+      dispose() { if (shep) shep.forEach((d) => d.stop()); if (G) G.K.lose(); },
+      ui() {
+        const L = [{ type: 'section', label: 'Scènes' }];
+        L.push({ type: 'buttons', items: [
+          { label: 'Mandelbrot', act: () => setScene('mandel') },
+          { label: 'Julia', act: () => setScene('julia') },
+          { label: 'Flammes et fougères', act: () => setScene('flamme') },
+          { label: 'Courbes', act: () => setScene('courbes') },
+        ] });
+        if (cfg.scene === 'mandel') {
+          L.push({ type: 'section', label: 'Plongée' });
+          L.push({ type: 'bar', label: 'Profondeur', color: '#ffaa00', value: clamp(Math.log10(3.6 / M.w) / 13, 0, 1), txt: '10^' + Math.round(Math.log10(3.6 / M.w)) });
+          L.push({ type: 'toggle', label: 'Plongée automatique', value: cfg.auto, set: (x) => { cfg.auto = x; if (x) pickTarget(cfg.target); } });
+          L.push({ type: 'choice', label: 'Destination', value: cfg.target, set: (x) => { cfg.target = x; cfg.auto = true; M.x = -0.6; M.y = 0; M.w = 3.6; pickTarget(x); }, options: MANDEL_TARGETS.map((t, i) => ({ id: i, label: t.nom })) });
+          L.push({ type: 'slider', label: 'Vitesse de plongée', min: 0.1, max: 1.5, step: 0.01, value: cfg.speed, fmt: (x) => '×2 toutes les ' + fr(Math.LN2 / (x * 0.9) / 0.4, 1) + ' s', set: (x) => { cfg.speed = x; } });
+          L.push({ type: 'choice', label: 'Formule', value: cfg.formula, set: (x) => { cfg.formula = x; setScene('mandel'); }, options: [{ id: 0, label: 'z² + c' }, { id: 1, label: 'z³ + c' }, { id: 2, label: 'Burning Ship' }, { id: 3, label: 'Tricorne' }] });
+          if (cfg.formula) L.push({ type: 'note', text: 'Les variantes sont calculées sans perturbation : zoom limité à environ 10⁻⁵.' });
+          L.push({ type: 'slider', label: 'Itérations', min: 0.3, max: 3, step: 0.05, value: cfg.iterK, fmt: (x) => maxIter() + ' (× ' + fr(x, 2) + ')', set: (x) => { cfg.iterK = x; } });
+        }
+        if (cfg.scene === 'julia') {
+          L.push({ type: 'section', label: 'Julia' });
+          L.push({ type: 'toggle', label: 'c longe le bord de l’ensemble', value: cfg.jAuto, set: (x) => { cfg.jAuto = x; } });
+          L.push({ type: 'slider', label: 'Vitesse', min: 0.1, max: 1.5, step: 0.01, value: cfg.speed, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { cfg.speed = x; } });
+          L.push({ type: 'buttons', items: [
+            { label: 'Lapin de Douady', act: () => { cfg.jAuto = false; J.c = [-0.123, 0.745]; } },
+            { label: 'Dendrite', act: () => { cfg.jAuto = false; J.c = [0, 1]; } },
+            { label: 'Poussière', act: () => { cfg.jAuto = false; J.c = [-0.75, 0.2]; } },
+            { label: 'Spirales', act: () => { cfg.jAuto = false; J.c = [-0.8, 0.156]; } },
+          ] });
+        }
+        if (cfg.scene === 'flamme') {
+          L.push({ type: 'section', label: 'Jeu du chaos' });
+          L.push({ type: 'choice', label: 'Figure', value: cfg.ifs, set: (x) => setIFS(x), options: [...Object.keys(IFS).map((k) => ({ id: k, label: IFS[k].nom })), { id: 'flamme', label: 'Flamme' }] });
+          if (cfg.ifs === 'flamme') L.push({ type: 'buttons', items: [{ label: 'Nouvelle flamme', act: () => setIFS('flamme') }] });
+          L.push({ type: 'toggle', label: 'Métamorphose lente', value: cfg.morph, set: (x) => { cfg.morph = x; } });
+        }
+        if (cfg.scene === 'courbes') {
+          L.push({ type: 'section', label: 'Courbes' });
+          L.push({ type: 'choice', label: 'Courbe', value: cfg.curve, set: (x) => { cfg.curve = x; resetCurve(); }, options: [{ id: 'dragon', label: 'Dragon' }, { id: 'koch', label: 'Flocon de Koch' }, { id: 'arbre', label: 'Arbre de Pythagore' }] });
+          if (cfg.curve === 'arbre') L.push({ type: 'slider', label: 'Angle', min: 10, max: 80, step: 1, value: cfg.angle, fmt: (x) => x + '°', set: (x) => { cfg.angle = x; } });
+          else L.push({ type: 'buttons', items: [{ label: 'Recommencer', act: () => resetCurve() }] });
+          L.push({ type: 'slider', label: 'Vitesse', min: 0.1, max: 1.5, step: 0.01, value: cfg.speed, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { cfg.speed = x; } });
+          L.push({ type: 'toggle', label: 'Recommencer tout seul', value: cfg.auto, set: (x) => { cfg.auto = x; } });
+        }
+        L.push({ type: 'section', label: 'Couleurs' });
+        L.push({ type: 'choice', label: 'Palette', value: cfg.pal, set: (x) => { cfg.pal = x; }, options: [{ id: 0, label: 'Classique' }, { id: 1, label: 'Braise et glace' }, { id: 2, label: 'Or et nuit' }, { id: 3, label: 'Arc-en-ciel' }, { id: 4, label: 'Pastel' }, { id: 5, label: 'Encre' }] });
+        if (cfg.scene === 'mandel' || cfg.scene === 'julia') {
+          L.push({ type: 'slider', label: 'Rythme des bandes', min: 0.2, max: 4, step: 0.05, value: cfg.rhy, fmt: (x) => '× ' + fr(x, 2), set: (x) => { cfg.rhy = x; } });
+          L.push({ type: 'slider', label: 'Relief', min: 0, max: 1, step: 0.01, value: cfg.relief, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { cfg.relief = x; } });
+        }
+        L.push({ type: 'toggle', label: 'Couleurs qui coulent', value: cfg.flow, set: (x) => { cfg.flow = x; } });
+        L.push({ type: 'section', label: 'Calcul' });
+        L.push({ type: 'choice', label: 'Définition', value: cfg.q, set: setQuality, options: [{ id: 'legere', label: 'Légère' }, { id: 'normale', label: 'Normale' }, { id: 'haute', label: 'Haute' }] });
+        return L;
+      },
+    };
+  }
 })();
 
 ;

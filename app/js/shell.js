@@ -3,9 +3,9 @@
    Les machines (s-*.js) et fk.js sont chargés tels quels ; seul le contrat env/sim compte. */
 (function () {
   'use strict';
-  const ORDER = ['fourmis', 'mycelium', 'blob', 'meduses', 'lucioles', 'boids', 'feu', 'eau', 'fluide', 'sable', 'foudre', 'cristal', 'rd', 'spirales', 'chladni', 'kaleido', 'harmono', 'attracteur', 'fractal', 'moire', 'galaxie', 'tunnel', 'lave', 'bulles', 'viz', 'harpe', 'pendules', 'sonillus'];
-  const ACCENT = { 'Vivant': '#79f3b4', 'Éléments': '#ff9c5c', 'Motifs': '#c09aff', 'Cosmos': '#6fd4ff', 'Sons': '#ff8ad8' };
-  const ACCENT_L = { 'Vivant': '#0e8a57', 'Éléments': '#c4501a', 'Motifs': '#6f45d4', 'Cosmos': '#137fae', 'Sons': '#c2368f' };
+  const ORDER = ['fourmis', 'mycelium', 'blob', 'meduses', 'lucioles', 'boids', 'feu', 'eau', 'fluide', 'sable', 'foudre', 'cristal', 'rd', 'spirales', 'chladni', 'kaleido', 'harmono', 'attracteur', 'fractal', 'moire', 'galaxie', 'tunnel', 'lave', 'bulles', 'viz', 'harpe', 'pendules', 'sonillus', 'quantique'];
+  const ACCENT = { 'Vivant': '#79f3b4', 'Éléments': '#ff9c5c', 'Motifs': '#c09aff', 'Cosmos': '#6fd4ff', 'Sons': '#ff8ad8', 'Invisible': '#ffd36e' };
+  const ACCENT_L = { 'Vivant': '#0e8a57', 'Éléments': '#c4501a', 'Motifs': '#6f45d4', 'Cosmos': '#137fae', 'Sons': '#c2368f', 'Invisible': '#9a6b00' };
   // vitesse affichée ×1 = 0,4 fois la vitesse d'origine des machines (demande de Yoann : tout allait trop vite)
   const SPEED_UNIT = 0.4;
   const accent = (cat) => (S.theme === 'light' ? ACCENT_L[cat] || '#6f45d4' : ACCENT[cat] || '#c09aff');
@@ -253,7 +253,7 @@
   function photo() {
     let url;
     try { url = canvas.toDataURL('image/png'); } catch (e) { console.warn(e); return; }
-    const name = 'fascination-' + (S.id || 'image') + '.png';
+    const name = 'fascinations-' + (S.id || 'image') + '.png';
     const show = () => {
       const box = h('div', { class: 'shot', onclick: () => box.remove() },
         h('img', { src: url, alt: 'Photo de la machine ' + (S.id || '') }),

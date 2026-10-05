@@ -1,11 +1,11 @@
-# Fascination — document d'amorce pour Claude Code
+# Fascinations — document d'amorce pour Claude Code
 
 > À lire en premier. Ce document résume le projet, son architecture, les choix déjà faits et la suite du travail.
 > L'utilisateur travaille **depuis une tablette** : il ne peut pas lancer de terminal local. Privilégie des livrables qui s'ouvrent dans un navigateur et qui s'hébergent simplement.
 
 ## 1. Le projet
 
-**Fascination** est une application web de 26 « machines à fascination » : des simulations interactives, contemplatives et psychédéliques, inspirées de la réalité scientifique et biologique. Elles se regardent comme on regarde un feu de cheminée, et se manipulent du doigt.
+**Fascinations** (renommée ainsi en octobre 2026 ; le dépôt et les noms de fichiers gardent « fascination ») est une application web de 31 « machines à fascination » : des simulations interactives, contemplatives et psychédéliques, inspirées de la réalité scientifique et biologique. Elles se regardent comme on regarde un feu de cheminée, et se manipulent du doigt.
 
 Langue de l'interface et des textes : **français**. Style d'écriture : phrases simples, ton poétique mais précis scientifiquement.
 
@@ -303,3 +303,12 @@ Le curseur de vitesse est remplacé par une molette dont on ne voit que la tranc
 - **Les Illusions sonores** (id `sonillus`, nouvelle) : escalier de Shepard et glissando de Risset (10 sinus à l'octave, cloche gaussienne fixe en log-fréquence ; hélice qui défile), paradoxe du triton (paires de Shepard à un triton, réponses de l'auditeur sur le cercle des notes), fondamentale absente (8 harmoniques à activer), battements binauraux ou acoustiques (fusion stéréo hors réverbération), accélération éternelle de Risset (5 couches de tempo doublé ; au bout d'une octave de tempo, les couches se décalent d'un cran avec la même phase ; clics programmés à l'instant exact du franchissement).
 - Vérifié sans écran : rendu, absence d'erreurs, niveau audio mesuré à l'analyseur. **Pas écouté** : le rendu sonore réel reste à juger à l'oreille.
 
+
+## 23. Le Monde quantique — `app/js/machines/s-quantique.js` (id `quantique`, nouvelle catégorie « Invisible », machine « surprise » choisie librement)
+
+- **Équation de Schrödinger 2D** sur GPU, ħ = m = 1, maille 1, pas dt = 0,2 : schéma de Visscher (R avancé avec H·I, puis I avec H·R, deux passes par pas ; I initialisé un demi-pas en avance). Stable tant que dt × (4 + Vmax) < 2 : le potentiel du puits harmonique est plafonné à 4. Textures RGBA32F obligatoires (repli : message). Murs = cellules où ψ est forcé à 0 ; bords absorbants (multiplication par 1 − a).
+- **Double fente** : mur à 0,42 NX, 1/2/3/5 fentes, écran absorbant à 0,86 NX ; chaque image, lecture de la colonne juste avant l'écran (readPixels 1 × NY), flux = Σ|ψ|² × sin k × durée ; une détection par unité de flux × 50/transmission estimée (≈ 50 points par vague), position tirée selon |ψ|² de la colonne. Détecteur « par quelle fente » : à l'arrivée de l'onde, une fente tirée au hasard est absorbée (`uBlock`) pour toute la vague. Courbe lissée des impacts sur l'écran.
+- **Effet tunnel** : barrière V₀ = (0,5…2,5) × E, épaisseur 1 à 16 mailles ; réflexion/transmission mesurées par une réduction GPU 24 × 16 lue toutes les 5 images.
+- **Billard** : stade de Bunimovich, cercle, puits harmonique (état cohérent), cœur, espace libre ; outils lancer (ajoute un paquet), murs, gomme (peinture dans la texture de potentiel).
+- **Orbitales** : ψₙₗₘ exactes (Laguerre et Legendre associés par récurrence dans le shader, normalisations calculées en JS), lancer de rayons de 96 pas dans une sphère de rayon 2,1 n² + 5, émission |ψ|² × couleur de phase ; orbitales réelles ou complexes ; superposition de deux états avec phases e^{−iEt} (temps ralenti pour une oscillation en 4 s), affichage de la longueur d'onde émise (1s+2p : 122 nm).
+- L'app s'appelle désormais **Fascinations** (titre, en-tête, manifeste, nom des photos) ; dépôt, dossiers et `dist/fascination.html` inchangés.

@@ -1,4 +1,4 @@
-# Fascination
+# Fascinations
 
 Vingt-six « machines à fascination » : des simulations contemplatives et interactives, ancrées dans la science et la biologie, à regarder comme un feu de cheminée et à manipuler du doigt. Interface en français.
 

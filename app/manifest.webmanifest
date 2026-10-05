@@ -1,7 +1,7 @@
 {
-  "name": "Fascination · 26 machines fascinantes",
-  "short_name": "Fascination",
-  "description": "Simulations contemplatives à regarder, toucher et écouter : vivant, éléments, motifs, cosmos et sons.",
+  "name": "Fascinations · 31 machines à fascination",
+  "short_name": "Fascinations",
+  "description": "Simulations contemplatives à regarder, toucher et écouter : vivant, éléments, motifs, cosmos, sons et invisible.",
   "lang": "fr",
   "start_url": "./index.html",
   "scope": "./",

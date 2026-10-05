@@ -23,7 +23,7 @@ const body = between(index, 'body').trim();
 const files = [...between(index, 'js').matchAll(/src="([^"]+)"/g)].map((m) => m[1]);
 const js = files.map((f) => `/* ═════ ${f} ═════ */\n${read(f)}`).join('\n;\n').replace(/<\/script/gi, '<\\/script');
 const fonts = '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">';
-const head = `<title>Fascination</title>\n${fonts}\n<style>\n${css}\n</style>`;
+const head = `<title>Fascinations</title>\n${fonts}\n<style>\n${css}\n</style>`;
 const script = `<script>\n${js}\n</script>`;
 
 fs.mkdirSync(dist, { recursive: true });

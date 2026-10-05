@@ -114,6 +114,7 @@ Machines refaites (niveau final) :
 - **Illusions** (nouvelle, octobre 2026) : voir §15.
 - **Jeu de la vie** (nouvelle, octobre 2026, WebGL2) : voir §16.
 - **Galaxie** (octobre 2026, WebGL2) : voir §17.
+- **Tunnel** (octobre 2026, WebGL2) : voir §18.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -121,7 +122,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Lampe à lave, Bulles, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -254,4 +255,11 @@ Le panneau de droite ne montre que les réglages qui s'appliquent à ce qui est 
 - **Collision** : problème restreint de Toomre (1972). Noyaux (2 à 4) en JS, saute-mouton adouci (ε² = 0,04) ; étoiles-tests sur GPU (positions et vitesses RGBA32F, une passe à sorties multiples). Orbite initiale parabolique de péricentre q. Unités : G = M = 1, longueur 10 kpc → 1 unité de temps ≈ 47 millions d'années. Scénarios : Antennes, Souris, Roue de charrette, Voie lactée et Andromède. L'outil ASTRE ajoute un noyau.
 - **Trou noir** : par pixel, rayon intégré avec a = −1,5 h² r / r⁵ (rayon de Schwarzschild = 1), pas adaptatif ; disque mince de 3 à 14 rayons (profil de Shakura-Sunyaev), Doppler relativiste g = 1/(γ(1 − β·n)) et décalage gravitationnel √(1 − 1/r), intensité ∝ g⁴ ; images secondaires par transparence du disque. Résolution adaptative. L'outil OBSERVER relance le même rayon en JS pour dire ce que l'on touche (ombre, anneau de photons, disque côté approchant ou fuyant, image secondaire).
 - Mesuré : avec Doppler, le côté approchant est environ deux fois plus lumineux à l'écran (après compression des hautes lumières).
+
+## 18. Le Tunnel — `app/js/machines/s-tunnel.js` (id `tunnel`)
+
+- **Vers la vitesse de la lumière** : 15 000 à 78 000 étoiles dans une boîte répétée de 400 unités, dessinées en points. Direction aberrée cos θ′ = (cos θ + β)/(1 + β cos θ), température × D (D = γ(1 + β cos θ′)), éclat physique ∝ D³ comprimé à l'écran (min(D², 8)) pour garder des étoiles distinctes ; projection équidistante (fisheye) de champ réglable jusqu'à 360°. Le fond cosmologique (2,725 K × D) est ajouté par pixel avec une brillance (T/2500)⁴ : visible vers γ ≈ 400, éblouissant vers γ ≈ 1 500. Réglage en log₁₀ γ (0 à 3,3). Bornes anti-débordement des flottants 16 bits (sinon : rectangles parasites).
+- **Trou de ver** : métrique d'Ellis, r(l) = √(1 + l²). Par pixel : moment cinétique L = r sin α, intégration de (l, p_l, φ) avec dp_l/dλ = L² l / r⁴ ; le côté atteint (signe de l) choisit le ciel (le nôtre : étoiles, Voie lactée, une étoile proche ; l'autre : nébuleuse et géante gazeuse) ; direction d'arrivée = cos φ · (−z) + sin φ · t. La caméra traverse et revient (l = 7 cos ωt) ou se règle au curseur.
+- **Porte des étoiles** : deux plans (et deux murs) de fentes lumineuses en perspective, à la manière du slit-scan de Trumbull.
+- **Démoscène** : tunnel 1/r classique (damier, vortex, plasma), bout du tunnel déplaçable avec PILOTER.
 

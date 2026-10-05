@@ -4,62 +4,6 @@
   const { TAU, clamp, rnd, rint, lerp, buf, layer, blit, lut, diffuse, fade, hsv, scale } = window.FK;
   const S = window.FASC;
 
-  /* ─────────── LE TUNNEL ─────────── */
-  S.push({
-    id: 'tunnel', name: 'Le Tunnel', cat: 'Cosmos', glyph: '◉',
-    blurb: 'Descente hypnotique dans un couloir infini',
-    hint: 'Déplacez le curseur pour piloter · changez la texture avec les outils.',
-    tools: [{ id: 'damier', label: 'damier' }, { id: 'vortex', label: 'vortex' }, { id: 'plasma', label: 'plasma' }],
-    make(env) {
-      const ctx = env.ctx;
-      const RW = 260, RH = Math.max(100, Math.round(RW * env.h / env.w));
-      const b = buf(RW, RH);
-      let px = 0.5, py = 0.5, tx = 0.5, ty = 0.5, speed = 1;
-      return {
-        frame(t, dt) {
-          px += (tx - px) * 0.05; py += (ty - py) * 0.05;
-          const cx = RW * px, cy = RH * py;
-          const mode = env.tool || 'damier';
-          const d = b.d;
-          for (let y = 0; y < RH; y++) {
-            const dy = y - cy;
-            for (let x = 0; x < RW; x++) {
-              const dx = x - cx;
-              const r = Math.sqrt(dx * dx + dy * dy) + 0.001;
-              const a = Math.atan2(dy, dx);
-              const depth = 34 / r;
-              let v;
-              if (mode === 'damier') {
-                const u = (a / TAU * 12 + 100) % 1, w = (depth * 3 + t * 1.4) % 1;
-                v = ((u < 0.5) !== (w < 0.5)) ? 1 : 0.16;
-                v *= clamp(1.15 - depth * 0.18, 0, 1);
-              } else if (mode === 'vortex') {
-                v = 0.5 + 0.5 * Math.sin(a * 5 + depth * 9 + t * 2.4 + Math.sin(depth * 3 - t) * 2);
-                v = Math.pow(v, 2.1);
-              } else {
-                v = 0.5 + 0.5 * Math.sin(depth * 6 + t * 1.7) * Math.sin(a * 3 - t * 0.9) * Math.cos(depth * 2.5 + a * 2 + t);
-                v = Math.pow(clamp(v, 0, 1), 1.5);
-              }
-              const c = hsv(depth * 0.16 + t * 0.06 + a * 0.05, 0.72, clamp(v * clamp(r / 26, 0, 1), 0, 1));
-              const o = (y * RW + x) * 4;
-              d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2];
-            }
-          }
-          b.flush();
-          ctx.globalCompositeOperation = 'source-over';
-          blit(ctx, b, env.w, env.h);
-          ctx.globalCompositeOperation = 'lighter';
-          const g = ctx.createRadialGradient(cx / RW * env.w, cy / RH * env.h, 0, cx / RW * env.w, cy / RH * env.h, env.w * 0.1);
-          g.addColorStop(0, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.fillStyle = g; ctx.fillRect(0, 0, env.w, env.h);
-          ctx.globalCompositeOperation = 'source-over';
-        },
-        move(p) { tx = clamp(p.x / env.w, 0.12, 0.88); ty = clamp(p.y / env.h, 0.12, 0.88); },
-        down(p) { this.move(p); env.audio.note(rnd(120, 60), 1.6, 'sine', 0.09, rnd(700, 300)); },
-      };
-    },
-  });
-
   /* ─────────── LA LAMPE À LAVE ─────────── */
   S.push({
     id: 'lave', name: 'La Lampe à Lave', cat: 'Cosmos', glyph: '⬮',

@@ -58,10 +58,13 @@ header.fh { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px;
 .hb.sq { width: 32px; padding: 0; font-family: var(--sans); font-size: 12px }
 .hb.menu { width: 34px; padding: 0; font-family: var(--sans); font-size: 15px; line-height: 1; color: var(--fg); flex: none }
 .hb.on { color: var(--fg-strong) }
-.speed { display: flex; align-items: center; gap: 9px; padding: 0 11px; height: 30px; border-radius: 8px; border: 1px solid var(--chip-bd); background: var(--chip) }
+/* molette de vitesse : on ne voit que la tranche crantée d'une roue, qu'on fait rouler du doigt */
+.speed { display: flex; align-items: center; gap: 9px; padding: 0 6px 0 11px; height: 36px; border-radius: 9px; border: 1px solid var(--chip-bd); background: var(--chip) }
 .speed span { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: var(--fg-mute) }
-.speed output { font-family: var(--mono); font-size: 10px; color: var(--fg); width: 34px; text-align: right }
-.speed input { width: 96px; height: 14px; accent-color: var(--violet); cursor: ew-resize; background: transparent }
+.speed .wheel { position: relative; width: 150px; height: 28px; border-radius: 6px; overflow: hidden; cursor: ew-resize; touch-action: none; outline: none; box-shadow: inset 0 0 0 1px var(--chip-bd) }
+.speed .wheel:focus-visible { box-shadow: inset 0 0 0 1px var(--violet), 0 0 0 2px rgba(111, 69, 212, .35) }
+.speed .wheel canvas { display: block; width: 100%; height: 100% }
+.speed output { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--fg-strong); min-width: 52px; height: 26px; line-height: 24px; text-align: center; border-radius: 6px; border: 1px solid var(--chip-bd); background: var(--bg-deep); padding: 0 6px; box-sizing: border-box }
 
 /* ── scène ── */
 main.stage { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-deep) }
@@ -154,7 +157,8 @@ aside.panel { right: 0; width: min(330px, 90vw); padding: 18px 18px 34px; border
 @media (max-width: 640px) {
   header.fh { padding: 10px 12px; gap: 8px 12px }
   .brand span { display: none }
-  .speed input { width: 70px }
+  .speed .wheel { width: 104px }
+  .speed span { display: none }
 }
 
 /* ── générateur de bruits ── */

@@ -220,7 +220,7 @@ void main(){
     const dpr = env.dpr || Math.min(2, window.devicePixelRatio || 1);
     const snd = () => au && au.on && au.ctx;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
-    const cfg = { scene: 'spirale', q: 'haute', type: 'grand', twist: 3.2, ecc: 0.32, pat: 0.18, speed: 0.5, dust: 0.8, bloom: 0.7, incl: 0.95, az: 0.4, preset: 'antennes', colMode: 0, dop: 1, disk: true, dist: 26, bincl: 0.12, bAz: 0.6 };
+    const cfg = { scene: 'spirale', q: 'haute', type: 'grand', twist: 3.2, ecc: 0.32, pat: 0.18, speed: 0.2, dust: 0.8, bloom: 0.7, incl: 0.95, az: 0.4, preset: 'antennes', colMode: 0, dop: 1, disk: true, dist: 26, bincl: 0.12, bAz: 0.6 };
     let T = 0, R = null, label = null;
 
     function initGL() {

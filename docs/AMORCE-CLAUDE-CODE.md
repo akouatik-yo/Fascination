@@ -115,6 +115,7 @@ Machines refaites (niveau final) :
 - **Jeu de la vie** (nouvelle, octobre 2026, WebGL2) : voir §16.
 - **Galaxie** (octobre 2026, WebGL2) : voir §17.
 - **Tunnel** (octobre 2026, WebGL2) : voir §18.
+- **Lampe à lave** (octobre 2026, WebGL2) : voir §19.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -122,7 +123,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Lampe à lave, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Bulles, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -262,4 +263,15 @@ Le panneau de droite ne montre que les réglages qui s'appliquent à ce qui est 
 - **Trou de ver** : métrique d'Ellis, r(l) = √(1 + l²). Par pixel : moment cinétique L = r sin α, intégration de (l, p_l, φ) avec dp_l/dλ = L² l / r⁴ ; le côté atteint (signe de l) choisit le ciel (le nôtre : étoiles, Voie lactée, une étoile proche ; l'autre : nébuleuse et géante gazeuse) ; direction d'arrivée = cos φ · (−z) + sin φ · t. La caméra traverse et revient (l = 7 cos ωt) ou se règle au curseur.
 - **Porte des étoiles** : deux plans (et deux murs) de fentes lumineuses en perspective, à la manière du slit-scan de Trumbull.
 - **Démoscène** : tunnel 1/r classique (damier, vortex, plasma), bout du tunnel déplaçable avec PILOTER.
+
+## 19. La Lampe à lave — `app/js/machines/s-lave.js` (id `lave`)
+
+- **Lampe** : grille ~80 × 300 dans le verre (profil en fuseau hw(y) = 0,17 + 0,29·exp(−((y − 0,24)/0,4)²)). Navier-Stokes semi-lagrangien + projection de Jacobi (cibles f16 filtrées en LINEAR). Cire = champ de phase de Cahn-Hilliard (μ = φ³ − φ − ε²∇²φ, mobilité 0,06, ε = 1 case), tension de surface par la force de Korteweg σμ∇φ. Température advectée et diffusée, ampoule (gaussienne en bas au centre), refroidissement en haut. Poussée sur la cire ∝ (T − 0,62) : la cire chaude monte. Socle et chapeau dessinés en 2D.
+- **Cellules de Bénard** : même solveur, un seul liquide, plaque chaude en bas et froide en haut ; colorant passif en lignes ; nombre de Rayleigh affiché (estimation).
+- **Surface du Soleil** : granulation procédurale (Voronoï animé, éclat ∝ (T/5800)⁷ en lumière visible), tache solaire (ombre, pénombre filamenteuse), assombrissement centre-bord ; teinte orangée des photographies filtrées.
+- Piège : `in` est un mot réservé en GLSL (ne pas l'utiliser comme nom de variable).
+
+## Molette de vitesse (coquille)
+
+Le curseur de vitesse est remplacé par une molette dont on ne voit que la tranche crantée (`#wheel`, dessinée en canvas dans `shell.js`). Échelle logarithmique de ×0,05 à ×8 ; gain = 0,004 × (1 + min(7, (v/0,45)²)) par pixel, v = vitesse du geste en px/ms : lent = réglage fin, vif = grands pas ; un geste lancé garde un peu d'élan (décroissance 60 ms, au gain fin). Vibration à chaque cran (Android), double-touche = ×1, molette de souris et flèches du clavier. La valeur s'affiche dans la case à côté (« ×0,35 »).
 

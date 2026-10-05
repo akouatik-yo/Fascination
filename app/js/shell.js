@@ -226,7 +226,7 @@
     store.set('fasc-decor', S.decor ? '1' : '0');
     renderSimRow();
   }
-  function nudgeSpeed(f) { S.speed = Math.min(6, Math.max(0.2, Math.round(S.speed * f * 100) / 100)); renderChrome(); }
+  function nudgeSpeed(f) { setSpeedLog(Math.log(S.speed * f)); }
   function togglePsy() { S.psy = !S.psy; renderChrome(); }
   function toggleLeft() { S.left = !S.left; renderChrome(); centerRail(); }
   function toggleRight() { S.right = !S.right; renderChrome(); if (S.right) renderPanel(); }
@@ -284,10 +284,89 @@
   $('bRight').onclick = toggleRight;
   $('bNoise').onclick = () => window.Bruits && window.Bruits.toggle();
   $('bTheme').onclick = cycleTheme;
-  $('speed').addEventListener('input', (e) => {
-    const v = parseFloat(e.target.value);
-    if (!isNaN(v)) { S.speed = v; S.paused = false; renderChrome(); renderSimRow(); }
+  /* ───────── molette de vitesse ─────────
+     Comme le volume des anciens baladeurs : on fait rouler le bord d'une roue. La vitesse suit une échelle
+     logarithmique ; le gain dépend de la vivacité du geste (lent : réglage fin, vif : grands pas), et un geste
+     lancé garde un peu d'élan. Molette de souris, flèches du clavier ; double-touche : retour à ×1. */
+  const SPEED_MIN = 0.05, SPEED_MAX = 8;
+  const wheel = $('wheel'), wcv = $('wheelCv');
+  let wPhase = 0, wVel = 0, wLast = 0, wDrag = null, wTick = 0;
+  function setSpeedLog(l) {
+    const v = Math.exp(Math.min(Math.log(SPEED_MAX), Math.max(Math.log(SPEED_MIN), l)));
+    const old = S.speed;
+    S.speed = v < 1 ? Math.round(v * 1000) / 1000 : Math.round(v * 100) / 100;
+    if (S.speed !== old) { if (S.paused) { S.paused = false; renderSimRow(); } renderChrome(); }
+  }
+  // un déplacement de dx pixels, à la vitesse v (pixels par milliseconde)
+  function rollBy(dx, v) {
+    const gain = 0.004 * (1 + Math.min(7, Math.pow(v / 0.45, 2)));
+    setSpeedLog(Math.log(S.speed) + dx * gain);
+    wPhase += dx;
+    const t = Math.floor(wPhase / 9);
+    if (t !== wTick) { wTick = t; if (navigator.vibrate) { try { navigator.vibrate(3); } catch (e) { /* rien */ } } }
+    drawWheel();
+  }
+  function drawWheel() {
+    const r = wcv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+    if (wcv.width !== w || wcv.height !== h) { wcv.width = w; wcv.height = h; }
+    const g = wcv.getContext('2d'), light = S.theme === 'light';
+    // tranche du cylindre : plus sombre aux deux bouts, un reflet au milieu
+    const grad = g.createLinearGradient(0, 0, w, 0);
+    const c0 = light ? '#bdb6c8' : '#121019', c1 = light ? '#f4f1f8' : '#4a4458', c2 = light ? '#ffffff' : '#6c6480';
+    grad.addColorStop(0, c0); grad.addColorStop(0.3, c1); grad.addColorStop(0.5, c2); grad.addColorStop(0.7, c1); grad.addColorStop(1, c0);
+    g.fillStyle = grad; g.fillRect(0, 0, w, h);
+    // les crans : répartis régulièrement sur la roue, donc tassés vers les bords (perspective)
+    const R = w / 2 / Math.sin(1.35), step = 0.11, ph = (wPhase * d) / R;
+    for (let k = -40; k <= 40; k++) {
+      const th = k * step + (ph % step);
+      if (Math.abs(th) > 1.35) continue;
+      const x = w / 2 + R * Math.sin(th), shade = Math.cos(th);
+      g.fillStyle = light ? `rgba(60,40,90,${0.12 + 0.4 * shade})` : `rgba(0,0,0,${0.25 + 0.5 * shade})`;
+      g.fillRect(x - 1.2 * d * shade, h * 0.12, Math.max(1, 2.2 * d * shade), h * 0.76);
+      g.fillStyle = light ? `rgba(255,255,255,${0.6 * shade})` : `rgba(255,255,255,${0.16 * shade})`;
+      g.fillRect(x + 1.2 * d * shade, h * 0.12, Math.max(1, 0.9 * d * shade), h * 0.76);
+    }
+    // repère central, à la couleur de la machine
+    const acc = accent((curDef() || {}).cat);
+    g.fillStyle = acc; g.globalAlpha = 0.85; g.fillRect(w / 2 - d, 0, 2 * d, h * 0.16); g.fillRect(w / 2 - d, h * 0.84, 2 * d, h * 0.16); g.globalAlpha = 1;
+    wheel.setAttribute('aria-valuenow', String(S.speed));
+  }
+  wheel.addEventListener('pointerdown', (e) => {
+    wDrag = { x: e.clientX, t: performance.now() }; wVel = 0;
+    try { wheel.setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
+    e.preventDefault();
   });
+  wheel.addEventListener('pointermove', (e) => {
+    if (!wDrag) return;
+    const now = performance.now(), dx = e.clientX - wDrag.x, dt = Math.max(1, now - wDrag.t);
+    const v = Math.abs(dx) / dt;
+    wVel = wVel * 0.6 + (dx / dt) * 0.4;
+    wDrag = { x: e.clientX, t: now };
+    if (dx) rollBy(dx, v);
+  });
+  const wEnd = () => {
+    if (!wDrag) return;
+    wDrag = null;
+    // un geste lancé continue un instant sur sa lancée
+    if (Math.abs(wVel) > 0.5) { wLast = performance.now(); requestAnimationFrame(wCoast); }
+  };
+  function wCoast(now) {
+    const dt = Math.min(50, now - wLast); wLast = now;
+    wVel *= Math.exp(-dt / 60);
+    if (Math.abs(wVel) < 0.05 || wDrag) return;
+    rollBy(wVel * dt, 0); // l'élan roule avec le gain fin
+    requestAnimationFrame(wCoast);
+  }
+  wheel.addEventListener('pointerup', wEnd);
+  wheel.addEventListener('pointercancel', wEnd);
+  wheel.addEventListener('dblclick', () => { setSpeedLog(0); drawWheel(); });
+  wheel.addEventListener('wheel', (e) => { e.preventDefault(); const d = -(e.deltaY || e.deltaX); rollBy(d * 0.25, Math.min(3, Math.abs(d) / 40)); }, { passive: false });
+  wheel.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { rollBy(e.shiftKey ? 30 : 6, 0); e.preventDefault(); e.stopPropagation(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { rollBy(e.shiftKey ? -30 : -6, 0); e.preventDefault(); e.stopPropagation(); }
+  });
+  window.addEventListener('resize', drawWheel);
 
   window.addEventListener('keydown', (e) => {
     if (e.target && /input|textarea|select/i.test(e.target.tagName || '')) return;
@@ -334,9 +413,9 @@
     const br = $('bRight');
     br.style.background = S.right ? acc + '22' : '';
     br.style.borderColor = S.right ? acc + '99' : '';
-    const sp = $('speed');
-    if (document.activeElement !== sp) sp.value = S.speed;
-    $('speedOut').textContent = '×' + S.speed.toFixed(2).replace(/0$/, '');
+    const sv = S.speed, txt = sv < 0.1 ? sv.toFixed(3) : sv < 10 ? sv.toFixed(2) : sv.toFixed(1);
+    $('speedOut').textContent = '×' + txt.replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
+    drawWheel();
   }
 
   let railItems = [];

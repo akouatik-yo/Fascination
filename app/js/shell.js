@@ -5,7 +5,8 @@
   'use strict';
   const ORDER = ['fourmis', 'mycelium', 'blob', 'meduses', 'lucioles', 'boids', 'feu', 'eau', 'fluide', 'sable', 'foudre', 'cristal', 'rd', 'spirales', 'chladni', 'kaleido', 'harmono', 'attracteur', 'fractal', 'moire', 'galaxie', 'tunnel', 'lave', 'bulles', 'viz', 'harpe'];
   const ACCENT = { 'Vivant': '#79f3b4', 'Éléments': '#ff9c5c', 'Motifs': '#c09aff', 'Cosmos': '#6fd4ff', 'Sons': '#ff8ad8' };
-  const accent = (cat) => ACCENT[cat] || '#c09aff';
+  const ACCENT_L = { 'Vivant': '#0e8a57', 'Éléments': '#c4501a', 'Motifs': '#6f45d4', 'Cosmos': '#137fae', 'Sons': '#c2368f' };
+  const accent = (cat) => (S.theme === 'light' ? ACCENT_L[cat] || '#6f45d4' : ACCENT[cat] || '#c09aff');
   const CFG = Object.assign({ startSim: 'lucioles', speed: 1, sound: false, psyche: true, autoplay: 0 }, window.FASC_CONFIG || {});
 
   const $ = (id) => document.getElementById(id);
@@ -24,7 +25,8 @@
     return e;
   }
 
-  const S = { ready: false, id: null, tool: null, sound: false, psy: CFG.psyche !== false, zen: false, paused: false, speed: Number(CFG.speed) > 0 ? Number(CFG.speed) : 1, left: window.innerWidth >= 1200, right: window.innerWidth >= 760, about: false };
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* rien */ } } };
+  const S = { theme: 'dark', themePref: store.get('fasc-theme') || 'auto', decor: store.get('fasc-decor') !== '0', ready: false, id: null, tool: null, sound: false, psy: CFG.psyche !== false, zen: false, paused: false, speed: Number(CFG.speed) > 0 ? Number(CFG.speed) : 1, left: window.innerWidth >= 1200, right: window.innerWidth >= 760, about: false };
   let defs = [], sim = null, env = null, audio = null;
   let raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null;
   let down = false, px = null, py = null;
@@ -78,7 +80,7 @@
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, hh);
-    return { ctx, canvas, w, h: hh, dpr, t: 0, audio, get tool() { return S.tool; }, get view() { return viewRect(); }, get paused() { return S.paused; } };
+    return { ctx, canvas, w, h: hh, dpr, t: 0, audio, get tool() { return S.tool; }, get view() { return viewRect(); }, get paused() { return S.paused; }, get decor() { return S.decor; }, get theme() { return S.theme; } };
   }
   function disposeSim() {
     if (sim && sim.dispose) { try { sim.dispose(); } catch (e) { /* rien */ } }
@@ -183,6 +185,37 @@
     // les bourdons des expériences sont recréés avec le son
     disposeSim(); build();
   }
+  /* thème : choix du visiteur, sinon celui de l'hôte (artefact claude.ai), sinon celui du système */
+  const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+  function applyTheme() {
+    let t = S.themePref;
+    if (t === 'auto') {
+      const host = document.documentElement.getAttribute('data-theme');
+      t = host === 'light' || host === 'dark' ? host : mq && mq.matches ? 'light' : 'dark';
+    }
+    const changed = t !== S.theme;
+    S.theme = t;
+    document.documentElement.setAttribute('data-fasc-theme', t);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', t === 'light' ? '#f3eee3' : '#07060c');
+    if (changed && S.ready) { buildRail(); renderRail(); renderPanel(); }
+    renderChrome();
+    if (window.Bruits && window.Bruits.retheme) window.Bruits.retheme();
+  }
+  function cycleTheme() {
+    S.themePref = { auto: 'light', light: 'dark', dark: 'auto' }[S.themePref] || 'auto';
+    store.set('fasc-theme', S.themePref);
+    applyTheme();
+  }
+  if (mq && mq.addEventListener) mq.addEventListener('change', applyTheme);
+  try { new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) { /* rien */ }
+  function toggleDecor() {
+    const def = curDef();
+    if (!def || !def.decor) return;
+    S.decor = !S.decor;
+    store.set('fasc-decor', S.decor ? '1' : '0');
+    renderSimRow();
+  }
   function nudgeSpeed(f) { S.speed = Math.min(2.5, Math.max(0.08, Math.round(S.speed * f * 100) / 100)); renderChrome(); }
   function togglePsy() { S.psy = !S.psy; renderChrome(); }
   function toggleLeft() { S.left = !S.left; renderChrome(); centerRail(); }
@@ -240,6 +273,7 @@
   $('bZenOut').onclick = toggleZen;
   $('bRight').onclick = toggleRight;
   $('bNoise').onclick = () => window.Bruits && window.Bruits.toggle();
+  $('bTheme').onclick = cycleTheme;
   $('speed').addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     if (!isNaN(v)) { S.speed = v; S.paused = false; renderChrome(); renderSimRow(); }
@@ -255,6 +289,8 @@
     else if (k === 'h') toggleZen();
     else if (k === 's') toggleSound();
     else if (k === 'n') { if (window.Bruits) window.Bruits.toggle(); }
+    else if (k === 'd') toggleDecor();
+    else if (k === 't') cycleTheme();
     else if (k === 'r') shuffle();
     else if (k === '[') toggleLeft();
     else if (k === ']') toggleRight();
@@ -277,12 +313,13 @@
     panel.hidden = S.zen || !S.right;
     $('bZenOut').hidden = !S.zen;
     const bl = $('bLeft');
-    bl.style.background = S.left ? 'rgba(255,255,255,.1)' : '';
-    bl.style.borderColor = S.left ? 'rgba(255,255,255,.28)' : '';
+    bl.style.background = S.left ? 'var(--chip-hi)' : '';
+    bl.style.borderColor = S.left ? 'var(--line-hi)' : '';
+    $('bTheme').textContent = { auto: '◐ AUTO', light: '☀ CLAIR', dark: '☾ SOMBRE' }[S.themePref] || '◐ AUTO';
     $('bSound').textContent = S.sound ? 'SON ON' : 'SON OFF';
-    paint($('bSound'), S.sound, '#ff8ad8');
+    paint($('bSound'), S.sound, S.theme === 'light' ? '#c2368f' : '#ff8ad8');
     $('bPsy').textContent = S.psy ? 'PSYCHÉ ON' : 'PSYCHÉ OFF';
-    paint($('bPsy'), S.psy, '#c09aff');
+    paint($('bPsy'), S.psy, S.theme === 'light' ? '#6f45d4' : '#c09aff');
     $('bPause').textContent = S.paused ? 'REPRENDRE' : 'PAUSE';
     const br = $('bRight');
     br.style.background = S.right ? acc + '22' : '';
@@ -313,7 +350,8 @@
     rail.append(h('div', { class: 'keys' },
       h('span', null, '← → CHANGER · R HASARD'),
       h('span', null, 'ESPACE PAUSE · H ZEN · S SON'),
-      h('span', null, 'N BRUITS · [ ] VOLETS'),
+      h('span', null, 'N BRUITS · D DÉCOR · T THÈME'),
+      h('span', null, '[ ] VOLETS'),
       h('span', null, '+ / − VITESSE')));
   }
   function renderRail() {
@@ -364,6 +402,11 @@
       row.append(h('button', { class: 'sb', title: 'Vider entièrement l’écran', onclick: clearSim }, 'VIDER'));
       sec.append(h('div', { class: 'note' }, 'Videz, mettez en pause, construisez votre dispositif… puis lancez la lecture.'));
     }
+    if (cur.decor) {
+      P.dKnob = h('i'); P.dTrack = h('span', { class: 'tk' }, P.dKnob);
+      P.decor = h('button', { class: 'c-tg', title: 'Masquer ou montrer le décor (D)', onclick: toggleDecor }, P.dTrack, h('span', null, 'Décor'));
+      sec.append(P.decor, h('div', { class: 'note' }, 'Sans décor, seul le phénomène reste, sur fond noir ou crème selon le thème.'));
+    }
     panel.append(sec);
     renderSimRow();
 
@@ -391,11 +434,20 @@
       const on = b._t.id === S.tool;
       b.style.background = on ? acc + '26' : '';
       b.style.borderColor = on ? acc + 'aa' : '';
-      b.style.color = on ? '#fff' : '';
+      b.style.color = on ? 'var(--fg-strong)' : '';
       if (on) P.tdesc.textContent = b._t.desc || '';
     }
   }
-  function renderSimRow() { if (P && P.play) P.play.textContent = S.paused ? '▶ LECTURE' : '❚❚ PAUSE'; }
+  function renderSimRow() {
+    if (!P) return;
+    if (P.play) P.play.textContent = S.paused ? '▶ LECTURE' : '❚❚ PAUSE';
+    if (P.decor) {
+      const cur = curDef();
+      P.dTrack.style.background = S.decor ? accent(cur.cat) : '';
+      P.dKnob.style.left = S.decor ? '15px' : '2px';
+      P.decor.setAttribute('aria-pressed', S.decor ? 'true' : 'false');
+    }
+  }
 
   /* commandes propres à la machine (sim.ui) : reconstruites seulement si leur structure change,
      sinon mises à jour sur place, pour ne pas casser un curseur qu'on est en train de tirer */
@@ -470,7 +522,7 @@
             b.textContent = op.label;
             b.style.background = on ? acc + '26' : '';
             b.style.borderColor = on ? acc + 'aa' : '';
-            b.style.color = on ? '#fff' : '';
+            b.style.color = on ? 'var(--fg-strong)' : '';
           });
         } };
       }
@@ -487,5 +539,5 @@
     }
   }
 
-  renderChrome();
+  applyTheme();
 })();

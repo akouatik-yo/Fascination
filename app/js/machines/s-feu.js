@@ -5,7 +5,7 @@
    chimiluminescence (bleu de CH* et C₂*) et des raies d'émission des sels métalliques.
    Repli automatique sur l'ancien feu en 2D si WebGL2 ou les cibles flottantes manquent. */
 (function boot() {
-  if (!window.FK) return setTimeout(boot, 12);
+  if (!window.FK || !window.FKGL) return setTimeout(boot, 12);
   const { TAU, clamp, rnd, rint, buf, blit, lut, layer } = window.FK;
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const n1 = (x) => { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); const hsh = (k) => { const s = Math.sin(k * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }; return hsh(i) * (1 - u) + hsh(i + 1) * u; };
@@ -60,128 +60,8 @@
     return out;
   }
 
-  /* ───────── petite boîte à outils WebGL2 ───────── */
-  function GLKit(cw, ch) {
-    const canvas = document.createElement('canvas');
-    canvas.width = cw; canvas.height = ch;
-    const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
-    if (!gl) throw new Error('WebGL2 indisponible');
-    const full = !!gl.getExtension('EXT_color_buffer_float');
-    if (!full && !gl.getExtension('EXT_color_buffer_half_float')) throw new Error('cibles flottantes indisponibles');
-    const vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
-    const vb = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, vb);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    const emptyVao = gl.createVertexArray();
-    const all = { tex: [], fb: [], prog: [] };
+  const { GLKit, VS, HEAD } = window.FKGL;
 
-    function shader(type, src) {
-      const s = gl.createShader(type);
-      gl.shaderSource(s, src); gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { const log = gl.getShaderInfoLog(s); throw new Error('shader : ' + log + '\n' + src.split('\n').slice(0, 3).join('\n')); }
-      return s;
-    }
-    function program(fs, vs) {
-      const p = gl.createProgram();
-      gl.attachShader(p, shader(gl.VERTEX_SHADER, vs || VS));
-      gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
-      gl.bindAttribLocation(p, 0, 'aPos');
-      gl.linkProgram(p);
-      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('liaison : ' + gl.getProgramInfoLog(p));
-      all.prog.push(p);
-      const loc = {};
-      let unit = 0;
-      const L = (n) => (n in loc ? loc[n] : (loc[n] = gl.getUniformLocation(p, n)));
-      const P = {
-        p,
-        use() { gl.useProgram(p); unit = 0; return P; },
-        t(n, tex) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex.tex || tex); gl.uniform1i(L(n), unit++); return P; },
-        f(n, a, b, c, d) { const l = L(n); if (d !== undefined) gl.uniform4f(l, a, b, c, d); else if (c !== undefined) gl.uniform3f(l, a, b, c); else if (b !== undefined) gl.uniform2f(l, a, b); else gl.uniform1f(l, a); return P; },
-        i(n, v) { gl.uniform1i(L(n), v); return P; },
-        v4(n, arr) { gl.uniform4fv(L(n), arr); return P; },
-      };
-      return P;
-    }
-    function texture(w, h, fmt, filter, data) {
-      const t = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, t);
-      const f32 = fmt === 'f32' && full;
-      gl.texImage2D(gl.TEXTURE_2D, 0, f32 ? gl.RGBA32F : gl.RGBA16F, w, h, 0, gl.RGBA, f32 ? gl.FLOAT : gl.HALF_FLOAT, null);
-      if (data) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.FLOAT, data);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      all.tex.push(t);
-      return t;
-    }
-    function target(w, h, fmt, filter) {
-      const tex = texture(w, h, fmt, filter == null ? gl.LINEAR : filter);
-      const fb = gl.createFramebuffer();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error('cible incomplète');
-      gl.viewport(0, 0, w, h);
-      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-      all.fb.push(fb);
-      return { tex, fb, w, h };
-    }
-    function double(w, h, fmt, filter) {
-      let a = target(w, h, fmt, filter), b = target(w, h, fmt, filter);
-      return { get r() { return a; }, get w() { return b; }, swap() { const t = a; a = b; b = t; }, W: w, H: h };
-    }
-    const mfb = gl.createFramebuffer();
-    all.fb.push(mfb);
-    // dessine un triangle plein écran dans une cible (ou deux, en sorties multiples)
-    function run(P, out, out2) {
-      if (out2) {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, mfb);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, out.tex, 0);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, out2.tex, 0);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-      } else if (out) {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, out.fb);
-      } else gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, out ? out.w : canvas.width, out ? out.h : canvas.height);
-      gl.bindVertexArray(vao);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      if (out2) {
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, null, 0);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-      }
-    }
-    function clear(t) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, t.fb);
-      gl.viewport(0, 0, t.w, t.h);
-      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-    }
-    function read(t, x, y) {
-      const out = new Float32Array(4);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, t.fb);
-      gl.readPixels(clamp(x | 0, 0, t.w - 1), clamp(y | 0, 0, t.h - 1), 1, 1, gl.RGBA, gl.FLOAT, out);
-      return out;
-    }
-    function lose() {
-      try { const e = gl.getExtension('WEBGL_lose_context'); if (e) e.loseContext(); } catch (err) { /* rien */ }
-    }
-    return { gl, canvas, full, program, texture, target, double, run, clear, read, lose, emptyVao };
-  }
-
-  /* ───────── shaders ───────── */
-  const VS = `#version 300 es
-in vec2 aPos; out vec2 vUv;
-void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0., 1.); }`;
-  const HEAD = `#version 300 es
-precision highp float; precision highp sampler2D;
-in vec2 vUv;
-float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
-float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3. - 2. * f);
-  return mix(mix(hash12(i), hash12(i + vec2(1, 0)), u.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), u.x), u.y); }
-float fbm(vec2 p){ float a = .5, s = 0.; for (int i = 0; i < 3; i++){ s += a * vnoise(p); p = p * 2.03 + 17.1; a *= .5; } return s; }
-`;
   const EMIT_DECL = `
 uniform int uN; uniform vec4 uEA[16]; uniform vec4 uEB[16]; uniform vec4 uEG[16];
 `;
@@ -251,7 +131,6 @@ void main(){
   vec2 C = texture(uVel, vUv).xy;
   float L = texture(uVel, vUv - vec2(uVt.x, 0.)).x, R = texture(uVel, vUv + vec2(uVt.x, 0.)).x;
   float B = texture(uVel, vUv - vec2(0., uVt.y)).y, T = texture(uVel, vUv + vec2(0., uVt.y)).y;
-  if (vUv.x - uVt.x < 0.) L = -C.x; if (vUv.x + uVt.x > 1.) R = -C.x;
   if (vUv.y - uVt.y < 0.) B = -C.y;
   o = vec4(.5 * (R - L + T - B), 0., 0., 1.);
 }`,
@@ -262,6 +141,7 @@ void main(){
   float L = texture(uP, vUv - vec2(uVt.x, 0.)).x, R = texture(uP, vUv + vec2(uVt.x, 0.)).x;
   float B = texture(uP, vUv - vec2(0., uVt.y)).x, T = texture(uP, vUv + vec2(0., uVt.y)).x;
   if (vUv.y + uVt.y > 1.) T = 0.; // le haut est ouvert : la fumée s'échappe par le conduit
+  if (vUv.x - uVt.x < 0.) L = 0.; if (vUv.x + uVt.x > 1.) R = 0.; // côtés ouverts : l'air frais entre
   o = vec4((L + R + B + T - texture(uDiv, vUv).x) * .25, 0., 0., 1.);
 }`,
 
@@ -271,6 +151,7 @@ void main(){
   float L = texture(uP, vUv - vec2(uVt.x, 0.)).x, R = texture(uP, vUv + vec2(uVt.x, 0.)).x;
   float B = texture(uP, vUv - vec2(0., uVt.y)).x, T = texture(uP, vUv + vec2(0., uVt.y)).x;
   if (vUv.y + uVt.y > 1.) T = 0.;
+  if (vUv.x - uVt.x < 0.) L = 0.; if (vUv.x + uVt.x > 1.) R = 0.;
   vec2 v = texture(uVel, vUv).xy - .5 * vec2(R - L, T - B);
   o = vec4(v, 0., 1.);
 }`,
@@ -294,7 +175,7 @@ void main(){
       float shell = (1. - smoothstep(r, r * 1.5, d)) * smoothstep(r * .55, r * .95, d);
       float up = 1. - smoothstep(-.55, .3, n.y / max(d, 1e-3));
       float tong = smoothstep(.3, .85, vnoise(vec2(h * L / (r * 1.15) + I.w * 13., uTime * 1.7 + I.w * 7.)));
-      w = shell * up * (.2 + tong);
+      w = shell * up * (.45 + .8 * tong);
     } else {
       vec2 d = p - A.xy; w = exp(-dot(d, d) / (r * r * (B.y > 15. ? .55 : .8)));
     }
@@ -380,7 +261,7 @@ void main(){
 }`,
 
     emit: HEAD + EMIT_DECL + `
-uniform sampler2D uS, uC, uBB; uniform vec2 uRes, uSt; uniform float uTime, uO2, uIgn, uBurn, uVent, uFlame, uSalt, uBlue0, uWob;
+uniform sampler2D uS, uC, uBB; uniform vec2 uRes, uSt; uniform float uTime, uO2, uIgn, uBurn, uVent, uFlame, uSalt, uBlue0, uWob, uDecor;
 out vec4 o;
 vec3 bb(float T){ return texture(uBB, vec2(clamp((T * 1250. - 300.) / 1600., 0., 1.), .5)).rgb; }
 float crack(vec2 p){ vec2 n = floor(p), f = fract(p); float d1 = 8., d2 = 8.;
@@ -396,13 +277,14 @@ void main(){
   float T = s.r, F = s.g;
   float pm = clamp(c.a / max(F, 1e-4), 0., 1.);
   float rate = uBurn * (1. + 3. * pm) * uO2 * uVent * smoothstep(uIgn, uIgn + .12, T);
-  vec3 e = bb(T) * (1. - exp(-s.b * 1.6));                     // suie incandescente (corps noir)
+  vec3 e = bb(T) * (1. - exp(-s.b * 3.2)) * 1.25;              // suie incandescente (corps noir)
   float saltI = c.r + c.g + c.b;
   e += vec3(.12, .3, 1.) * F * rate * (uBlue0 + 1.3 * pm) * .5 * exp(-s.b * 2.5 - saltI * 4.); // CH* 431 nm et C₂* 516 nm, noyés par la suie et les sels
-  e += bb(T) * .05 * smoothstep(.35, 1., T);                     // gaz chauds
+  e += bb(T) * .12 * smoothstep(.35, 1., T);                     // gaz chauds
   e += c.rgb * smoothstep(.3, .7, T) * uSalt;                    // raies des sels
   e *= uFlame;
   for (int i = 0; i < 16; i++){
+    if (uDecor < .5) break;
     if (i >= uN) break;
     vec4 A = uEA[i], B = uEB[i], G = uEG[i];
     if (B.y < 9.5){
@@ -444,7 +326,7 @@ void main(){
 }`,
 
     comp: HEAD + EMIT_DECL + `
-uniform sampler2D uBg, uS, uE, uB1, uB2, uB3; uniform vec2 uRes; uniform float uTime, uAmb, uSky, uBloom, uSmoke, uExpo; uniform vec3 uAmbCol;
+uniform sampler2D uBg, uS, uE, uB1, uB2, uB3; uniform vec2 uRes; uniform float uTime, uAmb, uSky, uBloom, uSmoke, uExpo, uDecor, uInk; uniform vec3 uAmbCol, uPaper;
 uniform vec4 uL[16];
 out vec4 o;
 float sdBox(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.)) + min(max(d.x, d.y), 0.); }
@@ -468,8 +350,9 @@ void main(){
   vec3 glow = texture(uB3, vUv).rgb + texture(uB2, vUv).rgb * .5;
   vec3 illum = uAmbCol * uAmb + vec3(1., .56, .26) * fire + glow * 1.1;
   vec3 col = p.y < uSky ? bg : bg * illum;
+  if (uDecor < .5) col = uPaper;
   for (int i = 0; i < 16; i++){
-    if (i >= uN) break;
+    if (i >= uN || uDecor < .5) break;
     vec4 A = uEA[i], B = uEB[i], G = uEG[i];
     if (B.y < 9.5){
       vec2 a = A.xy, b = A.zw, ab = b - a; float L = max(length(ab), 1.); vec2 ax = ab / L, nr = vec2(-ax.y, ax.x);
@@ -510,11 +393,22 @@ void main(){
   }
   vec4 s = texture(uS, vUv);
   float sm = (1. - exp(-s.b * uSmoke)) * (1. - .75 * smoothstep(.3, .75, s.r));
-  col = mix(col, vec3(.028, .025, .023) + glow * .3 + illum * .035, sm * .92);
   float stv = 1. - exp(-s.a * 1.8);
-  col = mix(col, vec3(.62, .64, .68) * (illum * .55 + .03), stv * .7);
-  col += texture(uE, vUv).rgb + (texture(uB1, vUv).rgb * .5 + texture(uB2, vUv).rgb * .4 + texture(uB3, vUv).rgb * .35) * uBloom;
-  col = aces(col * uExpo);
+  vec3 em = texture(uE, vUv).rgb + (texture(uB1, vUv).rgb * .5 + texture(uB2, vUv).rgb * .4 + texture(uB3, vUv).rgb * .35) * uBloom;
+  if (uInk > .5){
+    // fond crème : on ne peut pas ajouter de lumière au blanc, la flamme est peinte comme une encre colorée
+    col = mix(col, vec3(.2, .18, .17), sm * .8);
+    col = mix(col, vec3(.55, .6, .66), stv * .45);
+    vec3 fc = aces(em * uExpo * 1.6);
+    float a = clamp(max(fc.r, max(fc.g, fc.b)) * 1.35, 0., 1.);
+    float l = dot(fc, vec3(.3, .59, .11));
+    vec3 ink = clamp(mix(vec3(l), fc, 1.45) * .94 - .03, 0., 1.);
+    col = mix(col, ink, a);
+  } else {
+    if (uDecor < .5){ col = mix(col, vec3(.07, .065, .06) + glow * .3, sm * .9); col = mix(col, vec3(.5, .52, .56) * (glow * .6 + .05), stv * .7); }
+    else { col = mix(col, vec3(.028, .025, .023) + glow * .3 + illum * .035, sm * .92); col = mix(col, vec3(.62, .64, .68) * (illum * .55 + .03), stv * .7); }
+    col = aces((col + em) * uExpo);
+  }
   col = pow(col, vec3(1. / 2.2)) + (hash12(p + fract(uTime) * 91.) - .5) / 255.;
   o = vec4(col, 1.);
 }`,
@@ -537,7 +431,11 @@ void main(){
   vCol = texture(uBB, vec2(clamp((Q.z * 1250. - 300.) / 1600., 0., 1.), .5)).rgb * fade * uGain * (hd == 1 ? 1. : .2) * (Q.w > .5 ? 2. : 1.);
 }`;
   const FS_SPARK = `#version 300 es
-precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.); }`;
+precision highp float; in vec3 vCol; uniform float uInk; out vec4 o;
+void main(){
+  if (uInk > .5){ float a = clamp(max(vCol.r, max(vCol.g, vCol.b)) * .9, 0., 1.); vec3 c = clamp(vCol / max(.001, max(vCol.r, max(vCol.g, vCol.b))), 0., 1.) * vec3(.95, .55, .2); o = vec4(c * a, a); }
+  else o = vec4(vCol, 0.);
+}`;
 
   /* ───────── décors peints (2D), éclairés ensuite par le feu ───────── */
   function grain(g, x, y, w, h, n, a, light) {
@@ -821,7 +719,7 @@ precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.)
   };
 
   window.FASC.push({
-    id: 'feu', name: 'Le Feu', cat: 'Éléments', glyph: '🜂',
+    id: 'feu', name: 'Le Feu', cat: 'Éléments', glyph: '🜂', decor: true,
     blurb: 'Combustion, convection et lumière',
     hint: 'OBSERVER : touchez pour mesurer la température et identifier ce qui brûle · SOUFFLE : glissez pour attiser · POSER : touchez pour poser une bûche, une bougie ou un bec, glissez un élément pour le déplacer · SEL : touchez une flamme · EAU : glissez pour arroser.',
     intro: 'Un foyer simulé comme un vrai fluide : l’air chauffé monte, tourbillonne et étire les flammes. Le bois libère des gaz qui brûlent au contact de l’air, la suie chauffée au rouge donne la lumière jaune, et la base des flammes bleuit là où la réaction est la plus vive. Soufflez, arrosez, changez la gravité, jetez des sels : chaque élément colore la flamme de ses propres raies.',
@@ -862,7 +760,7 @@ precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.)
     const dpr = env.dpr || Math.min(2, window.devicePixelRatio || 1);
     const kS = clamp(Math.min(W, H) / 800, 0.6, 1.5);
     const mobile = /Mobi|Android|iPad|iPhone/i.test(navigator.userAgent) || Math.min(W, H) < 520;
-    const cfg = { scene: 'cheminee', g: 1, o2: 21, wind: 0, turb: 0.55, valve: 1, smoke: true, sparks: true, glow: 1, auto: true, put: 'chene', sel: 'na', q: mobile ? 'legere' : 'normale' };
+    const cfg = { scene: 'cheminee', g: 1, o2: 21, wind: 0, turb: 0.45, valve: 1, smoke: true, sparks: true, glow: 1, auto: true, put: 'chene', sel: 'na', q: mobile ? 'legere' : 'normale' };
     const snd = () => au && au.on && au.ctx;
     const BB = blackbody(256), BURN = 1.9;
     // sans convection, l'oxygène n'arrive plus que par diffusion : la combustion ralentit
@@ -971,7 +869,7 @@ precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.)
       E = []; VT = 0; lastAdd = 0;
       clearFields();
       const v = view(), cx = v.cx;
-      Object.assign(cfg, { g: 1, wind: 0, o2: 21, turb: 0.55, valve: 1, auto: id === 'cheminee' || id === 'camp' });
+      Object.assign(cfg, { g: 1, wind: 0, o2: 21, turb: 0.45, valve: 1, auto: id === 'cheminee' || id === 'camp' });
       if (id === 'cheminee') {
         const floor = H * 0.8, L = Math.min(v.w * 0.3, H * 0.5), r = L * 0.12;
         addLog('chene', cx - L * 0.3, floor - r * 1.05, L, 0.05);
@@ -1119,7 +1017,7 @@ precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.)
         let fuel = 0, pilot = 0, pm = 0, smoke = 0, steam = 0, jet = 0, spark = 0, sv = 1, light = 0;
         const fl = (0.5 + 0.5 * n1(VT * 7 + e.seed * 40)) * (0.75 + 0.25 * n1(VT * 2.3 + e.seed * 9));
         if (e.kind === 'log') {
-          fuel = 3.0 * S.flame * e.flame; pilot = e.lit ? 0.62 * Math.min(1, e.flame + 0.25) : 0;
+          fuel = 4.4 * S.flame * e.flame; pilot = e.lit ? 0.62 * Math.min(1, e.flame + 0.25) : 0;
           smoke = e.wet * (e.glow + e.flame) * 1.5 + (!e.lit ? e.glow * 0.9 : 0);
           steam = e.wet * (e.glow * 1.2 + e.flame) * 1.6;
           spark = S.spark * e.glow * (1 + e.boost * 3) * (e.lit ? 1 : 0.1);
@@ -1155,7 +1053,7 @@ precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.)
       const P = ptr && ptr.life > 0 ? ptr : null;
       pg.force.use().t('uVel', R.vel.r).t('uCurl', R.curl).t('uS', R.S.r)
         .f('uVt', vt[0], vt[1]).f('uRes', W, H).f('uCell', GVW / W, GVH / H)
-        .f('uDt', dt).f('uBuoy', g * 1.2 * GVH).f('uWeight', g * 0.05 * GVH).f('uVort', 3 + 32 * cfg.turb).f('uTurb', cfg.turb * 0.7 * GVH).f('uTime', VT)
+        .f('uDt', dt).f('uBuoy', g * 1.2 * GVH).f('uWeight', g * 0.05 * GVH).f('uVort', 3 + 14 * cfg.turb).f('uTurb', cfg.turb * 0.14 * GVH).f('uTime', VT)
         .f('uDrag', Math.exp(-dt * 0.35)).f('uWind', cfg.wind * 0.6 * GVW, 0)
         .f('uPtr', P ? P.x : 0, P ? P.y : 0, P ? P.vx : 0, P ? P.vy : 0).f('uPtrR', P ? 70 * kS : 0)
         .i('uN', E.length).v4('uEA', uEA).v4('uEB', uEB).v4('uEJ', uEJ);
@@ -1203,12 +1101,12 @@ precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.)
       const { K, gl, pg } = R;
       const ox = o2f(), vent = VENT();
       pg.emit.use().t('uS', R.S.r).t('uC', R.C.r).t('uBB', R.bb).f('uRes', W, H).f('uSt', 1 / R.GSW, 1 / R.GSH).f('uTime', VT)
-        .f('uO2', ox).f('uIgn', 0.3).f('uBurn', BURN).f('uVent', vent).f('uFlame', 1).f('uSalt', 3.5).f('uBlue0', 0.06 + 0.5 * (1 - clamp(cfg.g, 0, 1))).f('uWob', 0.4 + 3 * cfg.turb)
+        .f('uO2', ox).f('uIgn', 0.3).f('uBurn', BURN).f('uVent', vent).f('uFlame', 1).f('uSalt', 3.5).f('uBlue0', 0.06 + 0.5 * (1 - clamp(cfg.g, 0, 1))).f('uWob', 0.4 + 2 * cfg.turb).f('uDecor', env.decor === false ? 0 : 1)
         .i('uN', E.length).v4('uEA', uEA).v4('uEB', uEB).v4('uEG', uEG);
       K.run(pg.emit, R.E);
       if (cfg.sparks) {
         gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
-        pg.spark.use().t('uP', R.P.r).t('uQ', R.Pq.r).t('uBB', R.bb).f('uRes', W, H).i('uSide', R.Q.side).f('uStreak', 0.03).f('uGain', 1.8);
+        pg.spark.use().t('uP', R.P.r).t('uQ', R.Pq.r).t('uBB', R.bb).f('uRes', W, H).i('uSide', R.Q.side).f('uStreak', 0.03).f('uGain', 1.8).f('uInk', 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, R.E.fb); gl.viewport(0, 0, R.E.w, R.E.h);
         gl.bindVertexArray(K.emptyVao);
         gl.drawArrays(gl.LINES, 0, R.Q.side * R.Q.side * 2);
@@ -1220,15 +1118,17 @@ precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.)
       };
       blur(R.E, R.b1t, R.b1); blur(R.b1, R.b2t, R.b2); blur(R.b2, R.b3t, R.b3);
       const d = deco || { amb: 0.05, ambCol: [1, 1, 1], sky: -1 };
+      const bare = env.decor === false, ink = bare && env.theme === 'light';
       pg.comp.use().t('uBg', R.bg).t('uS', R.S.r).t('uE', R.E).t('uB1', R.b1).t('uB2', R.b2).t('uB3', R.b3)
         .f('uRes', W, H).f('uTime', VT).f('uAmb', d.amb).f('uAmbCol', d.ambCol[0], d.ambCol[1], d.ambCol[2]).f('uSky', d.sky)
-        .f('uBloom', cfg.glow).f('uSmoke', cfg.smoke ? 0.65 : 0).f('uExpo', 1.35)
+        .f('uBloom', cfg.glow).f('uSmoke', cfg.smoke ? 0.65 : 0).f('uExpo', 1.35).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uPaper', ink ? 0.88 : 0, ink ? 0.84 : 0, ink ? 0.73 : 0)
         .i('uN', E.length).v4('uEA', uEA).v4('uEB', uEB).v4('uEG', uEG).v4('uL', uL);
       K.run(pg.comp, null);
       if (cfg.sparks) {
         // second tracé des étincelles, net, en pleine résolution (le premier nourrit le halo)
-        gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
-        pg.spark.use().t('uP', R.P.r).t('uQ', R.Pq.r).t('uBB', R.bb).f('uRes', W, H).i('uSide', R.Q.side).f('uStreak', 0.025).f('uGain', 1.1);
+        gl.enable(gl.BLEND);
+        if (ink) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); else gl.blendFunc(gl.ONE, gl.ONE);
+        pg.spark.use().t('uP', R.P.r).t('uQ', R.Pq.r).t('uBB', R.bb).f('uRes', W, H).i('uSide', R.Q.side).f('uStreak', 0.025).f('uGain', 1.1).f('uInk', ink ? 1 : 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, R.cw, R.ch);
         gl.bindVertexArray(K.emptyVao);
         gl.drawArrays(gl.LINES, 0, R.Q.side * R.Q.side * 2);
@@ -1299,15 +1199,17 @@ precision highp float; in vec3 vCol; out vec4 o; void main(){ o = vec4(vCol, 0.)
         }
       }
       const side = x > W * 0.62 ? -1 : 1, lx = x + side * 46, ly = y - 40;
+      const paper = env.decor === false && env.theme === 'light';
+      if (paper) col = label.e ? '#8a4a12' : col === '#ffb070' ? '#b4500e' : '#5d556b';
       ctx.save();
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = a;
       ctx.strokeStyle = col; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(x, y, 12, 0, TAU); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x + side * 9, y - 8); ctx.lineTo(lx - side * 6, ly + 6); ctx.stroke();
-      ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6;
+      ctx.shadowColor = paper ? 'rgba(250,246,238,.9)' : 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6;
       ctx.textAlign = side > 0 ? 'left' : 'right';
-      ctx.fillStyle = 'rgba(250,248,240,.96)';
+      ctx.fillStyle = paper ? 'rgba(30,24,40,.94)' : 'rgba(250,248,240,.96)';
       ctx.font = (label.e ? 'italic ' : '') + '500 14px "Space Grotesk", sans-serif';
       ctx.fillText(name, lx, ly);
       ctx.fillStyle = col;

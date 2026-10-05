@@ -187,13 +187,14 @@
     for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : String(c));
     return e;
   };
-  const ACC = '#ff8ad8';
+  const light = () => document.documentElement.getAttribute('data-fasc-theme') === 'light';
+  const ACC = () => (light() ? '#c2368f' : '#ff8ad8');
   let box, playBtn, status, cv, timerTxt, about, open = false;
   const ctl = [];
 
   function slider(label, min, max, step, get, set, fmt, color) {
     const v = h('span'), inp = h('input', { type: 'range', min, max, step, 'aria-label': label });
-    inp.style.accentColor = color || ACC;
+    inp.style.accentColor = color || 'var(--rose)';
     inp.addEventListener('input', () => { set(parseFloat(inp.value)); v.textContent = fmt(get()); apply(); save(); });
     const el = h('div', { class: 'c-sl' }, h('div', { class: 'h' }, h('span', null, label), v), inp);
     ctl.push(() => { if (document.activeElement !== inp) inp.value = get(); v.textContent = fmt(get()); });
@@ -202,14 +203,14 @@
   function choice(label, opts, get, set) {
     const wrap = h('div', { class: 'opts' });
     const bs = opts.map((o) => { const b = h('button', { onclick: () => { set(o.id); apply(); save(); render(); } }, o.label); wrap.append(b); return [o, b]; });
-    ctl.push(() => bs.forEach(([o, b]) => { const on = o.id === get(); b.style.background = on ? ACC + '26' : ''; b.style.borderColor = on ? ACC + 'aa' : ''; b.style.color = on ? '#fff' : ''; }));
+    ctl.push(() => bs.forEach(([o, b]) => { const on = o.id === get(); b.style.background = on ? ACC() + '26' : ''; b.style.borderColor = on ? ACC() + 'aa' : ''; b.style.color = on ? 'var(--fg-strong)' : ''; }));
     return h('div', { class: 'c-ch' }, label ? h('span', null, label) : null, wrap);
   }
 
   function mount() {
     const stage = document.getElementById('stage');
     if (!stage || box) return;
-    playBtn = h('button', { class: 'sb play', style: 'border-color:' + ACC, onclick: () => (playing ? stop() : play()) });
+    playBtn = h('button', { class: 'sb play', style: 'border-color:var(--rose)', onclick: () => (playing ? stop() : play()) });
     status = h('div', { class: 'note' });
     timerTxt = h('span', { class: 'v' });
     cv = h('canvas', { class: 'spec', width: 600, height: 150, 'aria-label': 'Spectre du son produit' });
@@ -217,7 +218,7 @@
     const colors = h('div', { class: 'mix' });
     for (const c of COLORS) {
       colors.append(h('div', { class: 'mixrow' },
-        h('i', { style: 'background:' + c.col + ';box-shadow:0 0 8px ' + c.col }),
+        h('i', { style: 'background:' + c.col + ';box-shadow:0 0 8px ' + c.col + ';outline:1px solid var(--line-2)' }),
         slider(c.name, 0, 1, 0.01, () => st.lv[c.id], (x) => { st.lv[c.id] = x; }, (x) => (x < 0.005 ? 'coupé · ' : Math.round(x * 100) + ' % · ') + c.slope, c.col)));
     }
 
@@ -244,10 +245,10 @@
 
     box = h('aside', { class: 'bruits', 'aria-label': 'Générateur de bruits', hidden: '' },
       h('div', { class: 'p-title' },
-        h('span', { class: 'g', style: 'color:' + ACC }, '≋'),
+        h('span', { class: 'g', style: 'color:var(--rose)' }, '≋'),
         h('h1', null, 'Bruits'),
         h('button', { class: 'x', title: 'Fermer', 'aria-label': 'Fermer le générateur', onclick: () => toggle(false) }, '×')),
-      h('div', { class: 'p-blurb', style: 'color:' + ACC }, 'Blanc, rose, brun · binaural · houle'),
+      h('div', { class: 'p-blurb', style: 'color:var(--rose)' }, 'Blanc, rose, brun · binaural · houle'),
       h('div', { class: 'row' }, playBtn),
       slider('Volume général', 0, 1, 0.01, () => st.vol, (x) => { st.vol = x; }, (x) => Math.round(x * 100) + ' %'),
       cv,
@@ -305,8 +306,8 @@
     if (b) {
       const on = open || playing;
       b.textContent = playing ? 'BRUITS ●' : 'BRUITS';
-      b.style.background = on ? ACC + '26' : '';
-      b.style.borderColor = on ? ACC + 'aa' : '';
+      b.style.background = on ? ACC() + '26' : '';
+      b.style.borderColor = on ? ACC() + 'aa' : '';
       b.classList.toggle('on', on);
     }
   }
@@ -322,8 +323,8 @@
     g.textBaseline = 'bottom';
     const fx = (f) => (Math.log(f / 20) / Math.log(1000)) * W;
     for (const f of [50, 100, 200, 500, 1000, 2000, 5000, 10000]) {
-      g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(fx(f), 0, 1, H);
-      g.fillStyle = 'rgba(255,255,255,.3)';
+      g.fillStyle = light() ? 'rgba(45,30,80,.1)' : 'rgba(255,255,255,.07)'; g.fillRect(fx(f), 0, 1, H);
+      g.fillStyle = light() ? 'rgba(45,30,80,.45)' : 'rgba(255,255,255,.3)';
       if ([100, 1000, 10000].includes(f)) g.fillText(f >= 1000 ? f / 1000 + 'k' : String(f), fx(f) + 4, H - 2);
     }
     if (!ctx || !A) return;
@@ -331,7 +332,7 @@
     A.an.getFloatFrequencyData(fd);
     const ny = ctx.sampleRate / 2, n = fd.length;
     const grd = g.createLinearGradient(0, 0, W, 0);
-    grd.addColorStop(0, '#d0915a'); grd.addColorStop(0.35, '#ff9ad5'); grd.addColorStop(0.7, '#f2eeff'); grd.addColorStop(1, '#b68eff');
+    grd.addColorStop(0, '#d0915a'); grd.addColorStop(0.35, light() ? '#d0569c' : '#ff9ad5'); grd.addColorStop(0.7, light() ? '#7a6f8c' : '#f2eeff'); grd.addColorStop(1, light() ? '#7b52d8' : '#b68eff');
     g.beginPath(); g.moveTo(0, H);
     let any = false;
     for (let x = 0; x <= W; x += 3) {
@@ -350,7 +351,7 @@
       phase = ((ctx.currentTime - lfoT0) * st.bpm / 60) % 1;
       const wv = Math.sin(TAU * phase) + 0.42 * Math.sin(2 * TAU * phase) + 0.18 * Math.sin(3 * TAU * phase) + 0.07 * Math.sin(4 * TAU * phase);
       const y = H * 0.5 - wv * H * 0.22;
-      g.fillStyle = 'rgba(255,154,213,.9)';
+      g.fillStyle = light() ? 'rgba(194,54,143,.9)' : 'rgba(255,154,213,.9)';
       g.beginPath(); g.arc(W - 16, y, 6, 0, TAU); g.fill();
     }
   }
@@ -363,5 +364,5 @@
     render();
   }
 
-  window.Bruits = { toggle, play, stop, get playing() { return playing; } };
+  window.Bruits = { toggle, play, stop, retheme: render, get playing() { return playing; } };
 })();

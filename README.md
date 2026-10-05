@@ -15,6 +15,7 @@ app/                      l'application (HTML/CSS/JS natif, sans dépendance)
 ├─ index.html             gabarit de la coquille
 ├─ css/fascination.css    styles de la coquille et du tiroir BRUITS
 ├─ js/fk.js               boîte à outils partagée (maths, canvas, son)
+├─ js/fkgl.js             boîte à outils WebGL2 partagée (Feu, Eau)
 ├─ js/shell.js            coquille : volets, en-tête, panneau, boucle d'animation, raccourcis
 ├─ js/bruits.js           générateur de bruits colorés, battements binauraux et isochrones
 ├─ js/machines/s-*.js     les machines (contrat décrit dans docs/AMORCE-CLAUDE-CODE.md)
@@ -39,7 +40,7 @@ node tools/smoke.mjs        # parcourt les 26 machines, teste le Feu et les brui
 
 ## Raccourcis
 
-`←` `→` changer de machine · `R` hasard · `espace` pause · `H` zen · `S` son des machines · `N` bruits · `[` `]` volets · `+` `−` vitesse.
+`←` `→` changer de machine · `R` hasard · `espace` pause · `H` zen · `S` son des machines · `N` bruits · `D` décor · `T` thème · `[` `]` volets · `+` `−` vitesse.
 
 ## Vers l'APK Android
 

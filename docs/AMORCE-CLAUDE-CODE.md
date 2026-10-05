@@ -36,6 +36,8 @@ Ce qui a changé :
 - l'ancre de l'adresse choisit la machine (`#feu`), à l'ouverture comme en cours de route ;
 - PHOTO passe par la capacité « downloads » dans un artefact claude.ai (le visiteur confirme l'enregistrement), sinon par un lien de téléchargement, et en dernier recours affiche l'image en surimpression (appui long pour l'enregistrer) ;
 - nouveau bouton **BRUITS** (touche `N`) qui ouvre le générateur de bruits ;
+- **thème clair / sombre** : bouton ◐ AUTO / ☀ CLAIR / ☾ SOMBRE (touche `T`), mémorisé ; en automatique, suit le thème de l'hôte (attribut `data-theme` posé par claude.ai) puis le système. La coquille pose `data-fasc-theme` sur `<html>` ; toutes les couleurs de l'interface sont des jetons CSS. Les accents de catégorie ont une variante foncée pour le fond crème ;
+- **Décor** : interrupteur dans le panneau (touche `D`), affiché seulement pour les machines qui déclarent `decor: true`. Décor masqué, la machine ne montre que son phénomène, sur fond noir (thème sombre) ou crème (thème clair) ;
 - configuration facultative : `window.FASC_CONFIG = { startSim, speed, sound, psyche, autoplay }` avant les scripts ;
 - crochet de test : si `window.FASC_DEBUG = {}` existe, le Feu y expose `FASC_DEBUG.feu` (champs, scènes, mesures).
 
@@ -45,17 +47,19 @@ Chaque fichier `s-*.js` attend que `window.FK` existe, puis fait `window.FASC.pu
 ```js
 {
   id: 'meduses', name: 'Les Méduses', cat: 'Vivant', glyph: '🜄',
+  decor: true,                              // facultatif : la machine sait se montrer sans décor
   blurb: 'accroche courte',
   hint: 'gestes possibles (texte)',
   intro: 'paragraphe d’introduction (panneau)',
   legend: [{ color, name, role, desc }],   // espèces, affichées dans « En savoir plus »
   about: ['paragraphe', …],                 // contexte scientifique
   tools: [{ id, label, desc }],             // outils sélectionnables (env.tool)
-  make(env) {                               // env = { ctx, canvas, w, h, audio, tool, view, paused }
+  make(env) {                               // env = { ctx, canvas, w, h, dpr, audio, tool, view, paused, decor, theme }
     return {
       frame(t, dt) {},                      // dt déjà multiplié par la VITESSE ; dt = 0 en pause « en direct »
       down(p), move(p), up(p),              // p = { x, y, dx, dy, down }
       dispose(),
+      // env.decor (booléen) et env.theme ('dark' | 'light') se lisent à chaque image ; déclarer decor: true dans la définition
       livePaused: true,                     // facultatif
       clear(),                              // facultatif → bouton VIDER
       ui() { return [ … ] },                // facultatif → commandes du panneau
@@ -99,6 +103,7 @@ L'utilisateur a beaucoup aimé les machines refaites. Les principes à reproduir
 
 Machines refaites (niveau final) :
 - **Feu** (octobre 2026, WebGL2) : voir §7.
+- **Eau** (octobre 2026, WebGL2) : voir §9.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -106,7 +111,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Eau, Écoulement, Sable, Foudre, Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Écoulement, Sable, Foudre, Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -116,7 +121,7 @@ Points restés en suspens :
 - la nuée d'étourneaux reste un peu compacte, on peut l'étirer davantage pour obtenir des nappes plus fines ;
 - ajouter `ui()` et `clear()` aux Méduses et à la Fourmilière ;
 - ajouter le pincement (zoom) et des gestes à plusieurs doigts ;
-- à terme : passer en WebGL les machines de fluides, de lumière et de particules (méduses, eau, galaxie… ; le feu est fait) pour des dizaines de milliers de particules, un vrai flou de profondeur et des réfractions.
+- à terme : passer en WebGL les machines de fluides, de lumière et de particules (méduses, galaxie… ; le feu et l'eau sont faits) pour des dizaines de milliers de particules, un vrai flou de profondeur et des réfractions.
 
 ## 6. Fait le 5 octobre 2026
 1. Coquille réécrite en natif, machines chargées sans modification.
@@ -143,3 +148,14 @@ Suite possible : retravailler la machine suivante (l'Eau et l'Écoulement profit
 ## 8. Le générateur de bruits — `app/js/bruits.js`
 
 Tiroir indépendant (bouton BRUITS, touche `N`), avec son propre contexte audio : il joue même si SON est coupé et continue quand on change de machine. Mélange de six couleurs (blanc, rose de Kellet, brun, gris par courbe d'égale sonie, bleu, violet), boucles stéréo décorrélées de 12 s sans couture ; battements binauraux (casque) ou isochrones ; « houle » qui module gain et filtre (rythme réglable, 5,5 vagues/min = respiration lente) ; minuterie avec fondu ; spectre en direct ; préréglages. Les réglages sont mémorisés dans `localStorage`.
+
+## 9. L'Eau (WebGL2) — `app/js/machines/s-eau.js`
+
+- **Boîte à outils partagée** : `app/js/fkgl.js` (`window.FKGL = { GLKit, VS, HEAD }`), utilisée par le Feu et l'Eau. Une machine WebGL attend `window.FK` et `window.FKGL`.
+- **Surface** : équation d'onde sur GPU (hauteur, vitesse, moyenne de h² pour repérer nœuds et ventres). Vitesse locale lue dans une carte peinte en 2D (canal rouge : profondeur, vert : paroi) ; bords absorbants ; viscosité qui éteint d'abord les rides fines ; les nénuphars amortissent. Jusqu'à 64 sources par pas (gouttes, coups de rame, brise, sources oscillantes) et une source plane.
+- **Lumière** : caustiques par maillage déformé (chaque sommet suit un rayon réfracté, indice 1,33 ; l'intensité est le rapport des aires, via `dFdx`/`dFdy`), lissées ; réfraction du fond, absorption de l'eau, ombres au fond (nénuphars, fossettes des pattes de gerris cerclées de lumière, koïs), reflets du soleil.
+- **Peuple** : gerris (coups de rame, chasse aux ondes, signaux des mâles, saut quand un koï gobe), gyrins (radeau, dispersion en zigzag), koïs dessinés en GLSL (cinq robes, ondulation, départ en C), nénuphars en fleur, mouches qui se débattent, granulés. Météo autonome : averses, risées, mouches.
+- **Scènes** : La mare, Averse, Cuve à ondes (deux sources, fente, fentes de Young, réfraction, lentille, Doppler ; option « amplitude moyenne »).
+- **Outils** : observer, doigt, goutte, pluie, mouche, nourrir, mur, gomme.
+- **Sans décor** : caustiques néon sur noir, ou à l'encre sarcelle sur crème ; seules les ondes restent.
+- **Repli 2D** : l'ancienne Eau (fonction `legacy`).

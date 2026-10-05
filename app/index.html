@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fascination</title>
+<meta name="description" content="Vingt-six machines à fascination : simulations contemplatives à regarder, toucher et écouter.">
+<meta name="theme-color" content="#07060c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<!--build:css-->
+<link rel="stylesheet" href="css/fascination.css">
+<!--/build:css-->
+</head>
+<body>
+<!--build:body-->
+<div id="app">
+  <header class="fh" id="chrome">
+    <button class="hb menu" id="bLeft" title="Liste des machines ([)" aria-label="Liste des machines">☰</button>
+    <div class="brand"><b>FASCINATION</b><span id="count">26 expériences · cabinet de curiosités animées</span></div>
+    <div class="spacer"></div>
+    <div class="hbar">
+      <button class="hb sq" id="bPrev" title="Précédent (←)" aria-label="Machine précédente">‹</button>
+      <button class="hb sq" id="bNext" title="Suivant (→)" aria-label="Machine suivante">›</button>
+      <button class="hb" id="bShuffle" title="Au hasard (R)">HASARD</button>
+      <button class="hb" id="bSound" title="Son des machines (S)">SON OFF</button>
+      <button class="hb" id="bNoise" title="Générateur de bruits (N)">BRUITS</button>
+      <button class="hb" id="bPsy" title="Filtre psychédélique">PSYCHÉ ON</button>
+      <div class="speed">
+        <span>VITESSE</span>
+        <input type="range" id="speed" min="0.08" max="2.5" step="0.02" value="1" title="Vitesse de la simulation" aria-label="Vitesse de la simulation">
+        <output id="speedOut">×1</output>
+      </div>
+      <button class="hb" id="bPhoto" title="Prendre une photo de l’écran">PHOTO</button>
+      <button class="hb" id="bPause" title="Pause (espace)">PAUSE</button>
+      <button class="hb" id="bZen" title="Plein écran (H)">ZEN</button>
+      <button class="hb on" id="bRight" title="Panneau de la machine (])">PANNEAU ◧</button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="vignette"></div>
+    <aside class="rail" id="rail" aria-label="Machines"></aside>
+    <aside class="panel" id="panel" aria-label="Panneau de la machine"></aside>
+    <button class="zenout" id="bZenOut" hidden>QUITTER LE ZEN</button>
+    <div class="loading" id="loading">ÉVEIL DES MACHINES…</div>
+  </main>
+</div>
+<!--/build:body-->
+<!--build:js-->
+<script src="js/fk.js"></script>
+<script src="js/machines/s-lucioles.js"></script>
+<script src="js/machines/s-murmu.js"></script>
+<script src="js/machines/s-feu.js"></script>
+<script src="js/machines/s-elem.js"></script>
+<script src="js/machines/s-motifs.js"></script>
+<script src="js/machines/s-cosmos.js"></script>
+<script src="js/machines/s-med-corps.js"></script>
+<script src="js/machines/s-meduses.js"></script>
+<script src="js/machines/s-four-corps.js"></script>
+<script src="js/machines/s-fourmis.js"></script>
+<script src="js/machines/s-myce.js"></script>
+<script src="js/machines/s-blob.js"></script>
+<script src="js/bruits.js"></script>
+<script src="js/shell.js"></script>
+<!--/build:js-->
+<!--build:pwa-->
+<script>
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+<!--/build:pwa-->
+</body>
+</html>

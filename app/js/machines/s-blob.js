@@ -652,8 +652,11 @@
           L.push({ type: 'toggle', label: 'Faim, mort et fructification', value: cfg.life, set: (v) => { cfg.life = v; } });
           L.push({ type: 'section', label: 'Affichage' });
           L.push({ type: 'choice', label: 'Vue', value: cfg.view, options: [{ id: 'reel', label: 'Réaliste' }, { id: 'chimie', label: 'Chimie' }], set: (v) => { cfg.view = v; } });
-          L.push({ type: 'slider', label: 'Éclat néon', min: 0, max: 1.6, step: 0.05, value: cfg.neon, fmt: (v) => Math.round(v * 100) + ' %', set: (v) => { cfg.neon = v; } });
-          L.push({ type: 'toggle', label: 'Pulsation du cytoplasme', value: cfg.pulse, set: (v) => { cfg.pulse = v; } });
+          // éclat et pulsation n’existent que dans la vue réaliste
+          if (cfg.view !== 'chimie') {
+            L.push({ type: 'slider', label: 'Éclat néon', min: 0, max: 1.6, step: 0.05, value: cfg.neon, fmt: (v) => Math.round(v * 100) + ' %', set: (v) => { cfg.neon = v; } });
+            L.push({ type: 'toggle', label: 'Pulsation du cytoplasme', value: cfg.pulse, set: (v) => { cfg.pulse = v; } });
+          }
           return L;
         },
       };

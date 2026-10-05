@@ -81,8 +81,17 @@
           const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: NAMES.map(([id, label]) => ({ label: (id === scene ? '● ' : '') + label, act: () => go(id) })) }];
           if (!is3 && SC3.includes(scene)) L.push({ type: 'note', text: 'Le relief en 3D demande WebGL2 : cette scène s’affiche en coupe.' });
           const inner = cur.ui ? cur.ui() : [];
-          let skip = false;
-          for (const c of inner) { if (c.type === 'section') skip = /^scènes$/i.test(c.label); if (!skip) L.push(c); }
+          // la coupe 2D a sa propre rubrique « Scènes » : on n'en retire que le titre et les boutons,
+          // et ses réglages propres à la scène passent sous une rubrique au nom de la scène
+          for (let i = 0; i < inner.length; i++) {
+            const c = inner[i];
+            if (c.type === 'section' && /^scènes$/i.test(c.label)) {
+              if (inner[i + 1] && inner[i + 1].type === 'buttons') i++;
+              if (inner[i + 1] && inner[i + 1].type !== 'section') L.push({ type: 'section', label: (NAMES.find(([id]) => id === scene) || [0, 'Scène'])[1] });
+              continue;
+            }
+            L.push(c);
+          }
           return L;
         },
       };

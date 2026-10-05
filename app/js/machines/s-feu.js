@@ -1349,7 +1349,7 @@ void main(){
           { label: 'Remettre une bûche', act: feed },
           { label: 'Tout arroser', act: () => { for (const e of E) { e.wet = 1; if (e.kind !== 'bunsen') e.lit = false; } water = null; if (snd()) au.noise(1.6, 0.12, 4500, 0.6, 'highpass', 2000); } },
         ] });
-        L.push({ type: 'toggle', label: 'Le feu s’entretient tout seul', value: cfg.auto, set: (v) => { cfg.auto = v; } });
+        if (cfg.scene === 'cheminee' || cfg.scene === 'camp') L.push({ type: 'toggle', label: 'Le feu s’entretient tout seul', value: cfg.auto, set: (v) => { cfg.auto = v; } });
         L.push({ type: 'section', label: 'Scènes' });
         L.push({ type: 'buttons', items: [
           { label: 'Cheminée', act: () => setScene('cheminee') },

@@ -111,6 +111,8 @@ Machines refaites (niveau final) :
 - **Foudre** (octobre 2026, claquage diélectrique + ciel WebGL2) : voir §12.
 - **Cristal** (octobre 2026, WebGL2) : voir §13.
 - **Fractales** (octobre 2026, WebGL2 + 2D ; ancien « Le Fractal ») : voir §14.
+- **Illusions** (nouvelle, octobre 2026) : voir §15.
+- **Jeu de la vie** (nouvelle, octobre 2026, WebGL2) : voir §16.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -222,4 +224,26 @@ Tiroir indépendant (bouton BRUITS, touche `N`), avec son propre contexte audio 
 - **Son** : glissando de Shepard (7 sinusoïdes à l'octave sous une cloche gaussienne), une octave pour deux doublements de zoom.
 - **Julia** (c qui longe la cardioïde, médaillon de Mandelbrot), **Flammes et fougères** (jeu du chaos sur processeur, densité log, cadrage sur centiles), **Courbes** (dragon par pliages animés, Koch avec périmètre et aire, arbre de Pythagore qui se balance).
 - **Limites connues** : à grand zoom, l'image est lourde à calculer (plusieurs milliers d'itérations par pixel) ; la résolution adaptative la rend fluide au prix de la netteté. Non mesuré sur la tablette.
+
+## Règle du panneau (demande de Yoann, octobre 2026)
+
+Le panneau de droite ne montre que les réglages qui s'appliquent à ce qui est affiché : quand une machine a plusieurs scènes, les réglages propres à une scène n'apparaissent que dans cette scène. Audit fait sur toutes les machines : corrections dans la Murmuration (dortoir seulement au marais), le Blob (éclat et pulsation masqués en vue Chimie), le Feu (« s'entretient tout seul » seulement cheminée et camp), et le Sable (les réglages des coupes 2D — sablier, tableau — étaient masqués par erreur).
+
+## 15. Les Illusions — `app/js/machines/s-illusions.js` (id `illusions`, nouvelle)
+
+- 28 illusions en 5 familles (Mouvement, Lumière et contraste, Géométrie, Couleur, Hypnose). Chaque illusion = une fonction de dessin 2D `D[id](state)` + une fiche (auteur, ce qu'on voit, ce qui est vrai, explication) + ses réglages propres dans `ui()`.
+- Outils : OBSERVER (fiche « on voit / en vrai »), RÉVÉLER (à maintenir ; l'interrupteur du panneau fait de même), MANIPULER (mesurer sa propre illusion : Müller-Lyer, Ebbinghaus, Poggendorff ; tourner les disques de Kanizsa ; zoomer les anneaux de Pinna ; vitesses).
+- Le temps des illusions suit le temps réel à la vitesse ×1 (dt ÷ 0,4), pour que les durées perceptives (chasse au lilas, phi, toupie de Benham) soient justes.
+- Spirale hypnotique et effet de cascade en WebGL2 (4 dessins, 4 palettes, bras, torsion, pulsation) ; repli 2D.
+- Toupie de Benham : ne démarre qu'à la demande (photosensibilité).
+- Échiquier d'Adelson : A = case sombre hors de l'ombre (0,48), B = case claire (0,8) dans l'ombre ×0,6 = 0,48 ; ombre douce dessinée dans le repère du plateau avec la même loi que le calcul.
+- Triangle impossible en cubes (Reutersvärd) : trois barres de cubes en projection isométrique ; RÉVÉLER fait tourner la caméra et montre que les barres ne se touchent pas.
+
+## 16. Le Jeu de la vie — `app/js/machines/s-vie.js` (id `vie`, nouvelle)
+
+- WebGL2, grille torique RGBA32F : R = état (0 morte, 1 vivante, 2+ mourante pour les règles à générations), G = âge, B = traînée.
+- Règles B/S/C : Conway, HighLife, Day & Night, Seeds, Labyrinthe, Corail, Diamoeba, Brian's Brain, Star Wars.
+- Motifs RLE (planeur, vaisseau léger, canon de Gosper, pulsar, pentadécathlon, R-pentomino, gland, diehard) posés par texSubImage2D ; crayon, gomme et soupe par un petit shader de peinture.
+- Lenia (Chan 2018) : noyau en anneau de rayon 13 (cœur exp(4 − 1/(r(1−r)))), croissance gaussienne μ = 0,15, σ = 0,015, dt = 0,1 (Orbium). Ensemencement par taches lisses dissymétriques : on voit en général une créature qui nage au bout de quelques dizaines de pas ; la soupe uniforme, elle, explose en labyrinthe.
+- Réensemencement automatique si tout meurt (et, hors Lenia, si tout est figé depuis 25 s). Population lue une fois par seconde. Musique de la vie : la colonne centrale lue à chaque génération (pentatonique).
 

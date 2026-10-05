@@ -1,4 +1,4 @@
-// Test de fumée : ouvre l'application dans Chromium sans écran, parcourt les 26 machines,
+// Test de fumée : ouvre l'application dans Chromium sans écran, parcourt toutes les machines,
 // essaie les outils du Feu et le générateur de bruits, puis signale toute erreur JavaScript.
 //   node tools/smoke.mjs [chemin/vers/page.html]   (par défaut : app/index.html)
 // Captures d'écran écrites dans tools/out/.
@@ -21,7 +21,7 @@ p.on('console', (m) => { const t = m.text(); if ((m.type() === 'warning' || m.ty
 await p.goto(pathToFileURL(page).href + '#lucioles');
 await p.waitForTimeout(2500);
 console.log('machines chargées :', await p.$$eval('.it', (l) => l.length));
-for (let i = 0; i < 26; i++) { await p.keyboard.press('ArrowRight'); await p.waitForTimeout(350); }
+for (let i = 0; i < 28; i++) { await p.keyboard.press('ArrowRight'); await p.waitForTimeout(350); }
 await p.evaluate(() => { location.hash = '#feu'; });
 await p.waitForTimeout(1500);
 const name = await p.$eval('.p-title h1', (e) => e.textContent);

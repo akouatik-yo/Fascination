@@ -559,7 +559,8 @@
           L.push({ type: 'section', label: 'Le soir' });
           L.push({ type: 'slider', label: 'Heure', min: 0, max: 1, step: 0.005, value: cfg.hour, fmt: (v) => { const m = 19 * 60 + 10 + Math.round(v * 100); return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); }, set: (v) => { cfg.hour = v; } });
           L.push({ type: 'toggle', label: 'Le temps passe (le soleil se couche)', value: cfg.flow, set: (v) => { cfg.flow = v; } });
-          L.push({ type: 'buttons', items: [cfg.roost || landed ? { label: 'Réveil : tous en vol', act: () => { cfg.roost = false; } } : { label: 'Au dortoir dans les roseaux', act: () => { cfg.roost = true; } }] });
+          // dortoir dans les roseaux : seulement au marais (l’estran n’a pas de roselière)
+          if (cfg.scene === 'marais' || cfg.roost || landed) L.push({ type: 'buttons', items: [cfg.roost || landed ? { label: 'Réveil : tous en vol', act: () => { cfg.roost = false; } } : { label: 'Au dortoir dans les roseaux', act: () => { cfg.roost = true; } }] });
           L.push({ type: 'section', label: 'Affichage' });
           L.push({ type: 'choice', label: 'Rendu', value: cfg.view, options: [{ id: 'reel', label: 'Réaliste' }, { id: 'neon', label: 'Néon' }], set: (v) => { cfg.view = v; } });
           L.push({ type: 'toggle', label: 'Traînées de vol', value: cfg.trail, set: (v) => { cfg.trail = v; } });

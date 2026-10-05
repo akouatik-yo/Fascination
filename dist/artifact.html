@@ -181,7 +181,7 @@ aside.bruits .c-sec .v { font-family: var(--mono); font-size: 9.5px; letter-spac
 <div id="app">
   <header class="fh" id="chrome">
     <button class="hb menu" id="bLeft" title="Liste des machines ([)" aria-label="Liste des machines">☰</button>
-    <div class="brand"><b>FASCINATION</b><span id="count">28 expériences · cabinet de curiosités animées</span></div>
+    <div class="brand"><b>FASCINATION</b><span id="count">30 expériences · cabinet de curiosités animées</span></div>
     <div class="spacer"></div>
     <div class="hbar">
       <button class="hb sq" id="bPrev" title="Précédent (←)" aria-label="Machine précédente">‹</button>
@@ -13407,6 +13407,629 @@ void main(){
       monoPlay('ref', 5); excite(mono.L, 5, 0.3);
       playBuf(B, ks(B.ctx, g, { pos: 0.3, bright: 0.45, t60: 6 }), 0.24, 0, 0.3);
     }
+  }
+})();
+
+;
+/* ═════ js/machines/s-pendules.js ═════ */
+/* Fascination — Les Pendules · vague de pendules et polyrythmie
+   Vague : le pendule k fait exactement (N₀ + k) oscillations pendant le cycle Γ ; sa longueur en découle,
+   L = g (Γ / 2π(N₀+k))². Partis ensemble, ils se déphasent, dessinent des vagues, deux rangées, trois serpents…
+   puis se réalignent tous au bout de Γ. Chaque pendule sonne quand il touche le bout de sa course : on entend la
+   figure. Polyrythmie : sur chaque arc, un point fait l'aller-retour à sa propre vitesse (M − k allers-retours par
+   cycle) et sonne à chaque rebond. Les instants des notes sont calculés exactement, puis programmés à l'avance. */
+(function boot() {
+  if (!window.FK || !window.FKSON) return setTimeout(boot, 12);
+  const { TAU, clamp, rnd } = window.FK;
+  const { mtof, bus } = window.FKSON;
+  const fr = (x, d = 1) => x.toFixed(d).replace('.', ',');
+  const SCALES = { penta: [0, 2, 4, 7, 9], majeur: [0, 2, 4, 5, 7, 9, 11], dorien: [0, 2, 3, 5, 7, 9, 10], tons: [0, 2, 4, 6, 8, 10] };
+  const keep = { scene: 'vague', n: 15, n0: 51, gam: 60, view: 'biais', ring: 21, ringM: 60, ringG: 180, scale: 'penta', timbre: 'cloche', vol: 0.8, trails: true };
+
+  window.FASC.push({
+    id: 'pendules', name: 'Les Pendules', cat: 'Sons', glyph: '⋔', smoothTime: true, decor: true,
+    blurb: 'Vague de pendules et polyrythmie : des motifs qui s’entendent',
+    hint: 'Glissez pour tourner autour des pendules. Chaque pendule sonne au bout de sa course ; au bout du cycle, ils se réalignent tous.',
+    intro: 'Quinze pendules de longueurs à peine différentes, lâchés ensemble. Le plus long fait 51 oscillations par minute, le suivant 52, puis 53… Ils se déphasent, dessinent des vagues, des serpents, deux rangées qui s’opposent, un désordre apparent, puis, au bout d’une minute exactement, se retrouvent alignés. Et l’on entend la figure.',
+    about: [
+      'La période d’un pendule simple ne dépend (aux petites amplitudes) que de sa longueur : T = 2π √(L/g). Galilée l’aurait remarqué en regardant osciller un lustre de la cathédrale de Pise, en comptant avec son pouls. Ici, le pendule k doit faire N₀ + k oscillations en Γ secondes : sa longueur est donc L = g (Γ / 2π(N₀+k))², de 34 à 21 cm pour Γ = 60 s.',
+      'Les figures ne sont qu’un effet de la différence d’une oscillation par cycle entre voisins. À l’instant t, le déphasage entre deux voisins vaut 2π t/Γ : à Γ/2, un pendule sur deux est en opposition (deux rangées) ; à Γ/3, trois serpents ; à Γ/4, quatre… C’est un cousin du moiré, et de l’« aliasing » des roues de charrette qui semblent tourner à l’envers au cinéma.',
+      'La polyrythmie en arcs (popularisée en 2022 par la vidéo « Polyrhythm » de Project JDM) suit la même idée : l’arc k fait M − k allers-retours par cycle. Deux arcs voisins jouent des rythmes « M contre M−1 » ; tous se retrouvent au même bout après un cycle complet. La musique africaine et indonésienne pratique depuis des siècles ces superpositions de rythmes.',
+      'Les pendules sont idéaux (sans frottement, petites amplitudes). Un vrai pendule lâché de plus haut oscille un peu plus lentement : la vague se dérègle alors peu à peu.',
+    ],
+    tools: [
+      { id: 'tourner', label: 'tourner', desc: 'Glissez pour changer de point de vue (vague de pendules).' },
+      { id: 'toucher', label: 'toucher', desc: 'Touchez un pendule ou un arc : il sonne.' },
+    ],
+    make(env) { return makePendules(env); },
+  });
+
+  function makePendules(env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    const B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 });
+    const c = B ? B.ctx : null;
+    const light = () => env.theme === 'light', bare = () => env.decor === false;
+    const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
+    let T = 0, cam = { az: -0.32, el: 0.26 }, flash = [], toast = null;
+    const G = 9.81, TH0 = 0.32; // amplitude de départ (18°)
+
+    /* ───────── les notes ───────── */
+    function pitch(k, n) { const sc = SCALES[keep.scale], o = Math.floor(k / sc.length); return mtof(50 + 12 * o + sc[k % sc.length]) * (n ? 1 : 1); }
+    function hit(f, when, g = 1, pan = 0) {
+      if (!c) return;
+      const t = Math.max(c.currentTime, when), out = c.createGain(), p = c.createStereoPanner ? c.createStereoPanner() : null;
+      const amp = 0.07 * keep.vol * g;
+      // cloche douce (partiels 1 et 2,76, comme une lame de vibraphone) ou marimba (1 et 4) ou verre (1, 2,32, 4,25)
+      const P = keep.timbre === 'marimba' ? [[1, 1, 0.5], [3.93, 0.28, 0.08]] : keep.timbre === 'verre' ? [[1, 1, 1.4], [2.32, 0.35, 0.6], [4.25, 0.12, 0.3]] : [[1, 1, 1.1], [2.76, 0.25, 0.35], [5.4, 0.08, 0.12]];
+      for (const [r, a, d] of P) {
+        const o = c.createOscillator(), v = c.createGain(); o.frequency.value = f * r; v.gain.value = 0;
+        v.gain.setValueAtTime(0, t); v.gain.linearRampToValueAtTime(amp * a, t + 0.004); v.gain.setTargetAtTime(0, t + 0.006, d / 3);
+        o.connect(v); v.connect(out); o.start(t); o.stop(t + d * 2.2 + 0.1);
+      }
+      if (p) { p.pan.value = clamp(pan, -0.9, 0.9); out.connect(p); p.connect(B.input); } else out.connect(B.input);
+    }
+    const toAudio = (dtSim) => (c ? c.currentTime + 0.05 + dtSim / Math.max(0.05, env.speed || 1) : 0);
+
+    /* ───────── vague de pendules ───────── */
+    let pend = [];
+    function buildPend() {
+      pend = [];
+      for (let k = 0; k < keep.n; k++) { const nk = keep.n0 + k, Tk = keep.gam / nk, L = G * (Tk / TAU) ** 2; pend.push({ k, nk, Tk, w: TAU / Tk, L, f: pitch(k), next: 0.5 * Tk + 0 }); }
+      T = 0; for (const p of pend) p.next = p.Tk; // premier retour au point de départ (côté où on les lâche)
+    }
+    // θ(t) = θ₀ cos(ωt) : retour au bout droit aux instants m·T
+    function schedPend() {
+      const ahead = 0.25 * Math.max(1, env.speed || 1);
+      for (const p of pend) while (p.next < T + ahead) { if (p.next >= T - 0.02) { hit(p.f, toAudio(p.next - T), 1, ((p.k / (keep.n - 1)) * 2 - 1) * 0.6); flash.push({ k: p.k, at: p.next }); } p.next += p.Tk; }
+    }
+    function proj(X, Y, Z, g) {
+      // caméra en orbite autour du centre de la rangée
+      const ca = Math.cos(cam.az), sa = Math.sin(cam.az), ce = Math.cos(cam.el), se = Math.sin(cam.el);
+      const x1 = X * ca - Z * sa, z1 = X * sa + Z * ca;
+      const y2 = Y * ce + z1 * se, z2 = -Y * se + z1 * ce; // caméra au-dessus : ce qui est proche descend
+      const d = 1.15, s = g.f / (d + z2);
+      return [g.cx + x1 * s, g.cy - y2 * s, s, z2];
+    }
+    function drawPend(cc) {
+      const v = view(), Lmax = pend[0].L, rowLen = 0.62;
+      const g = { cx: v.cx, cy: H * 0.3, f: Math.min(v.w, H * 1.3) * 1.3 };
+      const items = [];
+      for (const p of pend) {
+        const th = TH0 * Math.cos(p.w * T), Z = -rowLen / 2 + (rowLen * p.k) / Math.max(1, keep.n - 1);
+        const top = [0, 0.04, Z], ball = [p.L * Math.sin(th), 0.04 - p.L * Math.cos(th), Z];
+        items.push({ p, th, top, ball, z: proj(ball[0], ball[1], ball[2], g)[3] });
+      }
+      // la poutre et le sol
+      if (!bare()) {
+        const a = proj(0, 0.04, -rowLen / 2 - 0.05, g), b = proj(0, 0.04, rowLen / 2 + 0.05, g);
+        ctx.strokeStyle = light() ? 'rgba(90,70,50,.6)' : 'rgba(200,180,150,.35)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+        const fy = 0.04 - Lmax - 0.06;
+        ctx.strokeStyle = light() ? 'rgba(60,40,80,.1)' : 'rgba(180,200,255,.06)'; ctx.lineWidth = 1;
+        for (let i = -4; i <= 4; i++) { const p1 = proj(i * 0.08, fy, -0.4, g), p2 = proj(i * 0.08, fy, 0.4, g); ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke(); const q1 = proj(-0.32, fy, i * 0.1, g), q2 = proj(0.32, fy, i * 0.1, g); ctx.beginPath(); ctx.moveTo(q1[0], q1[1]); ctx.lineTo(q2[0], q2[1]); ctx.stroke(); }
+        // ombres
+        for (const it of items) { const s = proj(it.ball[0], fy, it.ball[2], g); ctx.fillStyle = light() ? 'rgba(40,30,60,.12)' : 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.ellipse(s[0], s[1], 0.02 * s[2], 0.008 * s[2], 0, 0, TAU); ctx.fill(); }
+      }
+      items.sort((a, b) => b.z - a.z);
+      for (const it of items) {
+        const A = proj(...it.top, g), Bp = proj(...it.ball, g), r = Math.max(3, 0.016 * Bp[2]);
+        const age = Math.min(...flash.filter((f) => f.k === it.p.k && f.at <= T).map((f) => T - f.at), 9), glow = Math.exp(-age * 5);
+        const hue = 200 + (it.p.k / keep.n) * 120;
+        ctx.strokeStyle = light() ? 'rgba(40,30,60,.45)' : 'rgba(220,225,255,.35)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(Bp[0], Bp[1]); ctx.stroke();
+        if (!light() && glow > 0.02) { const rg = ctx.createRadialGradient(Bp[0], Bp[1], 0, Bp[0], Bp[1], r * 5); rg.addColorStop(0, `hsla(${hue},90%,70%,${0.55 * glow})`); rg.addColorStop(1, 'hsla(0,0%,0%,0)'); ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(Bp[0], Bp[1], r * 5, 0, TAU); ctx.fill(); }
+        const sg = ctx.createRadialGradient(Bp[0] - r * 0.35, Bp[1] - r * 0.4, r * 0.1, Bp[0], Bp[1], r);
+        sg.addColorStop(0, light() ? `hsl(${hue},60%,${70 + glow * 20}%)` : `hsl(${hue},80%,${78 + glow * 18}%)`); sg.addColorStop(1, light() ? `hsl(${hue},50%,30%)` : `hsl(${hue},60%,${28 + glow * 25}%)`);
+        ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(Bp[0], Bp[1], r, 0, TAU); ctx.fill();
+      }
+      // le cycle
+      const ph = (T % keep.gam) / keep.gam, fx = v.x0 + 24, fy2 = H - 30, fw = Math.min(320, v.w * 0.4);
+      ctx.strokeStyle = cc.dim; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, fy2); ctx.lineTo(fx + fw, fy2); ctx.stroke();
+      ctx.strokeStyle = cc.acc; ctx.beginPath(); ctx.moveTo(fx, fy2); ctx.lineTo(fx + fw * ph, fy2); ctx.stroke();
+      for (const q of [2, 3, 4, 5]) for (let j = 1; j < q; j++) { const x = fx + (fw * j) / q; ctx.fillStyle = cc.dim; ctx.fillRect(x - 0.5, fy2 - (q === 2 ? 6 : 3), 1, q === 2 ? 12 : 6); }
+      ctx.fillStyle = cc.txt; ctx.font = '500 11px "JetBrains Mono", monospace';
+      const tt = T % keep.gam, near = [[1 / 2, 'deux rangées'], [1 / 3, 'trois serpents'], [2 / 3, 'trois serpents'], [1 / 4, 'quatre serpents'], [3 / 4, 'quatre serpents'], [1 / 5, 'cinq'], [0, 'alignés'], [1, 'alignés']].find(([f]) => Math.abs(ph - f) < 0.012);
+      ctx.fillText(`${fr(tt, 1)} S / ${keep.gam} S${near ? ' · ' + near[1].toUpperCase() : ''} · DU PLUS LONG (${pend[0].nk} OSC.) AU PLUS COURT (${pend[pend.length - 1].nk} OSC.)`, fx, fy2 - 14);
+    }
+
+    /* ───────── polyrythmie en arcs ───────── */
+    let rings = [];
+    function buildRings() {
+      rings = [];
+      for (let k = 0; k < keep.ring; k++) { const laps = keep.ringM - k, per = keep.ringG / laps; rings.push({ k, laps, per, f: pitch(keep.ring - 1 - k), next: per / 2, last: -9 }); }
+      T = 0;
+    }
+    // position sur l'arc : aller-retour de 0 à π en « per » secondes (vitesse constante)
+    const ringAng = (r, t) => { const u = (t / r.per) % 1; return Math.PI * (u < 0.5 ? u * 2 : 2 - u * 2); };
+    function schedRings() {
+      const ahead = 0.25 * Math.max(1, env.speed || 1);
+      for (const r of rings) while (r.next < T + ahead) { if (r.next >= T - 0.02) hit(r.f, toAudio(r.next - T), 0.8, (Math.round(r.next / (r.per / 2)) % 2 ? 0.5 : -0.5) * (0.3 + r.k / keep.ring)); r.last = r.next; r.next += r.per / 2; }
+    }
+    function drawRings(cc) {
+      const v = view(), cx = v.cx, cy = H * 0.74, R1 = Math.min(v.w * 0.46, H * 0.62), R0 = R1 * 0.16;
+      if (!bare()) { ctx.strokeStyle = cc.dim; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - R1 - 20, cy); ctx.lineTo(cx + R1 + 20, cy); ctx.stroke(); }
+      for (const r of rings) {
+        const R = R0 + ((R1 - R0) * (r.k + 0.5)) / keep.ring, glow = Math.exp(-(T - r.last) * 3), hue = 330 - (r.k / keep.ring) * 150;
+        ctx.strokeStyle = light() ? `hsla(${hue},55%,40%,${0.3 + 0.6 * glow})` : `hsla(${hue},85%,${55 + 25 * glow}%,${0.22 + 0.7 * glow})`;
+        ctx.lineWidth = 1.4 + glow * 2.5; ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI, TAU); ctx.stroke();
+        if (!light() && glow > 0.05) { ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 8 * glow; ctx.strokeStyle = `hsla(${hue},90%,60%,${0.12 * glow})`; ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI, TAU); ctx.stroke(); ctx.globalCompositeOperation = 'source-over'; }
+        const a = ringAng(r, T), x = cx - Math.cos(a) * R, y = cy - Math.sin(a) * R;
+        if (keep.trails && !light()) { ctx.strokeStyle = `hsla(${hue},90%,75%,.25)`; ctx.lineWidth = 3; ctx.beginPath(); const a2 = ringAng(r, T - 0.12); ctx.arc(cx, cy, R, Math.PI + Math.min(a, a2), Math.PI + Math.max(a, a2)); ctx.stroke(); }
+        ctx.fillStyle = light() ? `hsl(${hue},55%,35%)` : `hsl(${hue},90%,${80 + 15 * glow}%)`; ctx.beginPath(); ctx.arc(x, y, 3.2 + glow * 2.5, 0, TAU); ctx.fill();
+      }
+      ctx.fillStyle = cc.txt; ctx.font = '500 11px "JetBrains Mono", monospace';
+      ctx.fillText(`${fr(T % keep.ringG, 1)} S / ${keep.ringG} S · ARC EXTÉRIEUR ${keep.ringM - keep.ring + 1} ALLERS-RETOURS, INTÉRIEUR ${keep.ringM}`, v.x0 + 24, H - 18);
+    }
+
+    /* ───────── boucle ───────── */
+    const C = () => light() ? { bg0: '#f4f0e8', bg1: '#e9e3d6', txt: 'rgba(40,30,60,.78)', dim: 'rgba(40,30,60,.3)', acc: '#c2368f' } : { bg0: '#06050c', bg1: '#0e0a18', txt: 'rgba(235,228,255,.75)', dim: 'rgba(235,228,255,.22)', acc: '#ff8ad8' };
+    function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+    let hintBox = null;
+    function render() {
+      const cc = C();
+      if (bare()) { ctx.fillStyle = cc.bg0; ctx.fillRect(0, 0, W, H); } else { const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, cc.bg0); g.addColorStop(1, cc.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
+      if (keep.scene === 'vague') drawPend(cc); else drawRings(cc);
+      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      hintBox = null;
+      if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = H - 58; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = cc.acc; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = cc.acc; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
+    }
+    function update(k) {
+      T += k;
+      flash = flash.filter((f) => T - f.at < 1.5);
+      if (keep.scene === 'vague') schedPend(); else schedRings();
+    }
+    function setScene(id) { keep.scene = id; if (id === 'vague') buildPend(); else buildRings(); }
+    setScene(keep.scene);
+    if (window.FASC_DEBUG) window.FASC_DEBUG.pend = { keep, setScene, buildPend, buildRings, cam, run(n, h) { for (let i = 0; i < n; i++) update(h / 0.4); render(); }, set T(x) { T = x; for (const p of pend) p.next = Math.ceil(x / p.Tk) * p.Tk; for (const r of rings) r.next = Math.ceil(x / (r.per / 2)) * (r.per / 2); }, get T() { return T; } };
+
+    let last = null;
+    return {
+      livePaused: true,
+      frame(t, dt) { if (dt > 0) update(dt / 0.4); render(); },
+      down(p) {
+        if (hintBox && p.x > hintBox.x && p.x < hintBox.x + hintBox.w && p.y > hintBox.y && p.y < hintBox.y + hintBox.h) { env.askSound && env.askSound(); return; }
+        last = { x: p.x, y: p.y };
+        if (env.tool === 'toucher') {
+          if (keep.scene === 'vague') { const v = view(), k = clamp(Math.round(((p.x - v.x0) / v.w) * (keep.n - 1)), 0, keep.n - 1); hit(pend[k].f, toAudio(0)); flash.push({ k, at: T }); }
+          else { const v = view(), cx = v.cx, cy = H * 0.74, R1 = Math.min(v.w * 0.46, H * 0.62), R0 = R1 * 0.16, d = Math.hypot(p.x - cx, p.y - cy), k = clamp(Math.floor(((d - R0) / (R1 - R0)) * keep.ring), 0, keep.ring - 1); hit(rings[k].f, toAudio(0)); rings[k].last = T; }
+        }
+      },
+      move(p) {
+        if (!p.down || !last) return;
+        if ((env.tool || 'tourner') === 'tourner' && keep.scene === 'vague') { cam.az += (p.x - last.x) * 0.006; cam.el = clamp(cam.el + (p.y - last.y) * 0.004, -0.1, 1.45); }
+        last = { x: p.x, y: p.y };
+      },
+      up() { last = null; },
+      clear() { setScene(keep.scene); toast = { s: 'Relâchés ensemble.', t: T }; },
+      dispose() { if (B) B.dispose(); },
+      ui() {
+        const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [
+          { label: 'Vague de pendules', act: () => setScene('vague') },
+          { label: 'Polyrythmie', act: () => setScene('arcs') },
+        ] }];
+        if (!c) L.push({ type: 'buttons', items: [{ label: '♪ Activer le son', act: () => env.askSound && env.askSound() }] });
+        if (keep.scene === 'vague') {
+          L.push({ type: 'section', label: 'Vague' });
+          L.push({ type: 'buttons', items: [{ label: 'Relâcher ensemble', act: () => buildPend() }] });
+          L.push({ type: 'buttons', items: [
+            { label: 'Aller à ½ cycle', act: () => jump(keep.gam / 2 - 2) },
+            { label: '⅓', act: () => jump(keep.gam / 3 - 2) },
+            { label: '¼', act: () => jump(keep.gam / 4 - 2) },
+          ] });
+          L.push({ type: 'slider', label: 'Pendules', min: 8, max: 24, step: 1, value: keep.n, fmt: (x) => String(x), set: (x) => { keep.n = x; buildPend(); } });
+          L.push({ type: 'slider', label: 'Durée du cycle', min: 20, max: 120, step: 1, value: keep.gam, fmt: (x) => x + ' s', set: (x) => { keep.gam = x; buildPend(); } });
+          L.push({ type: 'choice', label: 'Point de vue', value: keep.view, set: (x) => { keep.view = x; Object.assign(cam, x === 'face' ? { az: 0, el: 0.08 } : x === 'dessus' ? { az: 0, el: 1.4 } : x === 'bout' ? { az: -1.5, el: 0.25 } : { az: -0.32, el: 0.26 }); }, options: [{ id: 'biais', label: 'Dans l’axe, de biais' }, { id: 'face', label: 'Dans l’axe' }, { id: 'dessus', label: 'Du dessus' }, { id: 'bout', label: 'De côté' }] });
+          L.push({ type: 'note', text: `Longueurs de ${fr(pend[0].L * 100, 1)} à ${fr(pend[pend.length - 1].L * 100, 1)} cm ; chacun sonne en revenant au point d’où on l’a lâché. Vue « du dessus » : les serpents. Le cycle complet dure ${keep.gam} s à la vitesse ×1.` });
+        } else {
+          L.push({ type: 'section', label: 'Polyrythmie' });
+          L.push({ type: 'buttons', items: [{ label: 'Repartir ensemble', act: () => buildRings() }] });
+          L.push({ type: 'slider', label: 'Arcs', min: 6, max: 32, step: 1, value: keep.ring, fmt: (x) => String(x), set: (x) => { keep.ring = x; buildRings(); } });
+          L.push({ type: 'slider', label: 'Durée du cycle', min: 30, max: 900, step: 10, value: keep.ringG, fmt: (x) => (x >= 120 ? fr(x / 60, 1) + ' min' : x + ' s'), set: (x) => { keep.ringG = x; buildRings(); } });
+          L.push({ type: 'slider', label: 'Allers-retours de l’arc intérieur', min: 20, max: 90, step: 1, value: keep.ringM, fmt: (x) => String(x), set: (x) => { keep.ringM = Math.max(x, keep.ring + 1); buildRings(); } });
+          L.push({ type: 'toggle', label: 'Traînées', value: keep.trails, set: (x) => { keep.trails = x; } });
+        }
+        L.push({ type: 'section', label: 'Son' });
+        L.push({ type: 'choice', label: 'Gamme', value: keep.scale, set: (x) => { keep.scale = x; for (const p of pend) p.f = pitch(p.k); for (const r of rings) r.f = pitch(keep.ring - 1 - r.k); }, options: [{ id: 'penta', label: 'Pentatonique' }, { id: 'majeur', label: 'Majeur' }, { id: 'dorien', label: 'Dorien' }, { id: 'tons', label: 'Par tons' }] });
+        L.push({ type: 'choice', label: 'Timbre', value: keep.timbre, set: (x) => { keep.timbre = x; }, options: [{ id: 'cloche', label: 'Vibraphone' }, { id: 'marimba', label: 'Marimba' }, { id: 'verre', label: 'Verre' }] });
+        L.push({ type: 'slider', label: 'Volume', min: 0, max: 1.5, step: 0.01, value: keep.vol, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { keep.vol = x; } });
+        return L;
+      },
+    };
+    // sauter dans le cycle (sans jouer toutes les notes intermédiaires)
+    function jump(t) { T = Math.max(0, t); for (const p of pend) p.next = Math.ceil(T / p.Tk) * p.Tk; flash = []; toast = { s: 'Regardez, écoutez…', t: T }; void rnd; }
+  }
+})();
+
+;
+/* ═════ js/machines/s-sonillus.js ═════ */
+/* Fascination — Les Illusions sonores
+   Escalier de Shepard (1964) et glissando de Risset : dix sons purs espacés d'octave en octave, pesés par une
+   cloche gaussienne en log-fréquence ; ils montent tous ensemble, celui du haut s'éteint pendant qu'un nouveau
+   naît en bas : la hauteur monte sans fin. Paradoxe du triton (Deutsch, 1986), fondamentale absente,
+   battements binauraux, accélération éternelle (Risset). Tout est synthétisé en direct (Web Audio). */
+(function boot() {
+  if (!window.FK || !window.FKSON) return setTimeout(boot, 12);
+  const { TAU, clamp } = window.FK;
+  const { bus } = window.FKSON;
+  const fr = (x, d = 1) => x.toFixed(d).replace('.', ',');
+  const PC = ['do', 'do♯', 'ré', 'ré♯', 'mi', 'fa', 'fa♯', 'sol', 'sol♯', 'la', 'la♯', 'si'];
+  const keep = { scene: 'shepard', glide: false, dir: 1, rate: 1, f0: 200, harm: [1, 1, 1, 1, 1, 1, 1, 1], bin: 'binaural', bf: 220, bd: 4, risset: 1, answers: {} };
+  const SCENES = [['shepard', 'L’escalier sans fin'], ['triton', 'Le paradoxe du triton'], ['absente', 'La fondamentale absente'], ['binaural', 'Les battements binauraux'], ['risset', 'L’accélération éternelle']];
+
+  window.FASC.push({
+    id: 'sonillus', name: 'Les Illusions sonores', cat: 'Sons', glyph: '◎', smoothTime: true,
+    blurb: 'Un son qui monte sans fin, une note qui n’existe pas…',
+    hint: 'Activez le son (un casque est préférable, indispensable pour les battements binauraux).',
+    intro: 'L’oreille ne mesure pas les sons : elle les interprète, comme l’œil interprète les images. On peut donc la tromper. Ici, un son qui monte indéfiniment sans jamais aller plus haut, une note qu’on entend alors qu’elle n’est pas jouée, un battement qui n’existe que dans la tête, et un rythme qui accélère pour toujours.',
+    about: [
+      'L’escalier de Roger Shepard (1964) : chaque note est faite de dix sons purs à l’octave les uns des autres. Une cloche fixe dose leur volume : forts au milieu, inaudibles aux extrêmes. Quand tous montent d’un demi-ton, celui du haut s’efface et un nouveau apparaît en bas, sans qu’on le remarque. Après douze marches, on est revenu exactement au point de départ, mais on a l’impression d’être monté d’une octave. Jean-Claude Risset en a fait un glissando continu ; c’est l’équivalent sonore de l’escalier de Penrose.',
+      'Le paradoxe du triton (Diana Deutsch, 1986) : deux notes de Shepard à un triton d’écart (une demi-octave, l’intervalle le plus ambigu) ne montent ni ne descendent objectivement. Pourtant chacun entend nettement l’un ou l’autre, et la frontière dépend de la personne : Deutsch a montré qu’elle varie selon la région où l’on a grandi, peut-être selon la hauteur de voix qu’on y entend.',
+      'La fondamentale absente : retirez la note la plus grave d’un son harmonique (200 Hz dans 200, 400, 600…), on continue d’entendre 200 Hz. Le cerveau reconstruit la hauteur à partir de la périodicité du signal. C’est grâce à cela qu’on reconnaît une voix grave au téléphone, qui ne transmettait pas les fréquences sous 300 Hz.',
+      'Les battements binauraux (Heinrich Dove, 1839) : 220 Hz dans une oreille, 224 Hz dans l’autre. Dans l’air, rien ne bat ; pourtant on entend une pulsation de 4 par seconde, fabriquée par le tronc cérébral qui compare les deux oreilles. Les promesses de « relaxation » ou de « concentration » qu’on leur prête n’ont pas été démontrées.',
+      'L’accélération éternelle (Risset, 1970) : plusieurs pulsations aux tempos doublés les uns des autres accélèrent ensemble ; la plus rapide s’efface pendant qu’une plus lente apparaît. C’est l’escalier de Shepard transposé du domaine des hauteurs à celui du rythme.',
+    ],
+    tools: [{ id: 'toucher', label: 'toucher', desc: 'Selon la scène : changer de sens, jouer une paire, activer une harmonique.' }],
+    make(env) { return makeIll(env); },
+  });
+
+  function makeIll(env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    const B = bus(au, { rev: 0.18, sec: 2.6, gain: 0.9 });
+    const c = B ? B.ctx : null;
+    const light = () => env.theme === 'light';
+    const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
+    let T = 0, toast = null;
+    const say = (s) => { toast = { s, t: T }; };
+    const now = () => (c ? c.currentTime : 0);
+
+    /* ───────── banc de Shepard ───────── */
+    const NO = 10, FMIN = 16.35, SIG = 1.35, CEN = 6.0; // log2(f/FMIN) centré sur ~1 050 Hz
+    const env0 = (x) => Math.exp(-((x - CEN) ** 2) / (2 * SIG * SIG));
+    let bank = null, pos = 0; // pos : hauteur en octaves (la partie fractionnaire compte seule)
+    function bankOn() {
+      if (!c || bank) return;
+      const out = c.createGain(); out.gain.value = 0; out.connect(B.input);
+      const osc = Array.from({ length: NO }, () => { const o = c.createOscillator(), g = c.createGain(); g.gain.value = 0; o.connect(g); g.connect(out); o.start(); return { o, g, x: 0 }; });
+      bank = { out, osc };
+      bankSet(pos, true);
+    }
+    function bankSet(p, jump) {
+      if (!bank) return;
+      const t = now(), fp = ((p % 1) + 1) % 1;
+      bank.osc.forEach((v, j) => {
+        const x = j + fp, f = FMIN * Math.pow(2, x), g = 0.055 * env0(x);
+        const wrapped = Math.abs(x - v.x) > 0.5;
+        if (jump || wrapped) { v.o.frequency.cancelScheduledValues(t); v.o.frequency.setValueAtTime(f, t); v.g.gain.setValueAtTime(g, t); }
+        else { v.o.frequency.setTargetAtTime(f, t, 0.015); v.g.gain.setTargetAtTime(g, t, 0.015); }
+        v.x = x;
+      });
+    }
+    function bankGate(level, tc = 0.02, at) { if (bank) bank.out.gain.setTargetAtTime(level, at || now(), tc); }
+    function bankOff() { if (!bank) return; const t = now(); bank.out.gain.setTargetAtTime(0, t, 0.04); for (const v of bank.osc) v.o.stop(t + 0.4); bank = null; }
+
+    /* ───────── escalier ───────── */
+    let stepT = 0, step = 0, climb = 0; // climb : hauteur « perçue » cumulée (ne revient jamais)
+    function shepTick(k) {
+      if (keep.glide) {
+        const d = keep.dir * k * 0.085 * keep.rate; pos += d; climb += d; bankSet(pos); bankGate(1, 0.05);
+      } else {
+        stepT -= k;
+        if (stepT <= 0) {
+          stepT += 0.5 / keep.rate; step += keep.dir; pos = step / 12; climb += keep.dir / 12;
+          bankSet(pos, true);
+          if (bank) { const t = now(); bank.out.gain.cancelScheduledValues(t); bank.out.gain.setValueAtTime(0, t); bank.out.gain.linearRampToValueAtTime(1, t + 0.012); bank.out.gain.setTargetAtTime(0.55, t + 0.02, 0.1); bank.out.gain.setTargetAtTime(0, t + 0.42 / keep.rate, 0.03); }
+        }
+      }
+    }
+    function drawShepard(cc) {
+      const v = view();
+      // l'hélice : la caméra monte avec la note, l'escalier défile vers le bas, sans fin
+      const cx = v.cx - v.w * 0.16, cy = H * 0.46, R = Math.min(v.w * 0.2, H * 0.24), rise = R * 0.9, tilt = 0.32;
+      // une hélice continue, plus vive devant ; un point par demi-ton, « do » à chaque tour
+      const Pt = (q) => { const a = (q / 12) * TAU - Math.PI / 2; return [cx + Math.cos(a) * R, cy - (q / 12 - climb) * rise + Math.sin(a) * R * tilt, Math.sin(a)]; };
+      const q0 = climb * 12 - 30, q1 = climb * 12 + 30;
+      for (let q = q0; q < q1; q += 0.25) {
+        const [x1, y1, f1] = Pt(q), [x2, y2] = Pt(q + 0.25), fade = Math.max(0, 1 - Math.abs(y1 - cy) / (H * 0.4));
+        if (fade <= 0.01) continue;
+        const hue = 200 + ((((q / 12) % 1) + 1) % 1) * 160, al = fade * (f1 > 0 ? 0.95 : 0.3);
+        ctx.strokeStyle = light() ? `hsla(${hue},45%,35%,${al})` : `hsla(${hue},80%,72%,${al})`; ctx.lineWidth = f1 > 0 ? 2.2 : 1.2;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      }
+      for (let q = Math.ceil(q0); q <= q1; q++) {
+        const [x, y, f] = Pt(q), fade = Math.max(0, 1 - Math.abs(y - cy) / (H * 0.4)); if (fade <= 0.01) continue;
+        const pc = ((q % 12) + 12) % 12;
+        ctx.fillStyle = light() ? `rgba(40,30,60,${fade * (f > 0 ? 0.8 : 0.3)})` : `rgba(235,228,255,${fade * (f > 0 ? 0.8 : 0.25)})`;
+        ctx.beginPath(); ctx.arc(x, y, pc === 0 ? 3.5 : 2, 0, TAU); ctx.fill();
+        if (pc === 0 && f > -0.2) { ctx.font = '500 9.5px "JetBrains Mono", monospace'; ctx.fillText('do', x + 7, y + 3); }
+      }
+      // le marcheur
+      const a = climb * TAU - Math.PI / 2, mx = cx + Math.cos(a) * R, my = cy + Math.sin(a) * R * tilt;
+      ctx.fillStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.beginPath(); ctx.arc(mx, my - 6, 6, 0, TAU); ctx.fill();
+      if (!light()) { const rg = ctx.createRadialGradient(mx, my - 6, 0, mx, my - 6, 30); rg.addColorStop(0, 'rgba(255,138,216,.35)'); rg.addColorStop(1, 'rgba(255,138,216,0)'); ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(mx, my - 6, 30, 0, TAU); ctx.fill(); }
+      // le spectre : composantes à l'octave, cloche fixe
+      const sx0 = v.cx + v.w * 0.06, sx1 = v.x1 - v.w * 0.05, sy = H * 0.72, sh = H * 0.36;
+      const X = (x) => sx0 + ((sx1 - sx0) * x) / NO;
+      ctx.strokeStyle = cc.dim; ctx.beginPath(); ctx.moveTo(sx0, sy); ctx.lineTo(sx1, sy); ctx.stroke();
+      ctx.strokeStyle = light() ? 'rgba(40,30,60,.4)' : 'rgba(235,228,255,.35)'; ctx.setLineDash([4, 4]); ctx.beginPath();
+      for (let i = 0; i <= 100; i++) { const x = (i / 100) * NO; const px = X(x), py = sy - env0(x) * sh; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke(); ctx.setLineDash([]);
+      const fpp = ((pos % 1) + 1) % 1;
+      for (let j = 0; j < NO; j++) {
+        const x = j + fpp, px = X(x), g = env0(x), hue = 200 + (fpp * 160);
+        ctx.strokeStyle = light() ? `hsla(${hue},55%,35%,${0.25 + g * 0.75})` : `hsla(${hue},85%,72%,${0.25 + g * 0.75})`; ctx.lineWidth = 2 + g * 2.5;
+        ctx.beginPath(); ctx.moveTo(px, sy); ctx.lineTo(px, sy - g * sh); ctx.stroke();
+      }
+      ctx.lineWidth = 1; ctx.fillStyle = cc.dim; ctx.font = '500 9.5px "JetBrains Mono", monospace';
+      for (const [f, l] of [[31.25, '31 Hz'], [125, '125 Hz'], [500, '500 Hz'], [2000, '2 kHz'], [8000, '8 kHz']]) { const x = Math.log2(f / FMIN); ctx.fillText(l, X(x) - 12, sy + 14); }
+      ctx.fillStyle = cc.txt; ctx.font = '500 11px "JetBrains Mono", monospace';
+      ctx.fillText('DIX SONS PURS À L’OCTAVE · LA CLOCHE (POINTILLÉS) NE BOUGE PAS', sx0, sy - sh - 14);
+      const pc = ((Math.round(pos * 12) % 12) + 12) % 12;
+      ctx.font = 'italic 500 22px "Space Grotesk", sans-serif'; ctx.fillStyle = light() ? '#2a2238' : '#fff6ea';
+      ctx.fillText(PC[pc], v.x0 + 24, H - 64);
+      ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = cc.txt;
+      ctx.fillText(`MONTÉE PERÇUE : ${fr(climb, 2)} OCTAVE${Math.abs(climb) >= 2 ? 'S' : ''} · HAUTEUR RÉELLE : TOUJOURS LA MÊME FAMILLE DE SONS`, v.x0 + 24, H - 40);
+    }
+
+    /* ───────── paradoxe du triton ───────── */
+    let tri = { cur: null, queue: [], t: 0 };
+    function triPlay(p0) {
+      if (!c) { say('Activez le son.'); return; }
+      bankOn(); tri.cur = p0;
+      const t = now() + 0.05;
+      bankSet(p0 / 12, true); bank.out.gain.cancelScheduledValues(t);
+      bank.out.gain.setValueAtTime(0, t); bank.out.gain.linearRampToValueAtTime(1, t + 0.015); bank.out.gain.setTargetAtTime(0, t + 0.5, 0.03);
+      setTimeout(() => { if (!bank) return; bankSet((p0 + 6) / 12, true); const t2 = now(); bank.out.gain.cancelScheduledValues(t2); bank.out.gain.setValueAtTime(0, t2); bank.out.gain.linearRampToValueAtTime(1, t2 + 0.015); bank.out.gain.setTargetAtTime(0, t2 + 0.5, 0.03); }, 620);
+    }
+    function triGeom() { const v = view(), R = Math.min(v.w * 0.22, H * 0.26); return { v, cx: v.cx - v.w * 0.14, cy: H * 0.48, R, bx: v.cx + v.w * 0.12, by: H * 0.38 }; }
+    function drawTriton(cc) {
+      const g = triGeom();
+      ctx.strokeStyle = cc.dim; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(g.cx, g.cy, g.R, 0, TAU); ctx.stroke();
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * TAU - Math.PI / 2, x = g.cx + Math.cos(a) * g.R, y = g.cy + Math.sin(a) * g.R, ans = keep.answers[k];
+        ctx.fillStyle = ans === 'up' ? (light() ? '#2a7a4a' : '#8ff0b0') : ans === 'down' ? (light() ? '#b03a3a' : '#ff8a8a') : cc.dim;
+        ctx.beginPath(); ctx.arc(x, y, tri.cur === k ? 9 : 6, 0, TAU); ctx.fill();
+        ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = cc.txt;
+        ctx.fillText(PC[k], g.cx + Math.cos(a) * (g.R + 22), g.cy + Math.sin(a) * (g.R + 22) + 4); ctx.textAlign = 'left';
+      }
+      if (tri.cur != null) {
+        const a1 = (tri.cur / 12) * TAU - Math.PI / 2, a2 = a1 + Math.PI;
+        ctx.strokeStyle = light() ? 'rgba(194,54,143,.6)' : 'rgba(255,138,216,.6)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]);
+        ctx.beginPath(); ctx.moveTo(g.cx + Math.cos(a1) * g.R, g.cy + Math.sin(a1) * g.R); ctx.lineTo(g.cx + Math.cos(a2) * g.R, g.cy + Math.sin(a2) * g.R); ctx.stroke(); ctx.setLineDash([]);
+      }
+      // boutons de réponse
+      const bw = 150, bh = 40;
+      const btn = (x, y, s, on) => { ctx.fillStyle = on ? (light() ? 'rgba(194,54,143,.15)' : 'rgba(255,138,216,.15)') : light() ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.05)'; ctx.strokeStyle = light() ? 'rgba(40,30,60,.35)' : 'rgba(235,228,255,.3)'; rr(x, y, bw, bh, 10); ctx.fill(); ctx.stroke(); ctx.fillStyle = cc.txt; ctx.font = '600 12px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText(s, x + bw / 2, y + 25); ctx.textAlign = 'left'; };
+      btn(g.bx, g.by, '▶ PAIRE SUIVANTE', false);
+      btn(g.bx, g.by + 56, '↗ ÇA MONTE', false);
+      btn(g.bx, g.by + 104, '↘ ÇA DESCEND', false);
+      btn(g.bx, g.by + 152, '↺ REJOUER', false);
+      const n = Object.keys(keep.answers).length, up = Object.values(keep.answers).filter((x) => x === 'up').length;
+      ctx.fillStyle = cc.txt; ctx.font = '500 11px "JetBrains Mono", monospace';
+      ctx.fillText(tri.cur == null ? 'ÉCOUTEZ UNE PAIRE, PUIS DITES CE QUE VOUS ENTENDEZ.' : `PAIRE : ${PC[tri.cur].toUpperCase()} → ${PC[(tri.cur + 6) % 12].toUpperCase()} (UN TRITON : NI PLUS HAUT NI PLUS BAS)`, g.v.x0 + 24, H - 58);
+      ctx.fillText(n ? `VOS RÉPONSES : ${up} « MONTE », ${n - up} « DESCEND » SUR ${n} PAIRES · VERT : MONTE, ROUGE : DESCEND` : 'LE CERCLE : LES DOUZE NOTES, SANS HAUT NI BAS', g.v.x0 + 24, H - 40);
+      if (n >= 6) ctx.fillText('LES VERTS ET LES ROUGES SE GROUPENT EN GÉNÉRAL DE PART ET D’AUTRE D’UNE FRONTIÈRE : C’EST VOTRE ORIENTATION, PROPRE À VOUS.', g.v.x0 + 24, H - 22);
+    }
+    function triNext() { const left = [...Array(12).keys()].filter((k) => !keep.answers[k]); const k = left.length ? left[Math.floor(Math.random() * left.length)] : Math.floor(Math.random() * 12); triPlay(k); }
+
+    /* ───────── fondamentale absente ───────── */
+    let harmBank = null;
+    function harmOn() {
+      if (!c || harmBank) return;
+      const out = c.createGain(); out.gain.value = 0; out.gain.setTargetAtTime(1, now(), 0.05); out.connect(B.input);
+      const osc = keep.harm.map((on, i) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = keep.f0 * (i + 1); g.gain.value = on ? 0.06 / Math.sqrt(i + 1) : 0; o.connect(g); g.connect(out); o.start(); return { o, g }; });
+      harmBank = { out, osc };
+    }
+    function harmSet() { if (!harmBank) return; const t = now(); harmBank.osc.forEach((v, i) => { v.o.frequency.setTargetAtTime(keep.f0 * (i + 1), t, 0.02); v.g.gain.setTargetAtTime(keep.harm[i] ? 0.06 / Math.sqrt(i + 1) : 0, t, 0.03); }); }
+    function harmOff() { if (!harmBank) return; const t = now(); harmBank.out.gain.setTargetAtTime(0, t, 0.04); for (const v of harmBank.osc) v.o.stop(t + 0.4); harmBank = null; }
+    function absGeom() { const v = view(); return { v, bx0: v.x0 + v.w * 0.1, bx1: v.x1 - v.w * 0.1, by: H * 0.48, bh: H * 0.26 }; }
+    function drawAbsente(cc) {
+      const g = absGeom(), n = keep.harm.length, bw = (g.bx1 - g.bx0) / n;
+      // forme d'onde : la période 1/f₀ est toujours là
+      const wy = H * 0.29, wa = H * 0.07, x0 = g.bx0, x1 = g.bx1;
+      let mx = 1e-6; const s = [];
+      for (let i = 0; i <= 600; i++) { const tt = (i / 600) * 4; let y = 0; keep.harm.forEach((on, j) => { if (on) y += Math.sin(TAU * (j + 1) * tt) / Math.sqrt(j + 1); }); s.push(y); mx = Math.max(mx, Math.abs(y)); }
+      ctx.strokeStyle = light() ? '#6f45d4' : '#ff8ad8'; ctx.lineWidth = 2; ctx.beginPath(); s.forEach((y, i) => { const x = x0 + ((x1 - x0) * i) / 600, yy = wy - (y / mx) * wa; i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); }); ctx.stroke();
+      ctx.strokeStyle = cc.dim; ctx.setLineDash([3, 4]); for (let k = 0; k <= 4; k++) { const x = x0 + ((x1 - x0) * k) / 4; ctx.beginPath(); ctx.moveTo(x, wy - wa - 8); ctx.lineTo(x, wy + wa + 8); ctx.stroke(); } ctx.setLineDash([]);
+      ctx.fillStyle = cc.txt; ctx.font = '500 10.5px "JetBrains Mono", monospace';
+      ctx.fillText(`QUATRE PÉRIODES DE ${fr(1000 / keep.f0, 1)} MS (1/${keep.f0} S) : LE MOTIF SE RÉPÈTE MÊME SANS LA FONDAMENTALE`, x0, wy - wa - 16);
+      // barres (touchez pour activer ou couper)
+      for (let i = 0; i < n; i++) {
+        const x = g.bx0 + i * bw, on = keep.harm[i], h = (g.bh * 1) / Math.sqrt(i + 1);
+        ctx.strokeStyle = cc.dim; ctx.setLineDash(on ? [] : [4, 4]); ctx.strokeRect(x + 8, g.by + g.bh - h, bw - 16, h); ctx.setLineDash([]);
+        if (on) { ctx.fillStyle = light() ? `hsla(${280 - i * 14},55%,45%,.85)` : `hsla(${280 - i * 14},80%,68%,.85)`; ctx.fillRect(x + 8, g.by + g.bh - h, bw - 16, h); }
+        ctx.fillStyle = cc.txt; ctx.textAlign = 'center'; ctx.font = '500 10px "JetBrains Mono", monospace';
+        ctx.fillText(`${keep.f0 * (i + 1)} Hz`, x + bw / 2, g.by + g.bh + 16); ctx.fillText(i === 0 ? 'fondamentale' : `harmonique ${i + 1}`, x + bw / 2, g.by + g.bh + 30); ctx.textAlign = 'left';
+      }
+      ctx.fillStyle = cc.txt; ctx.font = '500 11px "JetBrains Mono", monospace';
+      const firstOn = keep.harm.findIndex((x) => x);
+      ctx.fillText(firstOn > 0 ? `PAS DE SON À ${keep.f0} HZ… ET POURTANT C’EST CETTE NOTE QU’ON ENTEND (TOUCHEZ LES BARRES)` : 'TOUCHEZ LES BARRES POUR AJOUTER OU RETIRER UNE HARMONIQUE', g.v.x0 + 24, H - 30);
+    }
+
+    /* ───────── battements binauraux ───────── */
+    let binNodes = null;
+    function binOn() {
+      if (!c || binNodes) return;
+      const m = c.createChannelMerger(2), g = c.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.11, now(), 0.1); m.connect(g); g.connect(au.master); // sans réverbération : elle mélangerait les oreilles
+      const a = c.createOscillator(), b = c.createOscillator(), ga = c.createGain(), gb = c.createGain(), mixA = c.createGain(), mixB = c.createGain();
+      a.frequency.value = keep.bf; b.frequency.value = keep.bf + keep.bd;
+      a.connect(ga); b.connect(gb);
+      binNodes = { m, g, a, b, ga, gb, mixA, mixB };
+      binRoute(); a.start(); b.start();
+    }
+    function binRoute() {
+      if (!binNodes) return; const n = binNodes;
+      try { n.ga.disconnect(); n.gb.disconnect(); } catch (e) { /* rien */ }
+      if (keep.bin === 'binaural') { n.ga.gain.value = 1; n.gb.gain.value = 1; n.ga.connect(n.m, 0, 0); n.gb.connect(n.m, 0, 1); }
+      else { n.ga.gain.value = 0.7; n.gb.gain.value = 0.7; for (const ch of [0, 1]) { n.ga.connect(n.m, 0, ch); n.gb.connect(n.m, 0, ch); } }
+    }
+    function binTune() { if (!binNodes) return; const t = now(); binNodes.a.frequency.setTargetAtTime(keep.bf, t, 0.03); binNodes.b.frequency.setTargetAtTime(keep.bf + keep.bd, t, 0.03); }
+    function binOff() { if (!binNodes) return; const t = now(); binNodes.g.gain.setTargetAtTime(0, t, 0.05); binNodes.a.stop(t + 0.4); binNodes.b.stop(t + 0.4); const m = binNodes.g; setTimeout(() => { try { m.disconnect(); } catch (e) { /* rien */ } }, 600); binNodes = null; }
+    function drawBinaural(cc) {
+      const v = view(), cx = v.cx, cy = H * 0.5, R = Math.min(v.w, H) * 0.13;
+      const beat = 0.5 + 0.5 * Math.cos(TAU * keep.bd * T), bin = keep.bin === 'binaural';
+      // la tête
+      ctx.strokeStyle = light() ? 'rgba(40,30,60,.55)' : 'rgba(235,228,255,.5)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(cx, cy, R * 0.82, R, 0, 0, TAU); ctx.stroke();
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cx + s * R * 0.86, cy, R * 0.12, R * 0.22, 0, 0, TAU); ctx.stroke(); }
+      // la pulsation : dans la tête (binaural) ou dans l'air (acoustique)
+      const gx = bin ? cx : cx, gy = bin ? cy - R * 0.1 : cy, rad = bin ? R * 0.55 : R * 2.2;
+      const rg = ctx.createRadialGradient(gx, gy, 0, gx, gy, rad); const col = light() ? '194,54,143' : '255,138,216';
+      rg.addColorStop(0, `rgba(${col},${0.08 + 0.42 * beat})`); rg.addColorStop(1, `rgba(${col},0)`); ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(gx, gy, rad, 0, TAU); ctx.fill();
+      // les deux ondes, ralenties
+      const lane = (x0, x1, y, f, lab) => {
+        ctx.strokeStyle = light() ? '#2a4aa0' : '#8fb8ff'; ctx.lineWidth = 1.5; ctx.beginPath();
+        for (let i = 0; i <= 200; i++) { const u = i / 200, x = x0 + (x1 - x0) * u, ph = TAU * (u * 9 * (f / keep.bf) - T * 0.6 * (f / keep.bf)); const yy = y + Math.sin(ph) * 14; i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); } ctx.stroke();
+        ctx.fillStyle = cc.txt; ctx.font = '500 10.5px "JetBrains Mono", monospace'; ctx.fillText(lab, x0, y - 24);
+      };
+      if (bin) { lane(v.x0 + 30, cx - R * 1.2, cy, keep.bf, `OREILLE GAUCHE ${fr(keep.bf, 0)} HZ`); lane(cx + R * 1.2, v.x1 - 30, cy, keep.bf + keep.bd, `OREILLE DROITE ${fr(keep.bf + keep.bd, 1)} HZ`); }
+      else {
+        const x0 = v.x0 + 30, x1 = cx - R * 1.2; ctx.strokeStyle = light() ? '#2a4aa0' : '#8fb8ff'; ctx.lineWidth = 1.5; ctx.beginPath();
+        for (let i = 0; i <= 300; i++) { const u = i / 300, x = x0 + (x1 - x0) * u, e = Math.cos(Math.PI * keep.bd * (T - u * 0.6)); const yy = cy + Math.sin(TAU * (u * 30 - T * 0.6)) * 14 * Math.abs(e); i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); } ctx.stroke();
+        ctx.fillStyle = cc.txt; ctx.font = '500 10.5px "JetBrains Mono", monospace'; ctx.fillText(`LES DEUX SONS MÉLANGÉS DANS L’AIR : L’ENVELOPPE BAT ${fr(keep.bd, 1)} FOIS PAR SECONDE`, x0, cy - 30);
+      }
+      ctx.fillStyle = cc.txt; ctx.font = '500 11px "JetBrains Mono", monospace';
+      ctx.fillText(bin ? `AU CASQUE · DANS L’AIR, AUCUN BATTEMENT ; DANS LA TÊTE, ${fr(keep.bd, 1)} PAR SECONDE` : 'BATTEMENTS ACOUSTIQUES · RÉELS, MESURABLES PAR UN MICRO', v.x0 + 24, H - 30);
+    }
+
+    /* ───────── accélération éternelle ───────── */
+    const NL = 5, P_R = 10; // cinq pulsations au tempo doublé ; une octave de tempo toutes les 10 s
+    let rs = { s: 0, phi: 0, last: [] }, pulses = [];
+    function rissetTick(k) {
+      // φ₀ intègre le tempo de la couche la plus lente, qui double en P_R secondes ; la couche j bat 2^j fois plus vite
+      const r0 = 0.5;
+      const dt = k * keep.risset, phi0 = rs.phi;
+      rs.phi += r0 * Math.pow(2, rs.s) * dt; rs.s += dt / P_R;
+      const frac = (n, j) => { const a = phi0 * 2 ** j, b = rs.phi * 2 ** j; return b > a ? clamp((n - a) / (b - a), 0, 1) : 1; }; // instant exact du clic dans le pas
+      // à la fin d'une octave de tempo, chaque couche a rejoint le tempo de la suivante : on décale les couches d'un cran
+      // (l'ancienne couche j devient la j+1, avec exactement la même phase) et une nouvelle couche lente naît, inaudible
+      if (rs.s >= 1) { rs.s -= 1; rs.phi /= 2; rs.last.pop(); rs.last.unshift(Math.floor(rs.phi)); for (let j = 0; j < NL; j++) rs.last[j] = Math.floor(rs.phi * 2 ** j); return; }
+      for (let j = 0; j < NL; j++) {
+        const ph = rs.phi * 2 ** j, n = Math.floor(ph);
+        if (rs.last[j] == null) rs.last[j] = n;
+        if (n > rs.last[j]) {
+          rs.last[j] = n;
+          const x = j + rs.s, amp = Math.exp(-((x - (NL - 1) / 2) ** 2) / (2 * 0.9 * 0.9));
+          if (amp > 0.03) { click(j, amp, (frac(n, j) - 1) * k); pulses.push({ j, t: T, a: amp }); }
+        }
+      }
+      pulses = pulses.filter((p) => T - p.t < 1.2);
+    }
+    function click(j, amp, off = 0) {
+      if (!c) return;
+      const t = now() + 0.06 + off / Math.max(0.05, env.speed || 1), o = c.createOscillator(), g = c.createGain(), f = [180, 320, 560, 900, 1500][j];
+      o.frequency.setValueAtTime(f * 1.6, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.03);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.13 * amp, t + 0.002); g.gain.setTargetAtTime(0, t + 0.004, 0.03);
+      o.connect(g); g.connect(B.input); o.start(t); o.stop(t + 0.2);
+    }
+    function drawRisset(cc) {
+      const v = view(), cx = v.cx, cy = H * 0.48, R = Math.min(v.w, H) * 0.34;
+      for (const p of pulses) {
+        const age = T - p.t, r = R * (0.15 + 0.85 * (1 - Math.exp(-age * 3))) * (0.45 + p.j * 0.14), a = p.a * Math.max(0, 1 - age / 1.2);
+        ctx.strokeStyle = light() ? `hsla(${200 + p.j * 30},55%,35%,${a})` : `hsla(${200 + p.j * 30},85%,70%,${a})`; ctx.lineWidth = 1 + 3 * a;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke();
+      }
+      ctx.fillStyle = cc.txt; ctx.font = '500 11px "JetBrains Mono", monospace';
+      const tempo = 0.5 * Math.pow(2, rs.s) * 60;
+      ctx.fillText(`CINQ PULSATIONS, CHACUNE DEUX FOIS PLUS RAPIDE QUE LA PRÉCÉDENTE · TOUTES ACCÉLÈRENT (TEMPO DE BASE ${Math.round(tempo)} PAR MINUTE)`, v.x0 + 24, H - 40);
+      ctx.fillText('LA PLUS RAPIDE S’EFFACE PENDANT QU’UNE PLUS LENTE APPARAÎT : ÇA ACCÉLÈRE, POUR TOUJOURS', v.x0 + 24, H - 24);
+      // les cinq couches et leurs volumes
+      const bx = v.x1 - 170, by = H * 0.2;
+      for (let j = 0; j < NL; j++) { const x = j + rs.s, amp = Math.exp(-((x - (NL - 1) / 2) ** 2) / (2 * 0.81)); ctx.fillStyle = light() ? `hsla(${200 + j * 30},55%,35%,.8)` : `hsla(${200 + j * 30},85%,70%,.8)`; ctx.fillRect(bx + j * 24, by + 80 - amp * 80, 16, amp * 80); }
+      ctx.fillStyle = cc.dim; ctx.fillText('VOLUMES', bx, by + 96);
+    }
+
+    /* ───────── scènes ───────── */
+    function stopAll() { bankOff(); harmOff(); binOff(); }
+    function setScene(id) {
+      stopAll(); keep.scene = id; toast = null;
+      if (id === 'shepard') bankOn();
+      if (id === 'absente') harmOn();
+      if (id === 'binaural') binOn();
+      if (id === 'risset') { rs = { s: 0, phi: 0, last: [] }; pulses = []; }
+    }
+    const C = () => light() ? { bg: '#f4f0e8', txt: 'rgba(40,30,60,.78)', dim: 'rgba(40,30,60,.3)' } : { bg: '#07050d', txt: 'rgba(235,228,255,.78)', dim: 'rgba(235,228,255,.25)' };
+    function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+    let hintBox = null;
+    function render() {
+      const cc = C(); ctx.fillStyle = cc.bg; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = cc.txt; ctx.font = 'italic 500 20px "Space Grotesk", sans-serif';
+      ctx.fillText(SCENES.find((s) => s[0] === keep.scene)[1], view().x0 + 24, 86);
+      if (keep.scene === 'shepard') drawShepard(cc);
+      else if (keep.scene === 'triton') drawTriton(cc);
+      else if (keep.scene === 'absente') drawAbsente(cc);
+      else if (keep.scene === 'binaural') drawBinaural(cc);
+      else drawRisset(cc);
+      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 116); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      hintBox = null;
+      if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = 64; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
+    }
+    function update(k) {
+      T += k;
+      if (keep.scene === 'shepard') shepTick(k);
+      else if (keep.scene === 'risset') rissetTick(k);
+    }
+    setScene(keep.scene);
+    if (window.FASC_DEBUG) window.FASC_DEBUG.sonill = { keep, setScene, triPlay, run(n, h) { for (let i = 0; i < n; i++) update(h / 0.4); render(); } };
+
+    return {
+      livePaused: true,
+      frame(t, dt) { if (dt > 0) update(dt / 0.4); render(); },
+      down(p) {
+        if (hintBox && p.x > hintBox.x && p.x < hintBox.x + hintBox.w && p.y > hintBox.y && p.y < hintBox.y + hintBox.h) { env.askSound && env.askSound(); return; }
+        if (keep.scene === 'shepard') { keep.dir = -keep.dir; say(keep.dir > 0 ? 'Ça monte… sans fin.' : 'Ça descend… sans fin.'); }
+        else if (keep.scene === 'triton') {
+          const g = triGeom(), inB = (y) => p.x > g.bx && p.x < g.bx + 150 && p.y > y && p.y < y + 40;
+          if (inB(g.by)) triNext();
+          else if (inB(g.by + 56) && tri.cur != null) { keep.answers[tri.cur] = 'up'; triNext(); }
+          else if (inB(g.by + 104) && tri.cur != null) { keep.answers[tri.cur] = 'down'; triNext(); }
+          else if (inB(g.by + 152) && tri.cur != null) triPlay(tri.cur);
+          else { const d = Math.hypot(p.x - g.cx, p.y - g.cy); if (Math.abs(d - g.R) < 30) { const a = Math.atan2(p.y - g.cy, p.x - g.cx) + Math.PI / 2; triPlay(((Math.round((a / TAU) * 12) % 12) + 12) % 12); } }
+        } else if (keep.scene === 'absente') {
+          const g = absGeom(), i = Math.floor(((p.x - g.bx0) / (g.bx1 - g.bx0)) * keep.harm.length);
+          if (i >= 0 && i < keep.harm.length && p.y > g.by - 20 && p.y < g.by + g.bh + 40) { keep.harm[i] = keep.harm[i] ? 0 : 1; harmSet(); }
+        } else if (keep.scene === 'binaural') { keep.bin = keep.bin === 'binaural' ? 'acoustique' : 'binaural'; binRoute(); }
+      },
+      move() {},
+      up() {},
+      clear() { if (keep.scene === 'triton') { keep.answers = {}; tri.cur = null; } else setScene(keep.scene); },
+      dispose() { stopAll(); if (B) B.dispose(); },
+      ui() {
+        const L = [{ type: 'section', label: 'Scènes' }, { type: 'choice', label: 'Illusion', value: keep.scene, set: (x) => setScene(x), options: SCENES.map(([id, label]) => ({ id, label })) }];
+        if (!c) L.push({ type: 'buttons', items: [{ label: '♪ Activer le son', act: () => env.askSound && env.askSound() }] });
+        if (keep.scene === 'shepard') {
+          L.push({ type: 'section', label: 'Escalier' });
+          L.push({ type: 'choice', label: 'Mouvement', value: keep.glide ? 'g' : 'm', set: (x) => { keep.glide = x === 'g'; }, options: [{ id: 'm', label: 'Par marches (Shepard)' }, { id: 'g', label: 'Glissando (Risset)' }] });
+          L.push({ type: 'buttons', items: [{ label: '↗ Monter', act: () => { keep.dir = 1; } }, { label: '↘ Descendre', act: () => { keep.dir = -1; } }] });
+          L.push({ type: 'slider', label: 'Allure', min: 0.3, max: 3, step: 0.01, value: keep.rate, fmt: (x) => '×' + fr(x, 1), set: (x) => { keep.rate = x; } });
+          L.push({ type: 'note', text: 'Au bout de douze marches, tous les sons sont exactement revenus à leur point de départ : regardez le spectre. Touchez l’écran pour changer de sens.' });
+        } else if (keep.scene === 'triton') {
+          L.push({ type: 'section', label: 'Triton' });
+          L.push({ type: 'buttons', items: [{ label: 'Paire suivante', act: () => triNext() }, { label: 'Effacer mes réponses', act: () => { keep.answers = {}; tri.cur = null; } }] });
+          L.push({ type: 'note', text: 'Pour chaque paire, dites ce que vous entendez, sans réfléchir. Faites-le aussi faire à quelqu’un d’autre : vos cercles ne seront peut-être pas orientés pareil.' });
+        } else if (keep.scene === 'absente') {
+          L.push({ type: 'section', label: 'Harmoniques' });
+          L.push({ type: 'choice', label: 'Fondamentale', value: String(keep.f0), set: (x) => { keep.f0 = +x; harmSet(); }, options: [100, 150, 200, 300].map((f) => ({ id: String(f), label: f + ' Hz' })) });
+          L.push({ type: 'buttons', items: [
+            { label: 'Son complet', act: () => { keep.harm = [1, 1, 1, 1, 1, 1, 1, 1]; harmSet(); } },
+            { label: 'Sans la fondamentale', act: () => { keep.harm = [0, 1, 1, 1, 1, 1, 1, 1]; harmSet(); } },
+          ] });
+          L.push({ type: 'buttons', items: [
+            { label: 'Harmoniques 4, 5, 6 seules', act: () => { keep.harm = [0, 0, 0, 1, 1, 1, 0, 0]; harmSet(); } },
+            { label: 'Fondamentale seule', act: () => { keep.harm = [1, 0, 0, 0, 0, 0, 0, 0]; harmSet(); } },
+          ] });
+          L.push({ type: 'note', text: 'Comparez « fondamentale seule » et « harmoniques 4, 5, 6 seules » : aucune fréquence commune, et pourtant la même note (le timbre change, pas la hauteur).' });
+        } else if (keep.scene === 'binaural') {
+          L.push({ type: 'section', label: 'Battements' });
+          L.push({ type: 'choice', label: 'Écoute', value: keep.bin, set: (x) => { keep.bin = x; binRoute(); }, options: [{ id: 'binaural', label: 'Binaurale (au casque)' }, { id: 'acoustique', label: 'Acoustique (mélangés)' }] });
+          L.push({ type: 'slider', label: 'Écart', min: 0.5, max: 30, step: 0.1, value: keep.bd, fmt: (x) => fr(x, 1) + ' Hz', set: (x) => { keep.bd = x; binTune(); } });
+          L.push({ type: 'slider', label: 'Hauteur', min: 100, max: 800, step: 1, value: keep.bf, fmt: (x) => Math.round(x) + ' Hz', set: (x) => { keep.bf = x; binTune(); } });
+          L.push({ type: 'note', text: 'Au-delà de 1 000 Hz ou de 30 Hz d’écart, l’effet binaural disparaît, alors que les battements acoustiques, eux, restent. Sans casque, les deux oreilles reçoivent les deux sons : ce ne sont plus des battements binauraux.' });
+        } else {
+          L.push({ type: 'section', label: 'Accélération' });
+          L.push({ type: 'slider', label: 'Allure', min: 0.3, max: 3, step: 0.01, value: keep.risset, fmt: (x) => '×' + fr(x, 1), set: (x) => { keep.risset = x; } });
+        }
+        return L;
+      },
+    };
   }
 })();
 

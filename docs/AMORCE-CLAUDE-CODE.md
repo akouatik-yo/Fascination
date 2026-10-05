@@ -124,7 +124,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -282,7 +282,7 @@ Le curseur de vitesse est remplacé par une molette dont on ne voit que la tranc
 - **Bulles** : jusqu'à 12 sphères analytiques (uniformes), deux faces, reflet d'une fenêtre et du ciel, épaisseur = d₀(t) × (0,25 + 1,15 · haut^1,3) × (1 + 0,32 · tourbillons de Marangoni) ; le film s'amincit avec l'âge, la bulle éclate (trou qui s'agrandit, gouttelettes). Courants d'air, chocs doux, SOUFFLER pour créer une bulle ou un courant.
 - **Film dans un cadre** : épaisseur en coin (1 600 nm × y^1,15) qui s'amincit avec le temps, déformée par des tourbillons (fbm) et par ceux lancés au doigt ; film noir en haut ; retrempé toutes les 45 s.
 - **Caténoïde** : r(z) = a ch(z/a), a résolu par Newton (a ch(h/a) = 1) ; plus de solution au-delà de h/R = 0,6627 (Goldschmidt) : deux disques plats. Lancer de rayons par changement de signe + dichotomie, deux surfaces visibles ; anneaux en laiton par marche sur la distance au tore.
-- `s-cosmos.js` ne contient plus que le Visualiseur et la Harpe (catégorie Sons).
+- `s-cosmos.js` a ensuite été supprimé : le Visualiseur est devenu Le Spectre (`s-spectre.js`), la Harpe a son fichier (`s-harpe.js`), voir §22.
 
 ## 21. Les Abysses — `app/js/machines/s-abysses.js` (id `meduses` conservé ; remplace `s-meduses.js` et `s-med-corps.js`)
 
@@ -292,4 +292,14 @@ Le curseur de vitesse est remplacé par une molette dont on ne voit que la tranc
 - **Lampe** : révèle les vraies couleurs (rouges invisibles en profondeur), volontairement douce (×0,32) pour ne pas saturer.
 - **Descente** : la jauge avance en temps accéléré (6 m/s × vitesse) mais l'image défile lentement (`camY`, 0,3 m/s) pour laisser le temps de regarder. Faune tirée selon la profondeur (`zone` de chaque espèce), créatures grossies ×2,6 à ×4 (pyrosomes et Praya ×1,2 à ×1,8), bancs de poissons-lanternes entre 150 et 1 600 m, plancton qui scintille, d'autant plus qu'on descend et qu'on bouge. Lumière du jour en exp(−d/45). Jauge en racine carrée.
 - Outils : observer, toucher (déclenche la lumière), lampe (maintenir), courant (pousse l'eau et les tentacules).
+
+## 22. La catégorie Sons — `fk-son.js`, `s-harpe.js`, `s-spectre.js`, `s-pendules.js`, `s-sonillus.js`
+
+- **Coquille** : `env.speed` (vitesse de la molette, pour convertir un temps de machine en temps audio) et `env.askSound()` (allume le son ; la machine est alors reconstruite, d'où un objet `keep` au niveau du module pour garder les réglages). Chaque machine Sons dessine un bouton « ♪ Activer le son » tant que le son est coupé.
+- **`fk-son.js`** : `bus(audio, {rev})` (départ propre à la machine avec réverbération : réponse impulsionnelle synthétique, bruit stéréo qui décroît et s'assombrit), `ks(ctx, f, {pos, bright, t60})` (corde de Karplus-Strong étendu : passe-bas à deux points, passe-tout du premier ordre pour l'accord fin, peigne du point de pincement ; vérifié au cent près de 65 à 1 568 Hz ; tampons mis en cache), `playBuf`, `mtof`, `nom` (convention française, do3 = 261,6 Hz). Piège rencontré : la boucle doit faire N échantillons et non N+1 (le moyennage ajoute déjà ½ échantillon), sinon tout est trop bas (−55 cents à 1,5 kHz).
+- **La Harpe** (id `harpe`) : harpe (16 à 19 cordes selon la gamme, do rouges et fa bleus ; forme de la corde = série de Fourier du triangle de pincement, amortie mode par mode, au ralenti ; outils pincer, étouffer, harmonique), monocorde (chevalet aimanté aux rapports simples, battements calculés, comma pythagoricien), harpe éolienne (8 cordes à l'unisson en ré1, diamètres de 0,5 à 1,8 mm, tourbillons f = 0,2 U/d, chaque corde chante l'harmonique la plus proche et n'en change qu'en passant par le silence ; deux voix par corde en fondu ; encart de l'allée de von Kármán).
+- **Le Spectre** (id `viz` conservé) : spectrogramme (analyseur 8 192 points branché sur le bus de la machine, rangées en log-fréquence, palette inferno, défilement 70 px/s) avec sources synthétiques (oiseaux : courbes de fréquence par `setValueCurveAtTime` ; baleine : dents de scie filtrées ; voix : dent de scie + vibrato + trois formants passe-bande ; musique : Karplus-Strong) ou micro (`getUserMedia`, probablement bloqué dans l'artefact claude.ai) ; on chante au doigt. Lissajous (canal gauche / droit, figure calculée, phase dérivée au rythme du battement, phosphore rémanent). Timbre (16 partiels, préréglages dont la cloche de Risset, inharmonicité √(1+Bn²), clavier).
+- **Les Pendules** (id `pendules`, nouvelle) : vague de pendules (N₀ + k oscillations par cycle Γ, L = g(Γ/2π(N₀+k))², vue 3D en orbite ; chaque pendule sonne en revenant au point de lâcher, instants calculés exactement et programmés à l'avance) ; polyrythmie en arcs (M − k allers-retours par cycle, une note à chaque rebond). Timbres vibraphone / marimba / verre par partiels.
+- **Les Illusions sonores** (id `sonillus`, nouvelle) : escalier de Shepard et glissando de Risset (10 sinus à l'octave, cloche gaussienne fixe en log-fréquence ; hélice qui défile), paradoxe du triton (paires de Shepard à un triton, réponses de l'auditeur sur le cercle des notes), fondamentale absente (8 harmoniques à activer), battements binauraux ou acoustiques (fusion stéréo hors réverbération), accélération éternelle de Risset (5 couches de tempo doublé ; au bout d'une octave de tempo, les couches se décalent d'un cran avec la même phase ; clics programmés à l'instant exact du franchissement).
+- Vérifié sans écran : rendu, absence d'erreurs, niveau audio mesuré à l'analyseur. **Pas écouté** : le rendu sonore réel reste à juger à l'oreille.
 

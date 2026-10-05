@@ -21,7 +21,7 @@ p.on('console', (m) => { const t = m.text(); if ((m.type() === 'warning' || m.ty
 await p.goto(pathToFileURL(page).href + '#lucioles');
 await p.waitForTimeout(2500);
 console.log('machines chargées :', await p.$$eval('.it', (l) => l.length));
-for (let i = 0; i < 28; i++) { await p.keyboard.press('ArrowRight'); await p.waitForTimeout(350); }
+for (let i = 0; i < 30; i++) { await p.keyboard.press('ArrowRight'); await p.waitForTimeout(350); }
 await p.evaluate(() => { location.hash = '#feu'; });
 await p.waitForTimeout(1500);
 const name = await p.$eval('.p-title h1', (e) => e.textContent);

@@ -104,6 +104,7 @@ L'utilisateur a beaucoup aimé les machines refaites. Les principes à reproduir
 Machines refaites (niveau final) :
 - **Feu** (octobre 2026, WebGL2) : voir §7.
 - **Eau** (octobre 2026, WebGL2) : voir §9.
+- **Écoulement** (octobre 2026, WebGL2) : voir §10.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -111,7 +112,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Écoulement, Sable, Foudre, Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Sable, Foudre, Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -159,3 +160,14 @@ Tiroir indépendant (bouton BRUITS, touche `N`), avec son propre contexte audio 
 - **Outils** : observer, doigt, goutte, pluie, mouche, nourrir, mur, gomme.
 - **Sans décor** : caustiques néon sur noir, ou à l'encre sarcelle sur crème ; seules les ondes restent.
 - **Repli 2D** : l'ancienne Eau (fonction `legacy`).
+
+## 10. L'Écoulement (WebGL2) — `app/js/machines/s-flux.js` (id `fluide`)
+
+- **Moteur** : Navier-Stokes incompressible sur GPU, avec viscosité implicite (Jacobi), confinement de vorticité, projection de pression, obstacles (masque peint en 2D), entrée de veine propre et sortie ouverte (soufflerie), bords périodiques (Kelvin-Helmholtz) ou fermés. Gravité appliquée à la densité des encres (canal alpha).
+- **Encres** : deux textures (absorbance + densité, fluorescence). Transport MacCormack (Selle 2008) en qualité normale et haute, semi-lagrangien en légère.
+- **Acteurs** : fluorescéine, rhodamine B, encre de seiche, bleu de méthylène, permanganate (cristaux qui coulent en laissant une traînée).
+- **Expériences** : Allée de Kármán (cylindre, plaque, aile NACA 0012 avec incidence, mur à main levée ; Re et fréquence de Strouhal estimés), Kelvin-Helmholtz (nombre de Richardson), Rayleigh-Taylor (nombre d'Atwood), Aquarium (gouttes en paires de tourbillons, cristaux), Mémoire de Taylor.
+- **Taylor** : écoulement de Couette rampant calculé exactement (rotation φ(r) = Φ·r₁²(r₂²/r² − 1)/(r₂² − r₁²)) ; une image « matérielle » est déformée à l'affichage, donc l'expérience est parfaitement réversible ; curseur de diffusion moléculaire pour le réalisme. Les gouttes sont peintes dans l'état de référence (forme reconstruite point par point).
+- **Rendus** : encres (UV ou rétroéclairage blanc), rhéoscopique (paillettes de mica), vorticité. Sans décor : noir néon ou encre sur crème.
+- **Son** : chant éolien à la fréquence de lâcher des tourbillons, bruit d'eau.
+- **Limites connues** : la grille ajoute sa propre viscosité numérique, d'où un Reynolds affiché « estimé » ; en 2D, une goutte forme une paire de tourbillons, pas un anneau.

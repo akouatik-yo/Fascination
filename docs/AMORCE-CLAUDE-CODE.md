@@ -105,6 +105,7 @@ Machines refaites (niveau final) :
 - **Feu** (octobre 2026, WebGL2) : voir §7.
 - **Eau** (octobre 2026, WebGL2) : voir §9.
 - **Écoulement** (octobre 2026, WebGL2) : voir §10.
+- **Sable** (octobre 2026, 2D) : voir §11.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -112,7 +113,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Sable, Foudre, Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Foudre, Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -171,3 +172,14 @@ Tiroir indépendant (bouton BRUITS, touche `N`), avec son propre contexte audio 
 - **Rendus** : encres (UV ou rétroéclairage blanc), rhéoscopique (paillettes de mica), vorticité. Sans décor : noir néon ou encre sur crème.
 - **Son** : chant éolien à la fréquence de lâcher des tourbillons, bruit d'eau.
 - **Limites connues** : la grille ajoute sa propre viscosité numérique, d'où un Reynolds affiché « estimé » ; en 2D, une goutte forme une paire de tourbillons, pas un anneau.
+
+## 11. Le Sable — `app/js/machines/s-sable.js`
+
+- **Automate granulaire en 2D** (pas de WebGL : le calcul est local et rapide, ~3 ms par pas en qualité moyenne). Chaque case garde sa matière, sa teinte, sa couleur teinte, sa vitesse de chute et son humidité.
+- **Règles** : chute accélérée (jusqu'à 7 cases par pas) ; glissement en diagonale puis roulement de deux cases, dont les probabilités fixent l'angle de repos de chaque sable ; dans l'eau, chute freinée et dérive ; **cohésion du sable mouillé** (ponts capillaires) seulement à l'air libre, jamais sous l'eau ; humidité qui se propage par capillarité et sèche au soleil ; bulles d'air qui remontent ; grains projetés en vol (souffle, fourmilion).
+- **Sables** : quartz, basalte, sable rose (*Homotrema rubrum*), olivine, gravier (effet noix du Brésil quand on secoue).
+- **Vivant** : fourmilions (*Myrmeleon formicarius*) qui creusent en projetant le sable jusqu'à une profondeur cible, bombardent les fourmis qui glissent, puis se métamorphosent ; fourmis moissonneuses (*Messor barbarus*) en file entre la droite et le nid ; la plupart contournent les entonnoirs (en 3D il y a de la place), certaines y glissent.
+- **Scènes** : Fourmilions (dune au couchant), Sablier (débit mesuré au goulot, voûtes qui bloquent un goulot étroit, retournement automatique), Tableau de sable (strates teintes sur une cloison percée, dans l'eau ; se retourne seul), Château de sable (marée, ressac, séchage au soleil, reconstruction).
+- **Son** : sifflement du sable qui coule, « chant des dunes » (bourdon grave) pendant les grosses avalanches.
+- **Rendu** : image à deux pixels par case, ombrage selon la profondeur sous la surface, éclat du quartz, sable mouillé plus sombre ; retournement animé.
+- **Limite connue** : l'angle de repos naît des probabilités de glissement ; il est réaliste à quelques degrés près, pas mesuré précisément.

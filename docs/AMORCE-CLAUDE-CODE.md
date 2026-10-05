@@ -113,6 +113,7 @@ Machines refaites (niveau final) :
 - **Fractales** (octobre 2026, WebGL2 + 2D ; ancien « Le Fractal ») : voir §14.
 - **Illusions** (nouvelle, octobre 2026) : voir §15.
 - **Jeu de la vie** (nouvelle, octobre 2026, WebGL2) : voir §16.
+- **Galaxie** (octobre 2026, WebGL2) : voir §17.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -120,7 +121,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -246,4 +247,11 @@ Le panneau de droite ne montre que les réglages qui s'appliquent à ce qui est 
 - Motifs RLE (planeur, vaisseau léger, canon de Gosper, pulsar, pentadécathlon, R-pentomino, gland, diehard) posés par texSubImage2D ; crayon, gomme et soupe par un petit shader de peinture.
 - Lenia (Chan 2018) : noyau en anneau de rayon 13 (cœur exp(4 − 1/(r(1−r)))), croissance gaussienne μ = 0,15, σ = 0,015, dt = 0,1 (Orbium). Ensemencement par taches lisses dissymétriques : on voit en général une créature qui nage au bout de quelques dizaines de pas ; la soupe uniforme, elle, explose en labyrinthe.
 - Réensemencement automatique si tout meurt (et, hors Lenia, si tout est figé depuis 25 s). Population lue une fois par seconde. Musique de la vie : la colonne centrale lue à chaque génération (pentatonique).
+
+## 17. La Galaxie — `app/js/machines/s-galaxie.js` (id `galaxie`)
+
+- **Spirale** : 70 000 à 210 000 étoiles dessinées en points (gl_VertexID, sans tampon de sommets) dans une cible HDR, avec halo (flou à trois niveaux) et ACES. Orbites calculées dans le shader : ellipses centrées dont l'orientation vaut a × torsion + Ωp t (ondes de densité, modèle cinématique de Kalnajs) ; l'étoile avance à ω(a) − Ωp dans le repère de l'ellipse. L'« embouteillage » (près du petit axe) module l'éclat des jeunes étoiles bleues et des régions H II, et la poussière (décalée vers le bord intérieur) est accumulée dans une cible à part puis absorbée (exp(−k·poussière)). Types : grand dessin, barrée, floconneuse, elliptique.
+- **Collision** : problème restreint de Toomre (1972). Noyaux (2 à 4) en JS, saute-mouton adouci (ε² = 0,04) ; étoiles-tests sur GPU (positions et vitesses RGBA32F, une passe à sorties multiples). Orbite initiale parabolique de péricentre q. Unités : G = M = 1, longueur 10 kpc → 1 unité de temps ≈ 47 millions d'années. Scénarios : Antennes, Souris, Roue de charrette, Voie lactée et Andromède. L'outil ASTRE ajoute un noyau.
+- **Trou noir** : par pixel, rayon intégré avec a = −1,5 h² r / r⁵ (rayon de Schwarzschild = 1), pas adaptatif ; disque mince de 3 à 14 rayons (profil de Shakura-Sunyaev), Doppler relativiste g = 1/(γ(1 − β·n)) et décalage gravitationnel √(1 − 1/r), intensité ∝ g⁴ ; images secondaires par transparence du disque. Résolution adaptative. L'outil OBSERVER relance le même rayon en JS pour dire ce que l'on touche (ombre, anneau de photons, disque côté approchant ou fuyant, image secondaire).
+- Mesuré : avec Doppler, le côté approchant est environ deux fois plus lumineux à l'écran (après compression des hautes lumières).
 

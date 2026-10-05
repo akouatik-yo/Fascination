@@ -116,6 +116,7 @@ Machines refaites (niveau final) :
 - **Galaxie** (octobre 2026, WebGL2) : voir §17.
 - **Tunnel** (octobre 2026, WebGL2) : voir §18.
 - **Lampe à lave** (octobre 2026, WebGL2) : voir §19.
+- **Bulles** (octobre 2026, WebGL2) : voir §20.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -123,7 +124,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Moiré, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -274,4 +275,12 @@ Le panneau de droite ne montre que les réglages qui s'appliquent à ce qui est 
 ## Molette de vitesse (coquille)
 
 Le curseur de vitesse est remplacé par une molette dont on ne voit que la tranche crantée (`#wheel`, dessinée en canvas dans `shell.js`). Échelle logarithmique de ×0,05 à ×8 ; gain = 0,004 × (1 + min(7, (v/0,45)²)) par pixel, v = vitesse du geste en px/ms : lent = réglage fin, vif = grands pas ; un geste lancé garde un peu d'élan (décroissance 60 ms, au gain fin). Vibration à chaque cran (Android), double-touche = ×1, molette de souris et flèches du clavier. La valeur s'affiche dans la case à côté (« ×0,35 »).
+
+## 20. Les Bulles — `app/js/machines/s-bulles.js` (id `bulles`)
+
+- **Couleur du film** : réflectance d'une lame d'indice 1,33 (deux réflexions, déphasage 4πnd cos θt/λ + π), calculée pour 16 longueurs d'onde de 400 à 700 nm, intégrée avec les fonctions CIE 1931 (approximation de Wyman, Sloan et Shirley 2013), XYZ → sRGB, normalisée par la réflectance maximale 4r², saturation adoucie de 20 %. Piège rencontré : une normalisation trop forte rend les bulles opaques et criardes.
+- **Bulles** : jusqu'à 12 sphères analytiques (uniformes), deux faces, reflet d'une fenêtre et du ciel, épaisseur = d₀(t) × (0,25 + 1,15 · haut^1,3) × (1 + 0,32 · tourbillons de Marangoni) ; le film s'amincit avec l'âge, la bulle éclate (trou qui s'agrandit, gouttelettes). Courants d'air, chocs doux, SOUFFLER pour créer une bulle ou un courant.
+- **Film dans un cadre** : épaisseur en coin (1 600 nm × y^1,15) qui s'amincit avec le temps, déformée par des tourbillons (fbm) et par ceux lancés au doigt ; film noir en haut ; retrempé toutes les 45 s.
+- **Caténoïde** : r(z) = a ch(z/a), a résolu par Newton (a ch(h/a) = 1) ; plus de solution au-delà de h/R = 0,6627 (Goldschmidt) : deux disques plats. Lancer de rayons par changement de signe + dichotomie, deux surfaces visibles ; anneaux en laiton par marche sur la distance au tore.
+- `s-cosmos.js` ne contient plus que le Visualiseur et la Harpe (catégorie Sons).
 

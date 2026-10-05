@@ -4,7 +4,7 @@
    projetés en vol. Acteurs vivants : fourmilions qui creusent leurs entonnoirs à l'angle de repos et fourmis
    moissonneuses. Scènes : fourmilions, sablier, tableau de sable, château de sable. */
 (function boot() {
-  if (!window.FK) return setTimeout(boot, 12);
+  if (!window.FK || !window.SABLE3D) return setTimeout(boot, 12);
   const { TAU, clamp, rnd, rint, layer } = window.FK;
 
   /* ───────── matières ───────── */
@@ -22,10 +22,10 @@
   const DYE = [null, [24, 22, 30], [245, 242, 232], [40, 200, 200], [230, 60, 150], [255, 170, 40], [70, 60, 200], [220, 40, 40]];
 
   window.FASC.push({
-    id: 'sable', name: 'Le Sable', cat: 'Éléments', glyph: '⌛', decor: true,
-    blurb: 'Avalanches, sabliers, fourmilions',
-    hint: 'OBSERVER : touchez un grain ou une bête · VERSER : glissez pour verser le sable choisi · EAU : mouillez · PIERRE : construisez · SECOUER : faites vibrer · SOUFFLE : glissez pour faire voler les grains · GOMME : effacez.',
-    intro: 'Un tas de sable n’est ni un solide ni un liquide. Il coule comme de l’eau, puis s’arrête net à un angle précis ; mouillé, il tient debout ; secoué, il trie ses grains. Au pied des dunes, des fourmilions creusent des pièges réglés sur cet angle et attendent qu’une fourmi glisse.',
+    id: 'sable', name: 'Le Sable', cat: 'Éléments', glyph: '⌛', decor: true, smoothTime: true,
+    blurb: 'Dunes, avalanches, sabliers, fourmilions',
+    hint: 'OBSERVER : touchez le sable ou une bête · VERSER : glissez pour verser le sable choisi · EAU : mouillez · PIERRE : posez un rocher · SECOUER : faites vibrer · SOUFFLE : glissez pour faire voler les grains · GOMME : creusez.',
+    intro: 'Un désert vu en relief, où le vent pousse des dunes en croissant. Un tas de sable n’est ni un solide ni un liquide. Il coule comme de l’eau, puis s’arrête net à un angle précis ; mouillé, il tient debout ; secoué, il trie ses grains. Au pied des dunes, des fourmilions creusent des pièges réglés sur cet angle et attendent qu’une fourmi glisse.',
     legend: [
       { color: '#e6b46a', name: 'Quartz', role: 'sable de dune · angle de repos ≈ 33°', desc: 'Des grains de silice arrondis par des milliers d’années de vent. Ils roulent bien : les pentes s’arrêtent vers 33°.' },
       { color: '#8a8894', name: 'Basalte', role: 'sable noir · plages d’Islande', desc: 'De la lave refroidie brutalement dans la mer, broyée par les vagues. Ses grains anguleux s’accrochent : ses tas sont plus raides.' },
@@ -41,6 +41,7 @@
       'Pourquoi un sablier mesure-t-il le temps ? Dans un silo, les grains s’appuient sur les parois : la pression au fond cesse de croître avec la hauteur (Janssen, 1895). Le débit au goulot ne dépend donc que de sa largeur (loi de Beverloo, 1961), pas de la quantité de sable restante. Si le goulot fait moins de cinq grains, des voûtes se forment et bloquent tout : une petite tape les brise.',
       'Le sable mouillé tient debout grâce aux ponts d’eau entre les grains. Il suffit d’environ 1 % d’eau pour bâtir un château ; au-delà, le sable redevient fluide. Au soleil, les ponts s’évaporent et les tours s’effritent grain à grain.',
       'La larve du fourmilion marche à reculons et n’a pas d’anus : elle garde ses déchets jusqu’à sa métamorphose en un insecte ailé qui ressemble à une demoiselle. Son entonnoir exploite la physique : sur une pente à l’angle de repos, un rien suffit à déclencher une avalanche (Fertin et Casas, 2007).',
+      'Le vent ne pousse pas le sable en bloc : il arrache des grains qui rebondissent sur la surface (la saltation, décrite par Ralph Bagnold en 1941) et retombent à l’abri des crêtes. Brad Werner (1995) a montré qu’une règle aussi simple suffit à faire naître toutes les formes de dunes : avec peu de sable sur un sol dur, des barkhanes en croissant qui avancent de plusieurs mètres par an, cornes pointées sous le vent ; avec beaucoup de sable, des cordons parallèles. Ici, chaque tranche emportée et chaque avalanche sont calculées.',
       'Certaines dunes chantent : quand une avalanche dévale leur face, elles grondent entre 70 et 105 Hz, un son que Marco Polo attribuait à des esprits. Avec le SON, écoutez les grosses avalanches.',
     ],
     tools: [
@@ -52,11 +53,45 @@
       { id: 'souffle', label: 'souffle', desc: 'Glissez pour souffler : les grains de surface s’envolent et retombent plus loin.' },
       { id: 'gomme', label: 'gomme', desc: 'Glissez pour effacer.' },
     ],
+    // aiguillage : scènes en relief (moteur 3D) ou en coupe (moteur 2D)
     make(env) {
+      const self = this, SC3 = ['dunes', 'fourmilions', 'tas', 'chateau'];
+      let cur = null, scene = 'dunes', is3 = false;
+      function go(s) {
+        if (cur) { try { cur.dispose(); } catch (e) { /* rien */ } }
+        scene = s;
+        if (SC3.includes(s) && window.SABLE3D) {
+          try { cur = window.SABLE3D(env, s); is3 = true; return; } catch (e) { console.warn('Le Sable 3D : repli en 2D', e); }
+        }
+        is3 = false;
+        cur = self._make2D(env, s === 'dunes' || s === 'tas' ? 'fourmilions' : s);
+      }
+      go('dunes');
+      if (window.FASC_DEBUG) window.FASC_DEBUG.sable3 = { go, get cur() { return cur; } };
+      const NAMES = [['dunes', 'Dunes'], ['fourmilions', 'Fourmilions'], ['tas', 'Tas de sable'], ['chateau', 'Château de sable'], ['sablier', 'Sablier (coupe)'], ['tableau', 'Tableau de sable (coupe)']];
+      return {
+        livePaused: true,
+        frame: (t, dt) => cur.frame(t, dt),
+        down: (p) => cur.down && cur.down(p),
+        move: (p) => cur.move && cur.move(p),
+        up: (p) => cur.up && cur.up(p),
+        clear: () => cur.clear && cur.clear(),
+        dispose: () => cur.dispose && cur.dispose(),
+        ui() {
+          const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: NAMES.map(([id, label]) => ({ label: (id === scene ? '● ' : '') + label, act: () => go(id) })) }];
+          if (!is3 && SC3.includes(scene)) L.push({ type: 'note', text: 'Le relief en 3D demande WebGL2 : cette scène s’affiche en coupe.' });
+          const inner = cur.ui ? cur.ui() : [];
+          let skip = false;
+          for (const c of inner) { if (c.type === 'section') skip = /^scènes$/i.test(c.label); if (!skip) L.push(c); }
+          return L;
+        },
+      };
+    },
+    _make2D(env, startScene) {
       const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
       const kS = clamp(Math.min(W, H) / 800, 0.6, 1.5);
       const mobile = /Mobi|Android|iPad|iPhone/i.test(navigator.userAgent) || Math.min(W, H) < 520;
-      const cfg = { scene: 'fourmilions', put: Q, sun: 0.5, auto: true, q: mobile ? 'legere' : 'normale', neck: 4 };
+      const cfg = { scene: 'fourmilions', put: Q, sun: 0.5, auto: true, q: 'haute', neck: 4 };
       const snd = () => au && au.on && au.ctx;
       const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
 
@@ -692,7 +727,7 @@
 
       if (window.FASC_DEBUG) window.FASC_DEBUG.sable = { cfg, setScene, run(n, h) { for (let i = 0; i < n; i++) frame(0, h); render(); }, get grid() { return { GW, GH, M, surf }; }, get antl() { return antl; }, get ants() { return ants; }, get fly() { return fly; } };
 
-      setScene('fourmilions');
+      setScene(startScene || 'fourmilions');
       for (let i = 0; i < 60; i++) frame(0, 1 / 60);
 
       return {

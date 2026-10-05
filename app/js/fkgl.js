@@ -5,10 +5,10 @@
    Lève une erreur si WebGL2 ou les cibles flottantes manquent : la machine bascule alors sur son repli 2D. */
 (function () {
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-  function GLKit(cw, ch) {
+  function GLKit(cw, ch, opt) {
     const canvas = document.createElement('canvas');
     canvas.width = cw; canvas.height = ch;
-    const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+    const gl = canvas.getContext('webgl2', { alpha: false, antialias: !!(opt && opt.depth), depth: !!(opt && opt.depth), stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
     if (!gl) throw new Error('WebGL2 indisponible');
     const full = !!gl.getExtension('EXT_color_buffer_float');
     if (!full && !gl.getExtension('EXT_color_buffer_half_float')) throw new Error('cibles flottantes indisponibles');

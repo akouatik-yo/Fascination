@@ -38,6 +38,8 @@ Ce qui a changé :
 - nouveau bouton **BRUITS** (touche `N`) qui ouvre le générateur de bruits ;
 - **thème clair / sombre** : bouton ◐ AUTO / ☀ CLAIR / ☾ SOMBRE (touche `T`), mémorisé ; en automatique, suit le thème de l'hôte (attribut `data-theme` posé par claude.ai) puis le système. La coquille pose `data-fasc-theme` sur `<html>` ; toutes les couleurs de l'interface sont des jetons CSS. Les accents de catégorie ont une variante foncée pour le fond crème ;
 - **Décor** : interrupteur dans le panneau (touche `D`), affiché seulement pour les machines qui déclarent `decor: true`. Décor masqué, la machine ne montre que son phénomène, sur fond noir (thème sombre) ou crème (thème clair) ;
+- **vitesse** : l'affichage ×1 correspond à 0,4 × la vitesse d'origine (constante `SPEED_UNIT` dans `shell.js`). Les machines qui déclarent `smoothTime: true` reçoivent un pas de temps plus court à chaque image (ralenti fluide) ; les autres gardent l'ancien mécanisme de pas sautés ;
+- **panneau** : les rubriques de `ui()` intitulées « Scènes » ou « Expériences » (ou `top: true`) s'affichent juste sous la description ;
 - configuration facultative : `window.FASC_CONFIG = { startSim, speed, sound, psyche, autoplay }` avant les scripts ;
 - crochet de test : si `window.FASC_DEBUG = {}` existe, le Feu y expose `FASC_DEBUG.feu` (champs, scènes, mesures).
 
@@ -105,7 +107,7 @@ Machines refaites (niveau final) :
 - **Feu** (octobre 2026, WebGL2) : voir §7.
 - **Eau** (octobre 2026, WebGL2) : voir §9.
 - **Écoulement** (octobre 2026, WebGL2) : voir §10.
-- **Sable** (octobre 2026, 2D) : voir §11.
+- **Sable** (octobre 2026, 3D WebGL2 + coupes 2D) : voir §11.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -173,7 +175,13 @@ Tiroir indépendant (bouton BRUITS, touche `N`), avec son propre contexte audio 
 - **Son** : chant éolien à la fréquence de lâcher des tourbillons, bruit d'eau.
 - **Limites connues** : la grille ajoute sa propre viscosité numérique, d'où un Reynolds affiché « estimé » ; en 2D, une goutte forme une paire de tourbillons, pas un anneau.
 
-## 11. Le Sable — `app/js/machines/s-sable.js`
+## 11. Le Sable — `app/js/machines/s-sable.js` (coupes 2D) et `s-sable3d.js` (relief 3D)
+
+- **Aiguillage** : la définition de la machine choisit le moteur selon la scène. Scènes en relief 3D (Dunes, Fourmilions, Tas de sable, Château) ; scènes en coupe 2D (Sablier, Tableau de sable). Sans WebGL2, les scènes 3D retombent sur la coupe.
+- **Moteur 3D** (`window.SABLE3D`) : hauteur de sable par case sur un socle rocheux ; avalanches quand la pente dépasse l'angle de repos (par sable ; ≈ 80° mouillé ; ≈ 27° sous l'eau) ; dunes par le modèle de Werner (1995) avec zones d'ombre à 15° sous le vent ; rendu WebGL2 en perspective (ombres par marche de rayon dans la carte des hauteurs, rides éoliennes, éclats, brume, ciel, mer animée) ; fourmis et fourmilions dessinés en 2D par projection ; choix par clic par lancer de rayon sur le relief. ~3 à 4 ms par pas en finesse haute.
+
+### Moteur 2D (coupes)
+
 
 - **Automate granulaire en 2D** (pas de WebGL : le calcul est local et rapide, ~3 ms par pas en qualité moyenne). Chaque case garde sa matière, sa teinte, sa couleur teinte, sa vitesse de chute et son humidité.
 - **Règles** : chute accélérée (jusqu'à 7 cases par pas) ; glissement en diagonale puis roulement de deux cases, dont les probabilités fixent l'angle de repos de chaque sable ; dans l'eau, chute freinée et dérive ; **cohésion du sable mouillé** (ponts capillaires) seulement à l'air libre, jamais sous l'eau ; humidité qui se propage par capillarité et sèche au soleil ; bulles d'air qui remontent ; grains projetés en vol (souffle, fourmilion).

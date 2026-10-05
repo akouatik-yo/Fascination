@@ -6,6 +6,8 @@
   const ORDER = ['fourmis', 'mycelium', 'blob', 'meduses', 'lucioles', 'boids', 'feu', 'eau', 'fluide', 'sable', 'foudre', 'cristal', 'rd', 'spirales', 'chladni', 'kaleido', 'harmono', 'attracteur', 'fractal', 'moire', 'galaxie', 'tunnel', 'lave', 'bulles', 'viz', 'harpe'];
   const ACCENT = { 'Vivant': '#79f3b4', 'Éléments': '#ff9c5c', 'Motifs': '#c09aff', 'Cosmos': '#6fd4ff', 'Sons': '#ff8ad8' };
   const ACCENT_L = { 'Vivant': '#0e8a57', 'Éléments': '#c4501a', 'Motifs': '#6f45d4', 'Cosmos': '#137fae', 'Sons': '#c2368f' };
+  // vitesse affichée ×1 = 0,4 fois la vitesse d'origine des machines (demande de Yoann : tout allait trop vite)
+  const SPEED_UNIT = 0.4;
   const accent = (cat) => (S.theme === 'light' ? ACCENT_L[cat] || '#6f45d4' : ACCENT[cat] || '#c09aff');
   const CFG = Object.assign({ startSim: 'lucioles', speed: 1, sound: false, psyche: true, autoplay: 0 }, window.FASC_CONFIG || {});
 
@@ -132,7 +134,15 @@
       if (sim.livePaused) { try { sim.frame(vt, 0); } catch (e) { /* rien */ } }
       return;
     }
-    const sp = S.speed;
+    const sp = S.speed * SPEED_UNIT;
+    // les machines qui gèrent le temps avancent à chaque image d'un pas plus court : le ralenti reste fluide
+    const def = curDef();
+    if (def && def.smoothTime) {
+      let rem = dt * sp, k = 0;
+      try { while (rem > 1e-5 && k < 4) { const h = Math.min(rem, 0.034); vt += h; env.t = vt; sim.frame(vt, h); rem -= h; k++; } }
+      catch (e) { if (errId !== S.id) { errId = S.id; console.warn('Fascination: frame', S.id, e); } }
+      return;
+    }
     pend += dt * sp;
     acc += sp;
     let steps = Math.floor(acc);
@@ -216,7 +226,7 @@
     store.set('fasc-decor', S.decor ? '1' : '0');
     renderSimRow();
   }
-  function nudgeSpeed(f) { S.speed = Math.min(2.5, Math.max(0.08, Math.round(S.speed * f * 100) / 100)); renderChrome(); }
+  function nudgeSpeed(f) { S.speed = Math.min(6, Math.max(0.2, Math.round(S.speed * f * 100) / 100)); renderChrome(); }
   function togglePsy() { S.psy = !S.psy; renderChrome(); }
   function toggleLeft() { S.left = !S.left; renderChrome(); centerRail(); }
   function toggleRight() { S.right = !S.right; renderChrome(); if (S.right) renderPanel(); }
@@ -381,6 +391,10 @@
       h('div', { class: 'p-blurb', style: 'color:' + acc }, cur.blurb || ''),
       h('div', { class: 'p-intro' }, cur.intro || cur.hint || '')));
 
+    P.top = h('div', { class: 'ctl ctl-top' });
+    P.top.hidden = true;
+    panel.append(P.top);
+
     if (cur.tools && cur.tools.length) {
       P.tools = [];
       const grid = h('div', { class: 'tools' });
@@ -459,10 +473,14 @@
     const cur = curDef(), acc = cur ? accent(cur.cat) : '#c09aff';
     if (sig !== P.sig) {
       P.sig = sig;
-      P.ctl.textContent = '';
+      // les rubriques « Scènes » et « Expériences » remontent juste sous la description
+      const top = new Set(); let inTop = false;
+      ui.forEach((c, i) => { if (c.type === 'section') inTop = !!(c.top || /^(scènes|expériences)$/i.test(c.label || '')); if (inTop) top.add(i); });
+      P.ctl.textContent = ''; P.top.textContent = '';
       P.items = ui.map((c, i) => makeControl(c, i, acc));
-      P.items.forEach((it) => P.ctl.append(it.el));
-      P.ctl.hidden = ui.length === 0;
+      P.items.forEach((it, i) => (top.has(i) ? P.top : P.ctl).append(it.el));
+      P.top.hidden = top.size === 0;
+      P.ctl.hidden = ui.length - top.size === 0;
     }
     P.cur = ui;
     ui.forEach((c, i) => P.items[i] && P.items[i].upd(c, acc));

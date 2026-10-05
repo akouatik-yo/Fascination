@@ -719,7 +719,7 @@ void main(){
   };
 
   window.FASC.push({
-    id: 'feu', name: 'Le Feu', cat: 'Éléments', glyph: '🜂', decor: true,
+    id: 'feu', name: 'Le Feu', cat: 'Éléments', glyph: '🜂', decor: true, smoothTime: true,
     blurb: 'Combustion, convection et lumière',
     hint: 'OBSERVER : touchez pour mesurer la température et identifier ce qui brûle · SOUFFLE : glissez pour attiser · POSER : touchez pour poser une bûche, une bougie ou un bec, glissez un élément pour le déplacer · SEL : touchez une flamme · EAU : glissez pour arroser.',
     intro: 'Un foyer simulé comme un vrai fluide : l’air chauffé monte, tourbillonne et étire les flammes. Le bois libère des gaz qui brûlent au contact de l’air, la suie chauffée au rouge donne la lumière jaune, et la base des flammes bleuit là où la réaction est la plus vive. Soufflez, arrosez, changez la gravité, jetez des sels : chaque élément colore la flamme de ses propres raies.',
@@ -760,7 +760,7 @@ void main(){
     const dpr = env.dpr || Math.min(2, window.devicePixelRatio || 1);
     const kS = clamp(Math.min(W, H) / 800, 0.6, 1.5);
     const mobile = /Mobi|Android|iPad|iPhone/i.test(navigator.userAgent) || Math.min(W, H) < 520;
-    const cfg = { scene: 'cheminee', g: 1, o2: 21, wind: 0, turb: 0.45, valve: 1, smoke: true, sparks: true, glow: 1, auto: true, put: 'chene', sel: 'na', q: mobile ? 'legere' : 'normale' };
+    const cfg = { scene: 'cheminee', g: 1, o2: 21, wind: 0, turb: 0.45, valve: 1, smoke: true, sparks: true, glow: 1, auto: true, put: 'chene', sel: 'na', q: 'haute' };
     const snd = () => au && au.on && au.ctx;
     const BB = blackbody(256), BURN = 1.9;
     // sans convection, l'oxygène n'arrive plus que par diffusion : la combustion ralentit

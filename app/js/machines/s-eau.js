@@ -322,7 +322,7 @@ void main(){
   };
 
   window.FASC.push({
-    id: 'eau', name: 'L’Eau', cat: 'Éléments', glyph: '🜄', decor: true,
+    id: 'eau', name: 'L’Eau', cat: 'Éléments', glyph: '🜄', decor: true, smoothTime: true,
     blurb: 'La mare : rides, caustiques et petites bêtes',
     hint: 'OBSERVER : touchez une bête, une feuille ou l’eau · DOIGT : glissez dans l’eau · GOUTTE : touchez · PLUIE : maintenez · MOUCHE : lâchez une proie · NOURRIR : appelez les koïs · MUR et GOMME : construisez une cuve à ondes.',
     intro: 'Une mare au soleil, vue d’en haut. Chaque ride est une petite lentille qui dessine au fond un filet de lumière. À la surface, des gerris patinent et chassent en lisant les vagues, des gyrins tournoient en radeau ; dessous, des koïs glissent avec leur ombre. Dans la cuve à ondes, retrouvez les expériences qui ont prouvé que la lumière est une onde.',
@@ -365,7 +365,7 @@ void main(){
     const dpr = env.dpr || Math.min(2, window.devicePixelRatio || 1);
     const kS = clamp(Math.min(W, H) / 800, 0.6, 1.5);
     const mobile = /Mobi|Android|iPad|iPhone/i.test(navigator.userAgent) || Math.min(W, H) < 520;
-    const cfg = { scene: 'mare', breeze: 0.4, depth: 0.75, damp: 0.35, sun: 0.85, glint: true, auto: true, mean: false, q: mobile ? 'legere' : 'normale', exp: 'deux', freq: 0.55, gap: 0.5, vsrc: 0.5 };
+    const cfg = { scene: 'mare', breeze: 0.4, depth: 0.75, damp: 0.35, sun: 0.85, glint: true, auto: true, mean: false, q: 'haute', exp: 'deux', freq: 0.55, gap: 0.5, vsrc: 0.5 };
     const snd = () => au && au.on && au.ctx;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
 
@@ -906,17 +906,19 @@ void main(){
     }
 
     /* ───────── boucle ───────── */
-    let pending = false, finger = null, rainAt = null, rTimer = 0;
+    let pending = false, finger = null, rainAt = null, rTimer = 0, waveAcc = 0;
     function frame(t, dt) {
       if (dt > 0) {
         update(dt);
-        const n = clamp(Math.round(dt * 120), 1, 6);
+        waveAcc += dt * 120;
+        const n = Math.min(6, Math.floor(waveAcc));
+        waveAcc -= n; if (waveAcc > 2) waveAcc = 0;
         for (let i = 0; i < n; i++) {
           const ex = [];
           const w = waveW(), amp = 0.5;
           for (const o of osc) ex.push(o.x, o.y, Math.sin(stepN * w) * amp * 0.35, 5 * kS);
           if (mover) {
-            const vs = (0.2 + cfg.vsrc * 1.3) * Math.sqrt(1.75 * (0.25 + 0.75 * cfg.depth)) / 2 * cell() * 120 * dt / n;
+            const vs = (0.2 + cfg.vsrc * 1.3) * Math.sqrt(1.75 * (0.25 + 0.75 * cfg.depth)) / 2 * cell();
             mover.x += vs * mover.dir;
             const v = view();
             if (mover.x > v.x1 - 40 || mover.x < v.x0 + 40) mover.dir *= -1;

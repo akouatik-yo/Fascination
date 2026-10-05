@@ -349,7 +349,7 @@ void main(){
   };
 
   window.FASC.push({
-    id: 'fluide', name: 'L’Écoulement', cat: 'Éléments', glyph: '🝆', decor: true,
+    id: 'fluide', name: 'L’Écoulement', cat: 'Éléments', glyph: '🝆', decor: true, smoothTime: true,
     blurb: 'Tourbillons, instabilités et un fluide qui se souvient',
     hint: 'OBSERVER : touchez une encre ou un obstacle · ENCRE : glissez pour verser · REMUER : glissez pour brasser · GOUTTE : touchez pour lâcher une goutte lourde · OBSTACLE : posez un cylindre, une plaque ou une aile, glissez pour la déplacer · GOMME : effacez.',
     intro: 'Un bassin d’eau où l’on verse des encres. Derrière un cylindre, les tourbillons se détachent l’un après l’autre ; deux courants qui glissent l’un sur l’autre s’enroulent en vagues ; une encre lourde posée sur une légère tombe en champignons. Et dans la glycérine, un mélange qu’on croyait définitif se défait quand on tourne la manivelle à l’envers.',
@@ -390,7 +390,7 @@ void main(){
     const dpr = env.dpr || Math.min(2, window.devicePixelRatio || 1);
     const kS = clamp(Math.min(W, H) / 800, 0.6, 1.5);
     const mobile = /Mobi|Android|iPad|iPhone/i.test(navigator.userAgent) || Math.min(W, H) < 520;
-    const cfg = { scene: 'karman', speed: 0.5, visc: 0.15, vort: 0.12, shape: 'cyl', aoa: 12, rake: true, mode: 0, uv: env.theme !== 'light', ink: 'fluo', strat: 0.15, atw: 0.5, auto: true, blur: 0.15, q: mobile ? 'legere' : 'normale' };
+    const cfg = { scene: 'karman', speed: 0.5, visc: 0.15, vort: 0.12, shape: 'cyl', aoa: 12, rake: true, mode: 0, uv: env.theme !== 'light', ink: 'fluo', strat: 0.15, atw: 0.5, auto: true, blur: 0.15, q: 'haute' };
     const snd = () => au && au.on && au.ctx;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
 

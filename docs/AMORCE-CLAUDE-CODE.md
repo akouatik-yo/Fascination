@@ -108,6 +108,7 @@ Machines refaites (niveau final) :
 - **Eau** (octobre 2026, WebGL2) : voir §9.
 - **Écoulement** (octobre 2026, WebGL2) : voir §10.
 - **Sable** (octobre 2026, 3D WebGL2 + coupes 2D) : voir §11.
+- **Foudre** (octobre 2026, claquage diélectrique + ciel WebGL2) : voir §12.
 - **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
@@ -115,7 +116,7 @@ Machines refaites (niveau final) :
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Machines **encore dans leur version d'origine**, à retravailler une par une : Foudre, Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
+Machines **encore dans leur version d'origine**, à retravailler une par une : Cristal, Réaction-diffusion, Spirales, Cymatiques, Kaléidoscope, Harmonographe, Attracteur, Fractal, Moiré, Galaxie, Tunnel, Lampe à lave, Bulles, Visualiseur, Harpe.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -191,3 +192,16 @@ Tiroir indépendant (bouton BRUITS, touche `N`), avec son propre contexte audio 
 - **Son** : sifflement du sable qui coule, « chant des dunes » (bourdon grave) pendant les grosses avalanches.
 - **Rendu** : image à deux pixels par case, ombrage selon la profondeur sous la surface, éclat du quartz, sable mouillé plus sombre ; retournement animé.
 - **Limite connue** : l'angle de repos naît des probabilités de glissement ; il est réaliste à quelques degrés près, pas mesuré précisément.
+
+## 12. La Foudre — `app/js/machines/s-foudre.js` (id `foudre`)
+
+- **Croissance de l'éclair** : modèle de claquage diélectrique (DBM, Niemeyer, Pietronero et Wiesmann, 1984) sur une grille d'environ 230 × 140 cases. Potentiel 0 sur le nuage et le canal, 1 sur le sol et les conducteurs (chêne, clocher, pylônes, paratonnerres posés) ; équation de Laplace par SOR rouge-noir restreint à une fenêtre autour du canal ; à chaque pas, 3 cases voisines du canal sont tirées avec une probabilité ∝ φ^η (réglage « Ramification η », 2,4 par défaut). Croissance par bonds (25 ms de poussée, 20 ms de pause, en temps ralenti).
+- **Jonction** : quand une case du traceur arrive à 3 cases d'un conducteur (carte des distances précalculée par parcours en largeur), un arc de jonction monte du conducteur ; les autres pointes proches lancent des traceurs ascendants qui avortent.
+- **Arcs** : chemin principal retrouvé par les parents ; courant des branches ∝ √(taille du sous-arbre) ; arc en retour qui monte en 8 ms (ralenti), 1 à 5 arcs pour un coup négatif (traceur obscur qui redescend avant chaque arc subséquent), un seul arc avec courant persistant pour un coup positif (parti du bord, depuis l'enclume). Rémanence rétinienne ensuite.
+- **Ciel** (WebGL2) : nuages fbm éclairés de l'intérieur par jusqu'à 8 lumières (sommet du canal, milieu du canal, éclairs intranuages), pluie en traits ; paysage pré-dessiné en deux versions (nuit et éclairé) mélangées selon le flash. Repli 2D sans WebGL2.
+- **Flashs adoucis** (par défaut) : la luminosité de tout l'écran monte vite et redescend lentement, de sorte que les arcs successifs ne font qu'un seul flash (photosensibilité). Désactivable dans le panneau.
+- **Éclairs intranuages** et « araignées » sous la base du nuage ; **feu de Saint-Elme** aux pointes quand la charge monte ou qu'un traceur approche.
+- **Son** : tonnerre retardé de distance ÷ 343 m/s, fait de plusieurs grondements filtrés, un par morceau du canal (d'où le roulement), claquement sec si l'orage est à moins de 2 km, boum grave ; pluie en fond.
+- **Scènes** : Orage, Haute atmosphère (limbe terrestre vu d'orbite, lueur nocturne verte à 95 km avec ondes de gravité, farfadets rouges à tentacules bleus, jets bleus, jets géants, elfes ; son de récepteur VLF : craquements et siffleurs), Figure de Lichtenberg (même moteur DBM, bloc de plexiglas, la figure se grave et reste, dimension fractale mesurée par comptage de boîtes), Globe à plasma (filaments sur une sphère, répulsion, convection, attirés par le doigt ; trois gaz).
+- **Limites connues** : échelle verticale comprimée ; traceur très ralenti ; dimension fractale mesurée sur une petite figure, plus faible que la valeur asymptotique (~1,7 à η = 1) ; perf. réelle sur tablette non mesurée (testé en rendu logiciel seulement).
+

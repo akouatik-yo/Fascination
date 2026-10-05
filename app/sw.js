@@ -1,10 +1,10 @@
 /* Fascination — service worker : l'application fonctionne hors ligne une fois visitée.
    Changer VERSION à chaque publication pour forcer la mise à jour du cache. */
-const VERSION = 'fascination-v5';
+const VERSION = 'fascination-v6';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/fascination.css',
   './js/fk.js', './js/fkgl.js', './js/shell.js', './js/bruits.js',
-  './js/machines/s-lucioles.js', './js/machines/s-murmu.js', './js/machines/s-feu.js', './js/machines/s-eau.js', './js/machines/s-flux.js', './js/machines/s-sable3d.js', './js/machines/s-sable.js', './js/machines/s-elem.js',
+  './js/machines/s-lucioles.js', './js/machines/s-murmu.js', './js/machines/s-feu.js', './js/machines/s-eau.js', './js/machines/s-flux.js', './js/machines/s-sable3d.js', './js/machines/s-sable.js', './js/machines/s-foudre.js', './js/machines/s-elem.js',
   './js/machines/s-motifs.js', './js/machines/s-cosmos.js', './js/machines/s-med-corps.js', './js/machines/s-meduses.js',
   './js/machines/s-four-corps.js', './js/machines/s-fourmis.js', './js/machines/s-myce.js', './js/machines/s-blob.js',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',

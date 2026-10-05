@@ -12483,720 +12483,698 @@ void main(){
 })();
 
 ;
-/* ═════ js/machines/s-med-corps.js ═════ */
-/* Fascination — Abysses · anatomie, nage et rendu des méduses */
+/* ═════ js/machines/s-abysses.js ═════ */
+/* Fascination — Les Abysses · bioluminescence des profondeurs (WebGL2)
+   Créatures en vraie 3D : cloches maillées (profil, pulsation, lobes, canaux), cerclées de lumière par effet de
+   bord (Fresnel), tentacules en chaînes souples qui suivent l'eau, photophores et organes lumineux en points.
+   Tout est additif dans une cible HDR, puis halo (flou à trois niveaux), brume de l'eau et compression ACES.
+   Portraits : une créature à la fois, en plein écran, dans le noir ; la LAMPE révèle ses vraies couleurs
+   (souvent rouges, couleur invisible en profondeur). Descente : de la surface à 4 000 m, avec les espèces
+   de chaque zone, la lumière du jour qui s'éteint et la neige marine. */
 (function boot() {
-  if (!window.FK) return setTimeout(boot, 12);
-  const { TAU, clamp, rnd } = window.FK;
-  const TILT = 0.36, ST = Math.sin(TILT), CT = Math.cos(TILT), HALF = Math.PI / 2;
+  if (!window.FK || !window.FKGL) return setTimeout(boot, 12);
+  const { TAU, clamp, rnd, rint } = window.FK;
+  const { GLKit, HEAD } = window.FKGL;
+  const fr = (x, d = 1) => x.toFixed(d).replace('.', ',');
 
-  function hslRgb(h, s, l) {
-    s /= 100; l /= 100;
-    const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
-    const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
-    return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+  /* ───────── matrices ───────── */
+  function persp(fov, asp, n, f) { const t = 1 / Math.tan(fov / 2); return new Float32Array([t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, (2 * f * n) / (n - f), 0]); }
+  function lookAt(e, c, u) {
+    let zx = e[0] - c[0], zy = e[1] - c[1], zz = e[2] - c[2]; let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+    let xx = u[1] * zz - u[2] * zy, xy = u[2] * zx - u[0] * zz, xz = u[0] * zy - u[1] * zx; l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+    const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+    return new Float32Array([xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, -(xx * e[0] + xy * e[1] + xz * e[2]), -(yx * e[0] + yy * e[1] + yz * e[2]), -(zx * e[0] + zy * e[1] + zz * e[2]), 1]);
   }
-  const SPR = {};
-  function sprite(rgb) {
-    const key = rgb.join(',');
-    if (SPR[key]) return SPR[key];
-    const c = document.createElement('canvas'); c.width = c.height = 64;
-    const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-    g.addColorStop(0, `rgba(${key},1)`); g.addColorStop(0.22, `rgba(${key},.42)`);
-    g.addColorStop(0.55, `rgba(${key},.1)`); g.addColorStop(1, `rgba(${key},0)`);
-    x.fillStyle = g; x.fillRect(0, 0, 64, 64);
-    return (SPR[key] = c);
+  function mul(a, b) { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; }
+  const proj = (m, x, y, z) => { const w = m[3] * x + m[7] * y + m[11] * z + m[15]; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w, (m[1] * x + m[5] * y + m[9] * z + m[13]) / w, w]; };
+
+  /* ───────── shaders ───────── */
+  const VS_MESH = `#version 300 es
+precision highp float;
+in vec3 aP; in vec3 aN; in vec4 aE; in vec3 aA;
+uniform mat4 uVP; uniform vec3 uEye; uniform float uFog;
+out vec3 vN; out vec3 vV; out vec4 vE; out vec3 vA; out float vF;
+void main(){ gl_Position = uVP * vec4(aP, 1.); vN = aN; vV = uEye - aP; vE = aE; vA = aA; vF = exp(-length(uEye - aP) * uFog); }`;
+  const FS_MESH = `#version 300 es
+precision highp float;
+in vec3 vN; in vec3 vV; in vec4 vE; in vec3 vA; in float vF;
+uniform float uAmb, uLamp; uniform vec3 uAmbCol;
+out vec4 o;
+void main(){
+  vec3 n = normalize(vN + vec3(1e-6)), v = normalize(vV + vec3(1e-6));
+  float c = abs(dot(n, v)), rim = pow(1. - c, 2.6);
+  vec3 col = vE.rgb * (.35 + rim * vE.a);                         // lumière émise (bioluminescence), plus vive sur les bords
+  col += uAmbCol * vA * (rim * 1.1 + .06) * uAmb;                  // très faible lumière ambiante : les silhouettes
+  col += uLamp * vA * (.05 + .25 * c + .9 * rim);                  // la lampe du plongeur : les vraies couleurs
+  o = vec4(min(col * vF, vec3(40.)), 1.);
+}`;
+  const VS_LINE = `#version 300 es
+precision highp float;
+in vec3 aP; in vec4 aE; in vec3 aA;
+uniform mat4 uVP; uniform vec3 uEye; uniform float uFog, uAmb, uLamp; uniform vec3 uAmbCol;
+out vec3 vC;
+void main(){ gl_Position = uVP * vec4(aP, 1.); float f = exp(-length(uEye - aP) * uFog); vC = (aE.rgb * aE.a + aA * (uAmb * uAmbCol * 1.4 + uLamp * .6)) * f; }`;
+  const FS_LINE = `#version 300 es
+precision highp float; in vec3 vC; out vec4 o; void main(){ o = vec4(min(vC, vec3(40.)), 1.); }`;
+  const VS_PT = `#version 300 es
+precision highp float;
+in vec3 aP; in vec4 aE;
+uniform mat4 uVP; uniform vec3 uEye; uniform float uFog, uPx;
+out vec3 vC;
+void main(){ vec4 q = uVP * vec4(aP, 1.); gl_Position = q; gl_PointSize = clamp(aE.a * uPx / q.w, 1., 48.); vC = aE.rgb * exp(-length(uEye - aP) * uFog); }`;
+  const FS_PT = `#version 300 es
+precision highp float; in vec3 vC; out vec4 o; void main(){ vec2 d = gl_PointCoord - .5; float k = exp(-dot(d, d) * 18.); o = vec4(min(vC * k, vec3(40.)), 1.); }`;
+  const FS_BLUR = HEAD + `uniform sampler2D uT; uniform vec2 uDir; out vec4 o;
+void main(){ vec4 s = texture(uT, vUv) * .227; s += (texture(uT, vUv + uDir * 1.385) + texture(uT, vUv - uDir * 1.385)) * .316; s += (texture(uT, vUv + uDir * 3.23) + texture(uT, vUv - uDir * 3.23)) * .07; o = s; }`;
+  const FS_COMP = HEAD + `
+uniform sampler2D uA, uB1, uB2, uB3; uniform vec2 uRes; uniform vec3 uTop, uBot; uniform float uRays, uT, uBloom, uDecor, uInk, uExpo;
+out vec4 o;
+vec3 aces(vec3 x){ return clamp((x * (2.51 * x + .03)) / (x * (2.43 * x + .59) + .14), 0., 1.); }
+void main(){
+  vec3 bg = uDecor > .5 ? mix(uBot, uTop, pow(vUv.y, 1.6)) : vec3(0.);
+  if (uDecor > .5 && uRays > 0.){
+    // rayons de soleil près de la surface
+    float x = vUv.x * 3. + (1. - vUv.y) * .5;
+    float r = pow(.5 + .5 * sin(x * 7. + sin(x * 2.3 + uT * .2) * 2. + uT * .1), 8.) * pow(vUv.y, 2.5);
+    bg += uTop * r * uRays * .8;
   }
-  const hsla = (h, s, l, a) => `hsla(${h},${s}%,${l}%,${a < 0 ? 0 : a > 1 ? 1 : a.toFixed(3)})`;
+  vec3 col = bg + texture(uA, vUv).rgb + (texture(uB1, vUv).rgb * .55 + texture(uB2, vUv).rgb * .45 + texture(uB3, vUv).rgb * .4) * uBloom;
+  vec2 q = vUv - .5; col *= 1. - dot(q, q) * .55;
+  col = aces(col * uExpo);
+  if (uInk > .5){ float l = dot(col, vec3(.3, .55, .15)); col = vec3(.953, .933, .89) * (1. - .85 * l); }
+  o = vec4(pow(col, vec3(1. / 2.2)), 1.);
+}`;
 
-  const SP = [
-    { key: 'aurelia', nom: 'Aurelia aurita', fr: 'méduse lune', w: 3, R: [40, 66], h: 0.33, T: [2.8, 3.8], thrust: 1.3,
-      hue: 200, sat: 45, lum: 80, alpha: 0.28, canals: 32, branch: true, gonads: 308,
-      arms: 4, armLen: 1.15, armW: 0.15, frill: 0.7, armHue: 285, tent: 46, tentLen: 0.55, tentW: 0.5, tentHue: 195, tentSeg: 7, flash: [140, 205, 255] },
-    { key: 'chrysaora', nom: 'Chrysaora fuscescens', fr: 'ortie de mer', w: 2, R: [32, 54], h: 0.62, T: [2.0, 2.7], thrust: 1.45,
-      hue: 26, sat: 85, lum: 62, alpha: 0.34, stripes: 16, stripeHue: 10,
-      arms: 4, armLen: 4.6, armW: 0.12, frill: 0.7, armHue: 12, tent: 18, tentLen: 5.6, tentW: 0.85, tentHue: 20, tentSeg: 22, flash: [255, 175, 120] },
-    { key: 'atolla', nom: 'Atolla wyvillei', fr: 'méduse couronne', w: 2, R: [28, 46], h: 0.4, T: [1.5, 2.1], thrust: 1.5,
-      hue: 352, sat: 72, lum: 40, alpha: 0.5, crown: 22, dots: 22, dotCol: [70, 150, 255],
-      arms: 0, tent: 22, tentLen: 1.3, tentW: 0.7, tentHue: 350, tentSeg: 11, longOne: true, flash: [70, 150, 255] },
-    { key: 'aequorea', nom: 'Aequorea victoria', fr: 'méduse cristal', w: 2, R: [34, 58], h: 0.26, T: [3.2, 4.4], thrust: 1.15,
-      hue: 185, sat: 30, lum: 88, alpha: 0.17, canals: 80, dots: 52, dotCol: [110, 255, 160], mouth: true,
-      arms: 0, tent: 60, tentLen: 1.5, tentW: 0.38, tentHue: 160, tentSeg: 12, flash: [110, 255, 160] },
-    { key: 'cteno', nom: 'Pleurobrachia pileus', fr: 'groseille de mer · cténophore', w: 2, R: [17, 28], cteno: true, T: [7, 10],
-      hue: 200, sat: 30, lum: 85, alpha: 0.16, tent: 2, tentLen: 8, tentW: 0.7, tentHue: 28, tentSeg: 26, flash: [255, 255, 255] },
-  ];
-  SP.forEach((s) => { s.rgb = hslRgb(s.hue, s.sat, Math.min(75, s.lum)); s.armRgb = s.arms ? hslRgb(s.armHue, 70, 65) : s.rgb; });
-
-  const contr = (p) => (p < 0.3 ? Math.sin((p / 0.3) * HALF) : 0.5 + 0.5 * Math.cos(((p - 0.3) / 0.7) * Math.PI));
-
-  function chainNew(n, len, phi, x, y) {
-    const P = new Float32Array(n * 2), Q = new Float32Array(n * 2);
-    for (let i = 0; i < n; i++) { P[2 * i] = Q[2 * i] = x + rnd(1, -1); P[2 * i + 1] = Q[2 * i + 1] = y + i * 3; }
-    return { n, len, phi, P, Q, ph: rnd(TAU) };
-  }
-
-  function create(sp, x, y, z, o) {
-    o = o || {};
-    const j = {
-      sp, x, y, z, k: o.k || 1, vx: 0, vy: 0, a: o.a != null ? o.a : rnd(0.6, -0.6), w: 0,
-      ph: rnd(1), T: rnd(sp.T[1], sp.T[0]), R0: rnd(sp.R[1], sp.R[0]), c: 0, grow: o.grow || 1,
-      alarm: 0, at: 9, escape: 0, ex: 0, ey: 0, label: 0, spin: rnd(TAU), spinV: rnd(0.14, -0.14),
-      seed: rnd(100), tx: x, ty: y, tTime: rnd(8, 2), pulse: false, ca: 1, sa: 0, S: 1, R: 1, H: 1, curl: 0,
-    };
-    j.tents = [];
-    for (let i = 0; i < sp.tent; i++) {
-      const long = sp.longOne && i === 0;
-      const phi = sp.cteno ? i * Math.PI : (i / sp.tent) * TAU + rnd(0.08, -0.08);
-      j.tents.push(chainNew(long ? sp.tentSeg * 3 : sp.tentSeg, sp.tentLen * (long ? 5 : rnd(1.15, 0.8)), phi, x, y));
-    }
-    j.arms = [];
-    for (let i = 0; i < (sp.arms || 0); i++) j.arms.push(chainNew(sp.armLen > 2 ? 28 : 10, sp.armLen * rnd(1.1, 0.85), Math.PI / 4 + i * HALF, x, y));
-    geom(j);
-    return j;
-  }
-
-  function geom(j) {
-    const S = j.z * j.k * j.grow, c = j.c;
-    j.S = S;
-    j.R = j.R0 * S * (1 - 0.27 * c);
-    j.H = j.R0 * S * ((j.sp.h || 0.5) + 0.22 * c);
-    j.curl = 0.05 + 0.17 * c;
-  }
-
-  const OUT = { x: 0, y: 0 };
-  function dome(j, u, phi, sr, sh) {
-    const th = u * HALF, u4 = u * u * u * u;
-    const r = j.R * (sr || 1) * Math.sin(th) * (1 - j.curl * u4);
-    const Y = -j.H * (sh || 1) * Math.cos(th) + j.H * j.curl * 0.7 * u4;
-    OUT.x = r * Math.cos(phi);
-    OUT.y = Y * CT + r * Math.sin(phi) * ST;
-    return OUT;
-  }
-  let WX = 0, WY = 0;
-  function toW(j, lx, ly) { WX = j.x + lx * j.ca - ly * j.sa; WY = j.y + lx * j.sa + ly * j.ca; }
-
-  function stepChain(ch, ax, ay, seg, dt, E, wob, sink) {
-    const P = ch.P, Q = ch.Q, n = ch.n, d = Math.exp(-dt * 3.6), kf = 1 - d;
-    P[0] = Q[0] = ax; P[1] = Q[1] = ay;
-    ch.ph += dt * 1.4;
-    for (let i = 1; i < n; i++) {
-      const ix = 2 * i, x = P[ix], y = P[ix + 1], f = i / n;
-      E.flow(x, y);
-      const wv = Math.sin(ch.ph + f * 5.5) * wob * f;
-      P[ix] = x + (x - Q[ix]) * d + (E.fu + wv) * dt * kf;
-      P[ix + 1] = y + (y - Q[ix + 1]) * d + (E.fv + sink) * dt * kf;
-      Q[ix] = x; Q[ix + 1] = y;
-    }
-    for (let i = 1; i < n; i++) {
-      const ix = 2 * i, px = P[ix - 2], py = P[ix - 1];
-      const dx = P[ix] - px, dy = P[ix + 1] - py, l = Math.hypot(dx, dy) || 1e-3, k = seg / l;
-      P[ix] = px + dx * k; P[ix + 1] = py + dy * k;
-    }
-  }
-  function shift(j, sx, sy) {
-    j.x += sx; j.y += sy; j.tx += sx; j.ty += sy;
-    for (const ch of j.tents.concat(j.arms)) for (let i = 0; i < ch.n; i++) { ch.P[2 * i] += sx; ch.Q[2 * i] += sx; ch.P[2 * i + 1] += sy; ch.Q[2 * i + 1] += sy; }
-  }
-
-  function update(j, dt, E) {
-    const sp = j.sp;
-    if (j.grow < 1) j.grow = Math.min(1, j.grow + dt / 30);
-    j.alarm = Math.max(0, j.alarm - dt * 0.26); j.at += dt;
-    j.escape = Math.max(0, j.escape - dt); j.label = Math.max(0, j.label - dt);
-    j.spin += j.spinV * dt;
-    const prevC = j.c;
-    j.pulse = false;
-    if (sp.cteno) { j.ph = (j.ph + dt / j.T) % 1; j.c = 0.08 + 0.08 * Math.sin(j.ph * TAU); }
-    else {
-      j.ph += (dt / j.T) * (j.escape > 0 ? 2.4 : j.sinkMode ? 0.55 : 1);
-      if (j.ph >= 1) { j.ph -= 1; j.pulse = true; }
-      j.c = contr(j.ph);
-    }
-    geom(j);
-    const fx = Math.sin(j.a), fy = -Math.cos(j.a), Rn = j.R0 * j.S;
-    const dc = Math.max(0, j.c - prevC) / Math.max(dt, 1e-4);
-    const acc = sp.cteno ? 0 : sp.thrust * Rn * dc * (j.escape > 0 ? 1.7 : 1);
-    j.vx += fx * acc * dt; j.vy += fy * acc * dt;
-    if (sp.cteno) {
-      const tv = Rn * (j.escape > 0 ? 2.2 : 0.7);
-      j.vx += (fx * tv - j.vx) * dt; j.vy += (fy * tv - j.vy) * dt;
-    }
-    const D = Math.exp(-dt * 1.6);
-    j.vx *= D; j.vy = j.vy * D + 7 * j.S * dt;
-    if (acc > 0) E.wake(j.x - fx * j.R * 0.5, j.y - fy * j.R * 0.5, -fx * acc * dt * 2.6, -fy * acc * dt * 2.6, j.R * 1.5);
-    else if (sp.cteno && Math.random() < dt * 3) E.wake(j.x - fx * Rn, j.y - fy * Rn, -fx * Rn * 0.2, -fy * Rn * 0.2, Rn);
-
-    // pilotage : cible, lumière, fuite, voisins
-    j.tTime -= dt;
-    if (j.tTime <= 0 || Math.hypot(j.tx - j.x, j.ty - j.y) < Rn * 2.5) {
-      j.tx = rnd(E.W * 0.9, E.W * 0.1); j.ty = rnd(E.H * 0.88, E.H * 0.1); j.tTime = rnd(28, 12);
-    }
-    let dx = j.tx - j.x, dy = j.ty - j.y;
-    const dl = Math.hypot(dx, dy) || 1;
-    let ddx = dx / dl, ddy = dy / dl;
-    const L = E.lure;
-    if (L && L.s > 0.04 && j.escape <= 0) {
-      const lx = L.x - j.x, ly = L.y - j.y, ld = Math.hypot(lx, ly) || 1;
-      if (ld > Rn * 1.6 && ld < 700) { const w = L.s * 3 * (1 - ld / 700); ddx += (lx / ld) * w; ddy += (ly / ld) * w; }
-    }
-    if (j.escape > 0) { ddx += j.ex * 5; ddy += j.ey * 5; }
-    for (const o of E.group) {
-      if (o === j) continue;
-      const ox = j.x - o.x, oy = j.y - o.y, od = Math.hypot(ox, oy), lim = (Rn + o.R0 * o.S) * 2.1;
-      if (od < lim && od > 0.01) {
-        const w = 1 - od / lim;
-        ddx += (ox / od) * w * 3; ddy += (oy / od) * w * 3;
-        j.vx += (ox / od) * w * Rn * 1.2 * dt; j.vy += (oy / od) * w * Rn * 1.2 * dt;
-      }
-    }
-    let want = Math.atan2(ddx, -ddy);
-    const lim = j.escape > 0 ? 1.7 : sp.cteno ? 1.3 : 0.8;
-    if (Math.abs(want) > lim) want = Math.sign(want) * lim;
-    j.sinkMode = !sp.cteno && j.escape <= 0 && ddy > 0.45;
-    let da = want - j.a; da = Math.atan2(Math.sin(da), Math.cos(da));
-    const steer = sp.cteno ? 0.5 : 0.18 + j.c * 1.5;
-    j.w += da * steer * dt * (j.escape > 0 ? 4 : 1.3);
-    j.w += Math.sin(E.t * 0.31 + j.seed) * 0.06 * dt;
-    j.w -= Math.sin(j.a) * 0.3 * dt;
-    j.w *= Math.exp(-dt * 2.4);
-    j.a += j.w * dt;
-
-    E.flow(j.x + fx * j.H * 0.8, j.y + fy * j.H * 0.8);
-    j.x += (j.vx + E.fu * 0.85) * dt; j.y += (j.vy + E.fv * 0.85) * dt;
-    const m = Rn * 2.5 + 40, mb = Rn * (sp.tentLen > 3 ? 4 : 1.5) + 40;
-    if (j.x < -m) shift(j, E.W + 2 * m, 0); else if (j.x > E.W + m) shift(j, -(E.W + 2 * m), 0);
-    if (j.y < -m - j.H) shift(j, 0, E.H + m + mb); else if (j.y > E.H + mb) shift(j, 0, -(E.H + m + mb));
-
-    j.ca = Math.cos(j.a); j.sa = Math.sin(j.a);
-    const wob = 16 * j.S, sink = 26 * j.S;
-    for (const tn of j.tents) {
-      if (sp.cteno) toW(j, Math.cos(tn.phi) * Rn * 0.42, Rn * 0.1);
-      else { const p = dome(j, 1, tn.phi + j.spin); toW(j, p.x, p.y); }
-      stepChain(tn, WX, WY, (tn.len * Rn) / tn.n, dt, E, wob, sink);
-    }
-    for (const ar of j.arms) {
-      const ph = ar.phi + j.spin;
-      toW(j, Math.cos(ph) * j.R * 0.07, j.H * j.curl * 0.5 + Math.sin(ph) * j.R * 0.07 * ST);
-      stepChain(ar, WX, WY, (ar.len * Rn) / ar.n, dt, E, wob * 0.6, sink * 0.7);
-    }
-  }
-
-  function hit(j, x, y) {
-    toW(j, 0, -j.H * 0.45);
-    return Math.hypot(x - WX, y - WY) < Math.max(j.R, j.H) * 1.15 + 8;
-  }
-  function touch(j, px, py) {
-    j.alarm = 1; j.at = 0; j.escape = 3.6; j.label = 6;
-    const dx = j.x - px, dy = j.y - py, d = Math.hypot(dx, dy) || 1;
-    j.ex = dx / d; j.ey = dy / d;
-    if (!j.sp.cteno && j.ph > 0.3) j.ph = (Math.asin(clamp(j.c, 0, 1)) / HALF) * 0.3;
-  }
-
-  /* ── rendu ── */
-  function trace(ctx, P, s, e) {
-    ctx.moveTo(P[2 * s], P[2 * s + 1]);
-    for (let i = s + 1; i < e; i++) {
-      const x = P[2 * i], y = P[2 * i + 1];
-      ctx.quadraticCurveTo(x, y, (x + P[2 * i + 2]) * 0.5, (y + P[2 * i + 3]) * 0.5);
-    }
-    ctx.lineTo(P[2 * e], P[2 * e + 1]);
-  }
-
-  function drawTents(ctx, j, fog) {
-    const sp = j.sp;
-    const base = Math.max(0.35, sp.tentW * j.S * 1.5);
-    const lum = Math.min(88, sp.lum + 8), al = 1 + j.alarm * 1.2;
-    ctx.lineCap = 'round';
-    for (let pass = 0; pass < 3; pass++) {
-      ctx.beginPath();
-      for (const tn of j.tents) {
-        const n = tn.n - 1, s = Math.floor((n * pass) / 3), e = Math.floor((n * (pass + 1)) / 3);
-        if (e > s) trace(ctx, tn.P, s, e);
-      }
-      ctx.lineWidth = base * [1, 0.62, 0.34][pass];
-      ctx.strokeStyle = hsla(sp.tentHue, sp.sat, lum, [0.4, 0.24, 0.12][pass] * fog * al);
-      ctx.stroke();
-    }
-    if (sp.cteno) {
-      const Rn = j.R0 * j.S;
-      ctx.beginPath();
-      for (const tn of j.tents) {
-        const P = tn.P;
-        for (let i = 3; i < tn.n - 1; i += 2) {
-          const x = P[2 * i], y = P[2 * i + 1], tx = P[2 * i + 2] - P[2 * i - 2], ty = P[2 * i + 3] - P[2 * i - 1];
-          const tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl, sd = i % 4 === 1 ? 1 : -1;
-          const len = Rn * 0.55 * (1 - (i / tn.n) * 0.6);
-          ctx.moveTo(x, y);
-          ctx.quadraticCurveTo(x + nx * sd * len * 0.6, y + ny * sd * len * 0.6, x + nx * sd * len + (tx / tl) * len * 0.7, y + ny * sd * len + (ty / tl) * len * 0.7);
-        }
-      }
-      ctx.lineWidth = Math.max(0.3, base * 0.4);
-      ctx.strokeStyle = hsla(sp.tentHue, 70, 75, 0.16 * fog);
-      ctx.stroke();
-    }
-  }
-
-  const EL = new Float32Array(128), ER = new Float32Array(128);
-  function drawArms(ctx, j, t, fog) {
-    const sp = j.sp, w0 = sp.armW * j.R0 * j.S;
-    for (const ar of j.arms) {
-      const P = ar.P, n = ar.n;
-      for (let i = 0; i < n; i++) {
-        const a = Math.max(0, i - 1), b = Math.min(n - 1, i + 1);
-        const tx = P[2 * b] - P[2 * a], ty = P[2 * b + 1] - P[2 * a + 1], tl = Math.hypot(tx, ty) || 1;
-        const nx = -ty / tl, ny = tx / tl, f = i / (n - 1);
-        const w = w0 * (0.3 + 0.7 * Math.sin(f * Math.PI * 0.85 + 0.3));
-        const fl = 1 + sp.frill * 0.45 * Math.sin(f * 11 + t * 2.6 + ar.ph);
-        const fr = 1 + sp.frill * 0.45 * Math.cos(f * 13 + t * 2.2 + ar.ph);
-        EL[2 * i] = P[2 * i] + nx * w * fl; EL[2 * i + 1] = P[2 * i + 1] + ny * w * fl;
-        ER[2 * i] = P[2 * i] - nx * w * fr; ER[2 * i + 1] = P[2 * i + 1] - ny * w * fr;
-      }
-      ctx.beginPath();
-      trace(ctx, EL, 0, n - 1);
-      ctx.lineTo(ER[2 * n - 2], ER[2 * n - 1]);
-      for (let i = n - 2; i > 0; i--) ctx.quadraticCurveTo(ER[2 * i], ER[2 * i + 1], (ER[2 * i] + ER[2 * i - 2]) * 0.5, (ER[2 * i + 1] + ER[2 * i - 1]) * 0.5);
-      ctx.lineTo(ER[0], ER[1]);
-      ctx.closePath();
-      ctx.fillStyle = hsla(sp.armHue, 70, 62, 0.13 * fog);
-      ctx.fill();
-      ctx.lineWidth = Math.max(0.4, j.S * 0.8);
-      ctx.strokeStyle = hsla(sp.armHue, 75, 76, 0.26 * fog);
-      ctx.stroke();
-    }
-  }
-
-  function drawBell(ctx, j, t, fog) {
-    const sp = j.sp, R = j.R, H = j.H, A = sp.alpha * fog, hue = sp.hue, sat = sp.sat, lum = sp.lum;
-    const N = 14, rim = dome(j, 1, 0), rr = rim.x, ry0 = rim.y, ryr = rr * ST;
-    // cavité sous-ombrelle
-    ctx.beginPath(); ctx.ellipse(0, ry0, rr, ryr, 0, 0, TAU);
-    ctx.fillStyle = hsla(hue, sat, lum * 0.7, A * 0.3); ctx.fill();
-    ctx.lineWidth = Math.max(0.5, R * 0.02); ctx.strokeStyle = hsla(hue, sat, lum, A * 0.5); ctx.stroke();
-    // lueur interne
-    const glow = sprite(sp.rgb), gs = R * 2.6;
-    ctx.globalAlpha = clamp(0.16 * fog, 0, 1); ctx.drawImage(glow, -gs / 2, -H * 0.45 - gs / 2, gs, gs); ctx.globalAlpha = 1;
-    // ombrelle
-    ctx.beginPath();
-    for (let i = 0; i <= N; i++) { const p = dome(j, 1 - i / N, Math.PI); if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }
-    for (let i = 1; i <= N; i++) { const p = dome(j, i / N, 0); ctx.lineTo(p.x, p.y); }
-    ctx.ellipse(0, ry0, rr, ryr, 0, 0, Math.PI, false);
-    ctx.closePath();
-    const g = ctx.createRadialGradient(0, -H * 0.5, 0, 0, -H * 0.5, Math.max(R, H) * 1.18);
-    g.addColorStop(0, hsla(hue, sat, lum, A * 0.3));
-    g.addColorStop(0.55, hsla(hue, sat, lum, A * 0.5));
-    g.addColorStop(0.86, hsla(hue, sat, Math.min(95, lum + 8), A));
-    g.addColorStop(1, hsla(hue, sat, lum, A * 0.45));
-    ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = Math.max(0.6, R * 0.03); ctx.strokeStyle = hsla(hue, sat, Math.min(96, lum + 14), A * 1.4); ctx.stroke();
-    // épaisseur de la mésoglée
-    ctx.beginPath();
-    for (let i = 0; i <= N; i++) { const p = dome(j, 1 - i / N, Math.PI, 0.86, 0.72); if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }
-    for (let i = 1; i <= N; i++) { const p = dome(j, i / N, 0, 0.86, 0.72); ctx.lineTo(p.x, p.y); }
-    ctx.lineWidth = Math.max(0.5, R * 0.018); ctx.strokeStyle = hsla(hue, sat, lum, A * 0.55); ctx.stroke();
-    // canaux radiaires
-    if (sp.canals) {
-      ctx.beginPath();
-      for (let k = 0; k < sp.canals; k++) {
-        const phi = (k / sp.canals) * TAU + j.spin, u0 = sp.branch && k % 2 ? 0.55 : 0.18;
-        for (let s = 0; s <= 6; s++) { const p = dome(j, u0 + (1 - u0) * (s / 6), phi, 0.97, 0.97); if (s) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }
-      }
-      ctx.lineWidth = Math.max(0.4, R * 0.011); ctx.strokeStyle = hsla(hue, sat, Math.min(95, lum + 10), A * 0.8); ctx.stroke();
-    }
-    if (sp.stripes) {
-      for (let pass = 0; pass < 2; pass++) {
-        ctx.beginPath();
-        for (let k = 0; k < sp.stripes; k++) {
-          const phi = (k / sp.stripes) * TAU + j.spin;
-          if ((Math.sin(phi) > -0.1) !== (pass === 1)) continue;
-          for (let s = 0; s <= 7; s++) { const p = dome(j, 0.14 + 0.86 * (s / 7), phi); if (s) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }
-        }
-        ctx.lineWidth = R * 0.075; ctx.lineCap = 'round';
-        ctx.strokeStyle = hsla(sp.stripeHue, 90, 52, A * (pass ? 0.75 : 0.25)); ctx.stroke();
-      }
-    }
-    if (sp.crown) {
-      const p = dome(j, 0.62, 0), Yc = dome(j, 0.62, -HALF).y;
-      const rc = p.x, yc = (Yc + dome(j, 0.62, HALF).y) / 2;
-      ctx.beginPath(); ctx.ellipse(0, yc, rc, rc * ST, 0, 0, TAU);
-      ctx.lineWidth = Math.max(0.6, R * 0.04); ctx.strokeStyle = hsla(hue, 80, 50, A * 0.9); ctx.stroke();
-      ctx.beginPath();
-      for (let k = 0; k < sp.crown; k++) {
-        const phi = (k / sp.crown) * TAU + j.spin, a = dome(j, 0.64, phi);
-        ctx.moveTo(a.x, a.y); const b = dome(j, 1, phi); ctx.lineTo(b.x, b.y);
-      }
-      ctx.lineWidth = Math.max(0.5, R * 0.02); ctx.strokeStyle = hsla(hue, 70, 55, A * 0.7); ctx.stroke();
-      const s2 = R * 1.3; ctx.globalAlpha = clamp(0.5 * fog, 0, 1);
-      ctx.drawImage(sprite([200, 30, 60]), -s2 / 2, -H * 0.42 - s2 / 2, s2, s2); ctx.globalAlpha = 1;
-    }
-    if (sp.gonads) {
-      const Yg = -H * 0.42 * CT, rc = R * 0.36, rg = R * 0.19;
-      ctx.beginPath();
-      for (let k = 0; k < 4; k++) {
-        const phi = Math.PI / 4 + k * HALF + j.spin, cx = rc * Math.cos(phi), cz = rc * Math.sin(phi);
-        for (let s = 0; s <= 18; s++) {
-          const an = phi + 0.75 + (s / 18) * (TAU - 1.5);
-          const x = cx + rg * Math.cos(an), y = Yg + (cz + rg * Math.sin(an)) * ST;
-          if (s) ctx.lineTo(x, y); else ctx.moveTo(x, y);
-        }
-      }
-      ctx.lineCap = 'round'; ctx.lineWidth = Math.max(1, R * 0.075);
-      ctx.strokeStyle = hsla(sp.gonads, 70, 72, A * 1.6); ctx.stroke();
-      ctx.lineWidth = Math.max(2, R * 0.16); ctx.strokeStyle = hsla(sp.gonads, 80, 65, A * 0.35); ctx.stroke();
-    }
-    if (sp.mouth) {
-      ctx.beginPath(); ctx.ellipse(0, ry0 - H * 0.25, rr * 0.34, rr * 0.34 * ST + H * 0.08, 0, 0, TAU);
-      ctx.lineWidth = Math.max(0.5, R * 0.02); ctx.strokeStyle = hsla(hue, 40, 85, A * 1.2); ctx.stroke();
-    }
-    // reflet spéculaire
-    ctx.globalAlpha = clamp(0.2 * fog, 0, 1);
-    ctx.drawImage(sprite([255, 255, 255]), -R * 0.62, -H * 1.02, R * 0.62, H * 0.5);
-    ctx.globalAlpha = 1;
-    // photophores & alarme lumineuse
-    const al = j.alarm, nd = sp.dots || 18;
-    if (sp.dots || al > 0.01) {
-      const spr = sprite(sp.dotCol || sp.flash);
-      for (let k = 0; k < nd; k++) {
-        const phi = (k / nd) * TAU + j.spin, p = dome(j, 1, phi);
-        let b = sp.dots ? 0.3 + 0.22 * Math.sin(t * 1.3 + k * 0.7) : 0;
-        if (al > 0) {
-          const an = (((phi - j.at * 7.5) % TAU) + TAU) % TAU;
-          b += al * (0.35 + 1.8 * Math.pow(0.5 + 0.5 * Math.cos(an), 9));
-        }
-        const front = 0.55 + 0.45 * Math.sin(phi), sz = R * (0.18 + b * 0.32);
-        ctx.globalAlpha = clamp(b * front * fog, 0, 1);
-        ctx.drawImage(spr, p.x - sz / 2, p.y - sz / 2, sz, sz);
-      }
-      if (al > 0.01) {
-        const s3 = R * 3.4; ctx.globalAlpha = clamp(al * al * 0.5 * fog, 0, 1);
-        ctx.drawImage(sprite(sp.flash), -s3 / 2, -H * 0.4 - s3 / 2, s3, s3);
-      }
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  function drawCteno(ctx, j, t, fog) {
-    const R = j.R0 * j.S * (1 + j.c * 0.2), rx = R * 0.64, ry = R * 0.94, A = j.sp.alpha * fog;
-    const g = ctx.createRadialGradient(0, -ry * 0.25, 0, 0, 0, ry * 1.05);
-    g.addColorStop(0, hsla(200, 30, 85, A * 0.3)); g.addColorStop(0.75, hsla(200, 30, 85, A * 0.6)); g.addColorStop(1, hsla(200, 40, 90, A * 1.3));
-    ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, TAU); ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = Math.max(0.5, R * 0.03); ctx.strokeStyle = hsla(200, 40, 90, A * 1.6); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(0, ry * 0.08, rx * 0.22, ry * 0.6, 0, 0, TAU);
-    ctx.strokeStyle = hsla(30, 60, 72, A * 1.2); ctx.stroke();
-    const boost = 1 + j.alarm * 1.5;
-    ctx.lineCap = 'round';
-    for (let k = 0; k < 8; k++) {
-      const phi = (k / 8) * TAU + j.spin, cp = Math.cos(phi), vis = Math.sin(phi) > 0 ? 1 : 0.32;
-      ctx.lineWidth = Math.max(0.6, R * 0.06 * (0.45 + 0.55 * Math.abs(Math.sin(phi))));
-      for (let s = 0; s < 16; s++) {
-        const f = s / 15, th = (0.13 + 0.74 * f) * Math.PI;
-        const X = rx * Math.sin(th) * cp, Y = -ry * Math.cos(th);
-        const wv = 0.5 + 0.5 * Math.sin(f * 9 - t * 11 * boost + k * 0.8), b = wv * wv * wv;
-        let tx = rx * Math.cos(th) * cp, ty = ry * Math.sin(th);
-        const tl = Math.hypot(tx, ty) || 1, l = R * 0.05; tx /= tl; ty /= tl;
-        const hue = (f * 240 + t * 80 + k * 45) % 360 | 0;
-        ctx.strokeStyle = `hsla(${hue},100%,${(55 + b * 25) | 0}%,${clamp((0.1 + 0.9 * b) * vis * fog * boost, 0, 1).toFixed(3)})`;
-        ctx.beginPath(); ctx.moveTo(X - tx * l, Y - ty * l); ctx.lineTo(X + tx * l, Y + ty * l); ctx.stroke();
-      }
-    }
-    if (j.alarm > 0.01) {
-      const s3 = R * 3; ctx.globalAlpha = clamp(j.alarm * 0.35 * fog, 0, 1);
-      ctx.drawImage(sprite([200, 230, 255]), -s3 / 2, -s3 / 2, s3, s3); ctx.globalAlpha = 1;
-    }
-  }
-
-  function draw(ctx, j, t, I) {
-    const fog = clamp(0.3 + 0.7 * j.z, 0, 1.15) * I * (0.35 + 0.65 * j.grow);
-    ctx.globalCompositeOperation = 'lighter';
-    drawTents(ctx, j, fog);
-    if (j.arms.length) drawArms(ctx, j, t, fog);
-    ctx.save(); ctx.translate(j.x, j.y); ctx.rotate(j.a);
-    if (j.sp.cteno) drawCteno(ctx, j, t, fog); else drawBell(ctx, j, t, fog);
-    ctx.restore();
-  }
-
-  window.FK_MED = { SP, create, update, draw, hit, touch, sprite, hslRgb };
-})();
-
-;
-/* ═════ js/machines/s-meduses.js ═════ */
-/* Fascination — Abysses · l'écosystème des méduses */
-(function boot() {
-  if (!window.FK || !window.FK_MED) return setTimeout(boot, 12);
-  const { TAU, clamp, rnd, layer, scale } = window.FK;
-  const M = window.FK_MED;
+  /* ───────── les créatures ───────── */
+  // R : rayon de la cloche (m) ; profil ; couleurs : alb (vraie couleur), glass (lueur propre), bio (bioluminescence)
+  const SPEC = {
+    atolla: { nom: 'Atolla wyvillei', fr: 'méduse couronne', prof: '500 à 1 500 m', zone: [600, 3000], R: 0.08, H: 0.32, profile: 'flat', lappets: 22, groove: true, canals: 0,
+      alb: [0.55, 0.04, 0.06], glass: [0.02, 0.0, 0.0], bio: [0.25, 0.55, 1.0], bioKind: 'alarme', T: 1.8, tent: 22, tentL: 1.4, tentW: 1, longOne: true, tentAlb: [0.5, 0.06, 0.08],
+      why: 'Rouge sombre, donc invisible là où la lumière rouge n’arrive pas. Attaquée, elle déclenche une roue de lumière bleue qui tourne autour de sa cloche : « l’alarme antivol », un appel à un prédateur plus gros que son agresseur. Edith Widder en a fait un leurre électronique, l’e-jelly, qui a permis de filmer pour la première fois un calmar géant vivant, en 2012.' },
+    periphylla: { nom: 'Periphylla periphylla', fr: 'méduse casquée', prof: '500 à 7 000 m', zone: [900, 4000], R: 0.09, H: 1.5, profile: 'cone', lappets: 16, canals: 0, inner: [0.55, 0.02, 0.06],
+      alb: [0.32, 0.05, 0.13], glass: [0.015, 0.0, 0.01], bio: [0.3, 0.6, 1.0], bioKind: 'etincelles', T: 2.6, tent: 12, tentL: 1.3, tentW: 1.6, tentAlb: [0.45, 0.08, 0.12],
+      why: 'Une cloche conique et pourpre, avec un estomac rouge foncé qui masque la lumière de ses proies avalées. Dérangée, elle crépite d’étincelles bleues sur toute la cloche. Elle fuit la lumière : dans certains fjords norvégiens assez sombres, elle remonte près de la surface.' },
+    pelagia: { nom: 'Pelagia noctiluca', fr: 'pélagie, la « lumière de la nuit »', prof: '0 à 300 m', zone: [0, 600], R: 0.06, H: 0.7, profile: 'dome', lappets: 16, canals: 0, warts: true, arms: 4, armL: 3.2,
+      alb: [0.75, 0.4, 0.62], glass: [0.02, 0.01, 0.02], bio: [0.3, 0.9, 0.85], bioKind: 'lueur', T: 1.4, tent: 8, tentL: 4.2, tentW: 0.8, tentAlb: [0.7, 0.35, 0.5],
+      why: 'Son nom savant veut dire « lumière de la nuit en haute mer ». Quand on la touche, toute sa cloche s’illumine et laisse un mucus lumineux. Les pêcheurs de Méditerranée la redoutent : ses piqûres brûlent.' },
+    aequorea: { nom: 'Aequorea victoria', fr: 'méduse cristal', prof: '0 à 100 m', zone: [0, 300], R: 0.09, H: 0.28, profile: 'flat', lappets: 0, canals: 100,
+      alb: [0.6, 0.72, 0.8], glass: [0.01, 0.015, 0.02], bio: [0.25, 1.0, 0.45], bioKind: 'anneau', T: 3.4, tent: 90, tentL: 1.5, tentW: 0.5, tentAlb: [0.55, 0.65, 0.7],
+      why: 'Presque invisible, transparente. Autour de sa cloche, une couronne de points verts : sa protéine lumineuse émet du bleu, qu’une seconde protéine convertit en vert. Cette protéine fluorescente verte (GFP) est devenue l’outil le plus utilisé de la biologie moderne : prix Nobel de chimie 2008 pour Osamu Shimomura, Martin Chalfie et Roger Tsien.' },
+    beroe: { nom: 'Beroe forskalii', fr: 'béroé, un cténophore', prof: '0 à 1 000 m', zone: [0, 1200], R: 0.05, H: 2.6, profile: 'sack', lappets: 0, canals: 0, combs: 8,
+      alb: [0.75, 0.5, 0.55], glass: [0.01, 0.006, 0.008], bio: [0.3, 0.6, 1.0], bioKind: 'eclair', T: 9, tent: 0,
+      why: 'Pas une méduse : un cténophore, qui nage grâce à huit rangées de palettes ciliées. Ces palettes décomposent la lumière comme un prisme : les arcs-en-ciel qui y courent ne sont pas de la bioluminescence, mais de la diffraction (allumez la lampe). Dérangé, il émet en plus des éclairs bleus.' },
+    praya: { nom: 'Praya dubia', fr: 'siphonophore géant', prof: '700 à 1 000 m', zone: [500, 1500], R: 0.05, H: 0.9, profile: 'praya', canals: 0,
+      alb: [0.75, 0.82, 0.85], glass: [0.01, 0.012, 0.015], bio: [0.25, 0.75, 1.0], bioKind: 'chaine', T: 2.2, tent: 0,
+      why: 'Une colonie de milliers d’individus spécialisés, enfilés sur une tige qui peut dépasser 40 mètres : l’un des plus longs animaux du monde. En tête, deux cloches nageuses ; derrière, une file de lumières bleues et de filets de pêche tendus en rideau.' },
+    pyrosoma: { nom: 'Pyrosoma atlanticum', fr: 'pyrosome, « corps de feu »', prof: '0 à 800 m', zone: [100, 900], R: 0.05, H: 1.4, profile: 'tube', canals: 0,
+      alb: [0.75, 0.6, 0.65], glass: [0.012, 0.01, 0.01], bio: [0.3, 0.95, 0.75], bioKind: 'vague', T: 6, tent: 0,
+      why: 'Un tube creux formé de centaines de petits animaux (des tuniciers). Chacun s’allume quand il voit la lumière de son voisin : une vague de lumière parcourt alors toute la colonie. Thomas Huxley écrivait en 1849 avoir lu à leur lueur.' },
+  };
+  const ORDER = Object.keys(SPEC);
 
   window.FASC.push({
-    id: 'meduses', name: 'Les Méduses', cat: 'Vivant', glyph: '🜄',
-    blurb: 'Abysses bioluminescentes',
-    hint: 'Touchez une méduse pour la surprendre · glissez pour créer un courant · LUMIÈRE les attire · ÉCLOSION fait naître une éphyrule.',
-    tools: [{ id: 'courant', label: 'courant' }, { id: 'lumiere', label: 'lumière' }, { id: 'eclosion', label: 'éclosion' }],
+    id: 'meduses', name: 'Les Abysses', cat: 'Vivant', glyph: '🜄', decor: true, smoothTime: true,
+    blurb: 'Méduses et lumières vivantes des profondeurs',
+    hint: 'OBSERVER : touchez une créature · TOUCHER : effleurez-la pour déclencher sa lumière · LAMPE : maintenez pour l’éclairer (ses vraies couleurs) · COURANT : glissez pour pousser l’eau.',
+    intro: 'Sous 200 mètres, la lumière du jour s’éteint. Pourtant, il ne fait pas noir : les trois quarts des animaux des profondeurs fabriquent leur propre lumière, presque toujours bleue. Ici, une créature à la fois, en plein écran, pour la regarder vivre ; ou bien une descente de la surface jusqu’à 4 000 mètres.',
+    legend: ORDER.map((k) => ({ color: '#' + SPEC[k].bio.map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join(''), name: SPEC[k].nom, role: SPEC[k].fr + ' · ' + SPEC[k].prof, desc: SPEC[k].why.split('. ')[0] + '.' })),
+    about: [
+      'La bioluminescence est une réaction chimique : une molécule, la luciférine, s’oxyde grâce à une enzyme, la luciférase, et libère un photon au lieu de chaleur. Elle est apparue indépendamment plus de 90 fois dans l’évolution. Une étude de 2017 (Martini et Haddock) estime que 76 % des animaux observés entre la surface et 4 000 m produisent de la lumière.',
+      'La lumière des profondeurs est presque toujours bleue, autour de 470 nanomètres : c’est la couleur qui traverse l’eau le plus loin. Le rouge, lui, est absorbé dans les premières dizaines de mètres. Résultat : un animal rouge est invisible en profondeur, comme peint en noir. Atolla, Periphylla et bien d’autres ont adopté ce rouge ; allumez la LAMPE pour le voir.',
+      'À quoi sert cette lumière ? À se cacher (contre-illumination : un ventre lumineux efface la silhouette vue d’en dessous), à attirer des proies, à appeler un partenaire, et à se défendre : éblouir, laisser un nuage lumineux, ou, comme Atolla, sonner l’alarme pour attirer un prédateur plus gros que son agresseur.',
+      'Chaque nuit, des milliards de poissons-lanternes et de crevettes remontent des profondeurs pour se nourrir près de la surface, puis redescendent à l’aube : c’est la plus grande migration de la planète. La « neige marine » qui tombe en permanence, débris d’organismes de la surface, nourrit tout ce monde. Les créatures sont ici montrées un peu grossies et plus actives que dans la réalité.',
+    ],
+    tools: [
+      { id: 'observer', label: 'observer', desc: 'Touchez une créature : son nom, sa profondeur, sa lumière.' },
+      { id: 'toucher', label: 'toucher', desc: 'Effleurez une créature : elle déclenche sa bioluminescence de défense.' },
+      { id: 'lampe', label: 'lampe', desc: 'Maintenez le doigt : la lampe du plongeur révèle les vraies couleurs (et la lumière vivante devient moins visible).' },
+      { id: 'courant', label: 'courant', desc: 'Glissez pour pousser l’eau : les tentacules suivent.' },
+    ],
     make(env) {
-      const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-      const timers = [], drones = [];
-
-      /* champ de courant */
-      const CS = 24, GW = Math.ceil(W / CS) + 2, GH = Math.ceil(H / CS) + 2, NG = GW * GH;
-      const U = new Float32Array(NG), V = new Float32Array(NG), TMP = new Float32Array(NG);
-      function addFlow(x, y, vx, vy, r) {
-        const x0 = Math.max(0, ((x - r) / CS) | 0), x1 = Math.min(GW - 1, Math.ceil((x + r) / CS));
-        const y0 = Math.max(0, ((y - r) / CS) | 0), y1 = Math.min(GH - 1, Math.ceil((y + r) / CS));
-        for (let gy = y0; gy <= y1; gy++) for (let gx = x0; gx <= x1; gx++) {
-          const d = Math.hypot(gx * CS - x, gy * CS - y);
-          if (d >= r) continue;
-          const f = (1 - d / r) * (1 - d / r), i = gy * GW + gx;
-          U[i] += vx * f; V[i] += vy * f;
-        }
+      try { return makeAbyss(env); } catch (e) {
+        console.warn('Les Abysses : WebGL2 indisponible', e);
+        return { frame() { env.ctx.fillStyle = '#020610'; env.ctx.fillRect(0, 0, env.w, env.h); env.ctx.fillStyle = '#ccc'; env.ctx.fillText('Les Abysses demandent WebGL2.', 20, env.h / 2); } };
       }
-      const L = { x: W / 2, y: H / 2, on: false, s: 0 };
-      const E = {
-        W, H, t: 0, fu: 0, fv: 0, k: 1, lure: L, group: null,
-        flow(x, y) {
-          let gx = x / CS, gy = y / CS;
-          gx = gx < 0 ? 0 : gx > GW - 1.01 ? GW - 1.01 : gx;
-          gy = gy < 0 ? 0 : gy > GH - 1.01 ? GH - 1.01 : gy;
-          const ix = gx | 0, iy = gy | 0, fx = gx - ix, fy = gy - iy, i = iy * GW + ix;
-          const u = (U[i] * (1 - fx) + U[i + 1] * fx) * (1 - fy) + (U[i + GW] * (1 - fx) + U[i + GW + 1] * fx) * fy;
-          const v = (V[i] * (1 - fx) + V[i + 1] * fx) * (1 - fy) + (V[i + GW] * (1 - fx) + V[i + GW + 1] * fx) * fy;
-          const t = E.t;
-          E.fu = u * E.k + 7 * Math.sin(y * 0.0035 + t * 0.09) + 4 * Math.sin((x + y) * 0.002 - t * 0.05);
-          E.fv = v * E.k + 4 * Math.cos(x * 0.003 + t * 0.07);
-        },
-        wake(x, y, vx, vy, r) { addFlow(x, y, vx * E.k, vy * E.k, r); },
-      };
-
-      /* décor */
-      const bg = layer(W, H);
-      {
-        const g = bg.g, gr = g.createLinearGradient(0, 0, 0, H);
-        gr.addColorStop(0, '#0d2c4a'); gr.addColorStop(0.2, '#081a31'); gr.addColorStop(0.55, '#040c1b'); gr.addColorStop(1, '#010308');
-        g.fillStyle = gr; g.fillRect(0, 0, W, H);
-        for (let i = 0; i < 16; i++) {
-          const x = rnd(W), y = rnd(H), r = rnd(W * 0.4, W * 0.1), up = 1 - y / H;
-          const f = g.createRadialGradient(x, y, 0, x, y, r);
-          f.addColorStop(0, `rgba(${30 + up * 30 | 0},${70 + up * 50 | 0},${120 + up * 40 | 0},${(0.03 + up * 0.07).toFixed(3)})`);
-          f.addColorStop(1, 'rgba(20,50,90,0)');
-          g.fillStyle = f; g.fillRect(0, 0, W, H);
-        }
-      }
-      const rays = Array.from({ length: 6 }, () => ({ x: rnd(W * 1.1, -W * 0.15), w: rnd(W * 0.11, W * 0.03), ph: rnd(TAU), sp: rnd(0.3, 0.08) }));
-      const nSnow = Math.round(clamp((W * H) / 2600, 180, 560));
-      const snow = Array.from({ length: nSnow }, () => ({ x: rnd(W), y: rnd(H), z: Math.pow(Math.random(), 1.7) * 0.9 + 0.1, ph: rnd(TAU), r: rnd(1.5, 0.6) }));
-      const nPl = Math.round(clamp((W * H) / 1700, 300, 900));
-      const pl = Array.from({ length: nPl }, () => ({ x: rnd(W), y: rnd(H), g: 0, ph: rnd(TAU) }));
-      const sprBlue = M.sprite([80, 185, 255]), sprWhite = M.sprite([225, 238, 255]), sprLure = M.sprite([150, 235, 255]);
-
-      /* population */
-      const kS = clamp(Math.min(W, H) / 640, 0.62, 1.35);
-      const bag = [];
-      M.SP.forEach((s) => { for (let i = 0; i < s.w; i++) bag.push(s); });
-      const pick = () => bag[(Math.random() * bag.length) | 0];
-      const near = [], far = [];
-      const nNear = Math.round(clamp((W * H) / 120000, 5, 11)), nFar = Math.round(clamp((W * H) / 150000, 4, 8));
-      for (let i = 0; i < nNear; i++) near.push(M.create(i < M.SP.length ? M.SP[i] : pick(), rnd(W * 0.92, W * 0.08), rnd(H * 0.9, H * 0.15), rnd(1.15, 0.78), { k: kS }));
-      for (let i = 0; i < nFar; i++) far.push(M.create(pick(), rnd(W), rnd(H), rnd(0.6, 0.36), { k: kS }));
-      const FD = 3, FL = layer(Math.ceil(W / FD), Math.ceil(H / FD));
-      // pré-roulage : tentacules au repos, poses variées
-      for (let s = 0; s < 70; s++) {
-        E.t = s / 30;
-        E.group = near; for (const j of near) M.update(j, 1 / 30, E);
-        E.group = far; for (const j of far) M.update(j, 1 / 30, E);
-      }
-      U.fill(0); V.fill(0);
-
-      /* son */
-      if (au && au.live) {
-        drones.push(au.drone(55, 'sine', 0.05), au.drone(82.4, 'sine', 0.022), au.drone(164.8, 'triangle', 0.006));
-      }
-      let lastNote = 0, nextEvent = rnd(40, 22), sparkle = 0;
-      const chime = (j) => {
-        if (!au || !au.on) return;
-        const base = 6 - Math.round((j.R0 * j.S) / 16) + M.SP.indexOf(j.sp) * 2;
-        [0, 2, 4, 7, 9].forEach((d, k) => timers.push(setTimeout(() => au.pluck(scale(base + d, 330), 2.4, 0.06), k * 85)));
-      };
-      const burst = (x, y, r, g) => {
-        for (const p of pl) { const d = Math.hypot(p.x - x, p.y - y); if (d < r) p.g = Math.max(p.g, g * (1 - d / r) + 0.2); }
-      };
-      const touchJ = (j, x, y) => {
-        M.touch(j, x, y); chime(j); burst(x, y, 90, 1.1);
-        if (navigator.vibrate) navigator.vibrate([6, 30, 6]);
-      };
-
-      function drawLabel(j) {
-        const a = Math.min(1, j.label, (6 - j.label) * 2.5);
-        if (a <= 0.01) return;
-        const R = j.R0 * j.S, ax = j.x + Math.sin(j.a) * j.H * 0.4, ay = j.y - Math.cos(j.a) * j.H * 0.4;
-        const side = j.x > W * 0.7 ? -1 : 1, lx = ax + side * (R * 1.3 + 30), ly = ay - R * 0.6 - 18;
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = `rgba(190,220,255,${(a * 0.4).toFixed(3)})`; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(ax + side * R * 0.9, ay - R * 0.2); ctx.lineTo(lx - side * 6, ly + 6); ctx.stroke();
-        ctx.textAlign = side > 0 ? 'left' : 'right';
-        ctx.fillStyle = `rgba(232,242,255,${(a * 0.92).toFixed(3)})`;
-        ctx.font = 'italic 500 14px "Space Grotesk", sans-serif';
-        ctx.fillText(j.sp.nom, lx, ly);
-        ctx.fillStyle = `rgba(150,195,235,${(a * 0.8).toFixed(3)})`;
-        ctx.font = '500 9.5px "JetBrains Mono", monospace';
-        ctx.fillText(j.sp.fr.toUpperCase(), lx, ly + 15);
-        ctx.textAlign = 'left';
-      }
-
-      return {
-        frame(t, dt) {
-          E.t = t;
-          /* courant : dissipation + diffusion */
-          const dk = Math.exp(-dt * 1.1);
-          for (let i = 0; i < NG; i++) {
-            let u = U[i] * dk, v = V[i] * dk;
-            const m = u * u + v * v;
-            if (m > 360000) { const s = 600 / Math.sqrt(m); u *= s; v *= s; }
-            U[i] = u; V[i] = v;
-          }
-          window.FK.diffuse(U, TMP, GW, GH, 0.14); window.FK.diffuse(V, TMP, GW, GH, 0.14);
-          L.s += ((L.on ? 1 : 0) - L.s) * Math.min(1, dt * (L.on ? 3 : 1.5));
-
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.drawImage(bg.c, 0, 0, W, H);
-          /* rais de lumière venus de la surface */
-          ctx.globalCompositeOperation = 'lighter';
-          const Hb = H * 0.82;
-          for (const r of rays) {
-            const a = 0.03 + 0.025 * Math.sin(t * r.sp + r.ph), x0 = r.x + Math.sin(t * 0.05 + r.ph) * 50, sk = Hb * 0.22;
-            const g = ctx.createLinearGradient(0, 0, 0, Hb);
-            g.addColorStop(0, `rgba(140,200,255,${a.toFixed(3)})`); g.addColorStop(1, 'rgba(140,200,255,0)');
-            ctx.fillStyle = g;
-            ctx.beginPath(); ctx.moveTo(x0 - r.w / 2, 0); ctx.lineTo(x0 + r.w / 2, 0);
-            ctx.lineTo(x0 + sk + r.w * 1.7, Hb); ctx.lineTo(x0 + sk - r.w * 1.7, Hb); ctx.closePath(); ctx.fill();
-          }
-
-          /* neige marine */
-          E.k = 1;
-          const bands = [[], [], []];
-          for (const s of snow) {
-            E.flow(s.x, s.y);
-            s.x += (E.fu * s.z + Math.sin(t * 0.4 + s.ph) * 4 * s.z) * dt;
-            s.y += (E.fv * s.z + 4 + 13 * s.z) * dt;
-            if (s.y > H + 4) { s.y = -4; s.x = rnd(W); } else if (s.y < -6) s.y = H + 4;
-            if (s.x < -6) s.x = W + 4; else if (s.x > W + 6) s.x = -4;
-            bands[s.z < 0.35 ? 0 : s.z < 0.75 ? 1 : 2].push(s);
-          }
-          ctx.globalCompositeOperation = 'source-over';
-          [[0.16, 0.9], [0.3, 1.4]].forEach(([a, sz], b) => {
-            ctx.fillStyle = `rgba(190,215,240,${a})`;
-            ctx.beginPath();
-            for (const s of bands[b]) ctx.rect(s.x, s.y, sz * s.r, sz * s.r);
-            ctx.fill();
-          });
-
-          /* méduses lointaines (flou par sous-échantillonnage) */
-          E.k = 0.35; E.group = far;
-          const fg = FL.g;
-          fg.setTransform(1, 0, 0, 1, 0, 0); fg.globalCompositeOperation = 'source-over'; fg.clearRect(0, 0, FL.w, FL.h);
-          fg.setTransform(1 / FD, 0, 0, 1 / FD, 0, 0);
-          for (const j of far) { M.update(j, dt, E); M.draw(fg, j, t, 1); }
-          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.9;
-          ctx.drawImage(FL.c, 0, 0, W, H); ctx.globalAlpha = 1;
-
-          /* plancton bioluminescent */
-          E.k = 1;
-          let excited = 0;
-          for (const p of pl) {
-            E.flow(p.x, p.y);
-            p.x += (E.fu + Math.sin(t * 0.7 + p.ph) * 3) * dt;
-            p.y += (E.fv + Math.cos(t * 0.6 + p.ph) * 3) * dt;
-            const spd = Math.hypot(E.fu, E.fv), ex = (spd - 40) / 90;
-            if (ex > 0) { p.g += ex * dt * 11; excited += ex; }
-            if (L.s > 0.02) {
-              const dx = L.x - p.x, dy = L.y - p.y, d = Math.hypot(dx, dy) || 1;
-              if (d < 320) {
-                const f = L.s * (1 - d / 320);
-                p.x += (dx / d) * 34 * f * dt + (-dy / d) * 26 * f * dt; p.y += (dy / d) * 34 * f * dt + (dx / d) * 26 * f * dt;
-                if (p.g < f * 0.6) p.g = f * 0.6;
-              }
-            }
-            if (Math.random() < dt * 0.004) p.g = Math.max(p.g, 0.7);
-            p.g = Math.min(1.5, p.g) * Math.exp(-dt * 1.7);
-            if (p.x < 0) p.x += W; else if (p.x > W) p.x -= W;
-            if (p.y < 0) p.y += H; else if (p.y > H) p.y -= H;
-            if (p.g > 0.025) {
-              const sz = 3 + p.g * 13;
-              ctx.globalAlpha = p.g > 1 ? 1 : p.g;
-              ctx.drawImage(sprBlue, p.x - sz / 2, p.y - sz / 2, sz, sz);
-            }
-          }
-          ctx.globalAlpha = 1;
-          sparkle += excited * dt;
-          if (sparkle > 6 && au && au.on) { sparkle = 0; au.noise(0.35, 0.012, rnd(6500, 4200), 5, 'bandpass'); }
-
-          /* méduses proches */
-          E.group = near;
-          near.sort((a, b) => a.z - b.z);
-          for (const j of near) {
-            M.update(j, dt, E);
-            if (j.pulse && au && au.on && t - lastNote > 0.45 && Math.random() < 0.4) {
-              lastNote = t;
-              au.note(scale(8 - Math.round((j.R0 * j.S) / 12) + M.SP.indexOf(j.sp), 220), 3.2, 'sine', 0.026);
-            }
-            let I = 1;
-            if (L.s > 0.01) { const d = Math.hypot(L.x - j.x, L.y - j.y); I += L.s * 1.5 * Math.exp(-(d * d) / 90000); }
-            M.draw(ctx, j, t, I);
-          }
-
-          /* particules au premier plan (bokeh) */
-          ctx.globalCompositeOperation = 'lighter';
-          for (const s of bands[2]) {
-            const sz = s.r * (s.z > 0.9 ? 7 : 4);
-            ctx.globalAlpha = 0.16 + (s.z - 0.75) * 0.6;
-            ctx.drawImage(sprWhite, s.x - sz / 2, s.y - sz / 2, sz, sz);
-          }
-          ctx.globalAlpha = 1;
-
-          /* leurre lumineux */
-          if (L.s > 0.01) {
-            const fl = 0.85 + 0.15 * Math.sin(t * 9) * Math.sin(t * 3.7), big = 420 * L.s, mid = 120 * L.s * fl, core = 46 * L.s * fl;
-            ctx.globalAlpha = 0.32 * L.s; ctx.drawImage(sprLure, L.x - big / 2, L.y - big / 2, big, big);
-            ctx.globalAlpha = 0.5 * L.s; ctx.drawImage(sprLure, L.x - mid / 2, L.y - mid / 2, mid, mid);
-            ctx.globalAlpha = 0.95 * L.s; ctx.drawImage(sprLure, L.x - core / 2, L.y - core / 2, core, core);
-            ctx.globalAlpha = 1;
-          }
-
-          /* évènements spontanés */
-          nextEvent -= dt;
-          if (nextEvent <= 0) {
-            nextEvent = rnd(55, 28);
-            const j = near[(Math.random() * near.length) | 0];
-            if (j && j.x > 0 && j.x < W && j.y > 0 && j.y < H) { M.touch(j, j.x + rnd(60, -60), j.y + 80); j.label = 0; }
-          }
-          for (const j of near) if (j.label > 0) drawLabel(j);
-          ctx.globalCompositeOperation = 'source-over';
-        },
-        down(p) {
-          let hitJ = null;
-          for (let i = near.length - 1; i >= 0; i--) if (M.hit(near[i], p.x, p.y)) { hitJ = near[i]; break; }
-          this._drag = false;
-          if (hitJ) { touchJ(hitJ, p.x, p.y); return; }
-          this._drag = true;
-          burst(p.x, p.y, 45, 0.7);
-          if (env.tool === 'lumiere') { L.on = true; L.x = p.x; L.y = p.y; if (au && au.on) au.note(660, 1.6, 'sine', 0.03, 990); }
-          else if (env.tool === 'eclosion') {
-            if (near.length >= 16) near.splice(near.findIndex((j) => j.label <= 0), 1);
-            near.push(M.create(pick(), p.x, p.y, rnd(1.12, 0.85), { k: kS, grow: 0.1 }));
-            burst(p.x, p.y, 110, 1.2);
-            if (au && au.on) au.note(scale(rnd(14, 8) | 0, 220), 2.4, 'sine', 0.05);
-          }
-        },
-        move(p) {
-          if (L.on) { L.x = p.x; L.y = p.y; }
-          if (!p.down || !this._drag || env.tool === 'lumiere') return;
-          const vx = clamp(p.dx * 24, -900, 900), vy = clamp(p.dy * 24, -900, 900);
-          addFlow(p.x, p.y, vx, vy, 75);
-        },
-        up() { L.on = false; this._drag = false; },
-        dispose() {
-          drones.forEach((d) => d.stop());
-          timers.forEach(clearTimeout);
-        },
-      };
     },
   });
+
+  function makeAbyss(env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    const dpr = env.dpr || Math.min(2, window.devicePixelRatio || 1);
+    const snd = () => au && au.on && au.ctx;
+    const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
+    const cfg = { scene: 'portrait', cur: 'atolla', slide: true, amb: 0.5, lamp: false, bloom: 0.9, depth: 0, descAuto: true, descSpeed: 1, q: 'haute' };
+    let T = 0, label = null, lampHold = 0;
+
+    /* ───────── WebGL ───────── */
+    const s0 = Math.min(dpr, 1.5), cw = Math.round(W * s0), ch = Math.round(H * s0);
+    const K = GLKit(cw, ch), gl = K.gl;
+    const PM = K.program(FS_MESH, VS_MESH), PL = K.program(FS_LINE, VS_LINE), PP = K.program(FS_PT, VS_PT), PB = K.program(FS_BLUR), PC = K.program(FS_COMP);
+    const A = K.target(cw, ch), b1 = K.target(cw >> 1, ch >> 1), b1t = K.target(cw >> 1, ch >> 1), b2 = K.target(cw >> 2, ch >> 2), b2t = K.target(cw >> 2, ch >> 2), b3 = K.target(cw >> 3, ch >> 3), b3t = K.target(cw >> 3, ch >> 3);
+    // tampons dynamiques : maillages (13 flottants par sommet), lignes (10), points (7)
+    function mkBuf(P, layout) {
+      const vao = gl.createVertexArray(), vbo = gl.createBuffer();
+      gl.bindVertexArray(vao); gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      const stride = layout.reduce((s, l) => s + l[1], 0) * 4; let off = 0;
+      for (const [name, n] of layout) { const loc = gl.getAttribLocation(P.p, name); if (loc >= 0) { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, stride, off); } off += n * 4; }
+      gl.bindVertexArray(null);
+      return { vao, vbo, stride: stride / 4, data: new Float32Array(1 << 16), n: 0 };
+    }
+    const BM = mkBuf(PM, [['aP', 3], ['aN', 3], ['aE', 4], ['aA', 3]]), BL = mkBuf(PL, [['aP', 3], ['aE', 4], ['aA', 3]]), BP = mkBuf(PP, [['aP', 3], ['aE', 4]]);
+    function push(B, arr) {
+      if (B.n + arr.length > B.data.length) { const d = new Float32Array(Math.max(B.data.length * 2, B.n + arr.length)); d.set(B.data); B.data = d; }
+      for (let i = 0; i < arr.length; i++) B.data[B.n + i] = arr[i];
+      B.n += arr.length;
+    }
+    const V = (B, ...a) => push(B, a);
+
+    /* ───────── une créature ───────── */
+    function create(key, x, y, z, scale) {
+      const S = SPEC[key];
+      const c = { key, S, p: [x, y, z], v: [0, 0, 0], ax: [0, 1, 0], sc: scale || 1, ph: rnd(1), bio: 0, bioT: -9, tilt: [rnd(0.3, -0.3), rnd(0.3, -0.3)], seed: rnd(100), tents: [], snow: [] };
+      const R = S.R * c.sc;
+      // tentacules : chaînes de points
+      const nt = S.tent || 0;
+      for (let i = 0; i < nt; i++) {
+        const a = (i / nt) * TAU, long = S.longOne && i === 0, L = R * S.tentL * (long ? 5 : 1) * (0.8 + 0.4 * Math.random()), k = long ? 30 : Math.max(8, Math.round(S.tentL * 7));
+        const pts = []; for (let j = 0; j <= k; j++) pts.push([x + Math.cos(a) * R, y - (j * L) / k, z + Math.sin(a) * R]);
+        c.tents.push({ a, L, k, pts, prev: pts.map((q) => q.slice()), long });
+      }
+      const na = S.arms || 0;
+      for (let i = 0; i < na; i++) {
+        const a = (i / na) * TAU + 0.4, L = R * S.armL, k = 16;
+        const pts = []; for (let j = 0; j <= k; j++) pts.push([x + Math.cos(a) * R * 0.15, y - (j * L) / k, z + Math.sin(a) * R * 0.15]);
+        c.tents.push({ a, L, k, pts, prev: pts.map((q) => q.slice()), arm: true, r0: 0.15 });
+      }
+      // photophores et zooïdes, fixés sur le corps (u : le long de la cloche, v : autour)
+      c.spots = [];
+      const nsp = S.bioKind === 'etincelles' ? 140 : S.bioKind === 'anneau' ? 120 : S.bioKind === 'alarme' ? S.lappets * 2 : S.bioKind === 'vague' ? 260 : S.bioKind === 'chaine' ? 90 : 0;
+      for (let i = 0; i < nsp; i++) c.spots.push({ u: S.bioKind === 'anneau' || S.bioKind === 'alarme' ? 0.97 : rnd(1, 0.05), v: S.bioKind === 'anneau' || S.bioKind === 'alarme' ? (i / nsp) * TAU : rnd(TAU), ph: rnd(TAU), s: rnd(1, 0.5) });
+      if (S.profile === 'praya') { const n = 90, L = R * 26; c.stem = []; for (let i = 0; i <= n; i++) c.stem.push([x, y - (i * L) / n, z]); c.stemPrev = c.stem.map((q) => q.slice()); }
+      return c;
+    }
+    // contraction de la cloche au cours du cycle de nage : rapide puis lente
+    const pulse = (c) => { const x = c.ph % 1; return x < 0.3 ? Math.sin((x / 0.3) * Math.PI * 0.5) : Math.cos(((x - 0.3) / 0.7) * Math.PI * 0.5); };
+    function basis(c) {
+      const a = c.ax, t = Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      let e1 = [a[1] * t[2] - a[2] * t[1], a[2] * t[0] - a[0] * t[2], a[0] * t[1] - a[1] * t[0]]; const l = Math.hypot(...e1); e1 = e1.map((q) => q / l);
+      const e2 = [a[1] * e1[2] - a[2] * e1[1], a[2] * e1[0] - a[0] * e1[2], a[0] * e1[1] - a[1] * e1[0]];
+      return [e1, a, e2];
+    }
+    const W3 = (c, B, x, y, z) => [c.p[0] + B[0][0] * x + B[1][0] * y + B[2][0] * z, c.p[1] + B[0][1] * x + B[1][1] * y + B[2][1] * z, c.p[2] + B[0][2] * x + B[1][2] * y + B[2][2] * z];
+    // profil de la cloche : rayon et hauteur au paramètre u (0 au sommet, 1 au bord), en unités de R
+    function prof(S, u, k, v) {
+      let r, y;
+      if (S.profile === 'flat') { r = Math.pow(Math.sin(u * Math.PI * 0.5), 0.75); y = S.H * Math.pow(Math.cos(u * Math.PI * 0.5), 1.4); if (S.groove) r *= 1 - 0.06 * Math.exp(-Math.pow((u - 0.55) / 0.06, 2)); }
+      else if (S.profile === 'cone') { r = 0.06 + 0.94 * Math.pow(Math.sin(u * Math.PI * 0.5), 1.25); y = S.H * Math.pow(1 - u, 1.35); r *= 1 - 0.07 * Math.exp(-Math.pow((u - 0.72) / 0.05, 2)); }
+      else if (S.profile === 'sack') { r = 0.55 * Math.pow(Math.sin(Math.min(1, u * 1.05) * Math.PI * 0.5 + 0.02), 0.6) * (1 - 0.3 * u * u); y = S.H * 0.5 * (1 - u * 1.9); }
+      else { r = Math.sin(u * Math.PI * 0.5); y = S.H * Math.cos(u * Math.PI * 0.5); }
+      // contraction : le bord se resserre, la cloche se bombe ; lobes du bord
+      if (S.profile !== 'sack') { r *= 1 - 0.24 * k * u * u; y *= 1 + 0.14 * k; }
+      if (S.lappets) r *= 1 + 0.035 * Math.max(0, Math.cos(S.lappets * v)) * Math.pow(u, 6);
+      return [r, y];
+    }
+
+    /* ───────── lumière de chaque créature ───────── */
+    function bioAt(c, u, v, t) {
+      const S = c.S, b = c.bio, dt = t - c.bioT;
+      if (b <= 0.01) return 0;
+      if (S.bioKind === 'lueur') return b * (0.4 + 0.6 * Math.max(0, Math.sin(v * 5 + u * 9 + t * 3))) ;
+      if (S.bioKind === 'eclair') return b * Math.exp(-Math.pow((u - ((dt * 0.8) % 1)) * 6, 2));
+      return 0;
+    }
+    function spotLight(c, sp, t) {
+      const S = c.S, b = c.bio, dt = t - c.bioT;
+      if (S.bioKind === 'alarme') { // roue de lumière qui tourne autour de la cloche
+        let k = 0; for (let w = 0; w < 3; w++) { const ph = ((sp.v - dt * 7 - (w * TAU) / 3) % TAU + TAU) % TAU; k += Math.exp(-ph * ph * 3); }
+        return b * k * 1.6 + 0.03 * (0.5 + 0.5 * Math.sin(t * 2 + sp.ph));
+      }
+      if (S.bioKind === 'etincelles') return b * Math.pow(Math.max(0, Math.sin(t * 9 * sp.s + sp.ph)), 12) * 2.2;
+      if (S.bioKind === 'anneau') return (0.08 + b * 1.4) * (0.7 + 0.3 * Math.sin(t * 2 + sp.ph));
+      if (S.bioKind === 'vague') { const w = Math.exp(-Math.pow((sp.u - ((dt * 0.5) % 1.4) + 0.2) * 6, 2)); return 0.03 + b * w * 2 + 0.02 * Math.sin(t + sp.ph); }
+      if (S.bioKind === 'chaine') return 0.15 + b * (0.8 + 0.6 * Math.sin(t * 6 + sp.ph));
+      return 0;
+    }
+
+    /* ───────── construction des géométries ───────── */
+    function buildCreature(c, t, light) {
+      const S = c.S, R = S.R * c.sc, B = basis(c), k = pulse(c);
+      const glass = S.glass, alb = S.alb, bio = S.bio;
+      const nu = S.profile === 'sack' ? 26 : 22, nv = S.canals > 60 ? 140 : S.profile === 'sack' ? 48 : 72;
+      const dense = cfg.scene === 'portrait';
+      const NU = dense ? nu : Math.round(nu * 0.6), NV = dense ? nv : Math.round(nv * 0.5);
+      if (S.profile === 'praya') return buildPraya(c, t, B, R);
+      if (S.profile === 'tube') return buildTube(c, t, B, R);
+      const P = (u, v) => { const [r, y] = prof(S, u, k, v); return W3(c, B, Math.cos(v) * r * R, y * R, Math.sin(v) * r * R); };
+      const em = (u, v) => {
+        // lueur propre + motifs internes (canaux, verrues) + bioluminescence de surface
+        let e = 1;
+        if (S.canals) e += 1.6 * Math.pow(Math.max(0, Math.cos(S.canals * v * 0.5)), 30) * u;
+        if (S.warts) e += 0.8 * Math.pow(Math.max(0, Math.sin(v * 11) * Math.sin(u * 14)), 6);
+        const b = bioAt(c, u, v, t);
+        return [glass[0] * e + bio[0] * b, glass[1] * e + bio[1] * b, glass[2] * e + bio[2] * b];
+      };
+      // surface de la cloche (deux couches : ombrelle et sous-ombrelle)
+      for (const layer of [1, 0.9]) {
+        for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) {
+          const u0 = i / NU, u1 = (i + 1) / NU, v0 = (j / NV) * TAU, v1 = ((j + 1) / NV) * TAU;
+          const q = [[u0, v0], [u1, v0], [u1, v1], [u0, v0], [u1, v1], [u0, v1]];
+          for (const [u, v] of q) {
+            const p = P(u, v), p2 = P(Math.min(1, u + 0.01), v), p1 = P(Math.max(0, u - 0.01), v), p3 = P(Math.max(u, 0.02), v + 0.02), p4 = P(Math.max(u, 0.02), v);
+            const pc = layer < 1 ? [c.p[0] + (p[0] - c.p[0]) * layer, c.p[1] + (p[1] - c.p[1]) * layer, c.p[2] + (p[2] - c.p[2]) * layer] : p;
+            const du = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]], dv = [p3[0] - p4[0], p3[1] - p4[1], p3[2] - p4[2]];
+            let n = [du[1] * dv[2] - du[2] * dv[1], du[2] * dv[0] - du[0] * dv[2], du[0] * dv[1] - du[1] * dv[0]]; const ln = Math.hypot(...n);
+            n = ln > 1e-12 ? n.map((x) => x / ln) : B[1].slice();
+            const e = em(u, v), w = layer < 1 ? 0.45 : 1;
+            const inner = S.inner && u < 0.6 && layer < 1;
+            const a = inner ? S.inner : alb;
+            V(BM, pc[0], pc[1], pc[2], n[0], n[1], n[2], e[0] * w, e[1] * w, e[2] * w, 2.2 * w, a[0] * w, a[1] * w, a[2] * w);
+          }
+        }
+      }
+      // rangées de palettes du cténophore : arcs-en-ciel qui courent (diffraction, visible sous la lampe)
+      if (S.combs) {
+        for (let r = 0; r < S.combs; r++) {
+          const v = (r / S.combs) * TAU;
+          for (let i = 0; i < 40; i++) {
+            const u = 0.08 + (i / 40) * 0.82, p = P(u, v);
+            const hue = (u * 3 - t * 1.2 + r * 0.1) % 1, rgb = [0.5 + 0.5 * Math.cos(TAU * hue), 0.5 + 0.5 * Math.cos(TAU * (hue - 0.33)), 0.5 + 0.5 * Math.cos(TAU * (hue - 0.67))];
+            const lit = 0.1 + 1.4 * light;
+            const wave = 0.5 + 0.5 * Math.sin(u * 30 - t * 9 + r);
+            V(BP, p[0], p[1], p[2], rgb[0] * lit * wave, rgb[1] * lit * wave, rgb[2] * lit * wave, R * 0.12 * (dense ? 1 : 0.7));
+          }
+        }
+      }
+      // photophores en points
+      for (const sp of c.spots) {
+        const L = spotLight(c, sp, t); if (L < 0.01) continue;
+        const p = P(sp.u, sp.v);
+        V(BP, p[0], p[1], p[2], bio[0] * L, bio[1] * L, bio[2] * L, R * (S.bioKind === 'anneau' ? 0.07 : 0.1));
+      }
+      // tentacules et bras
+      for (const tn of c.tents) {
+        const col = tn.arm ? alb : S.tentAlb || alb;
+        for (let j = 0; j < tn.k; j++) {
+          const a = tn.pts[j], b = tn.pts[j + 1], f = 1 - j / tn.k;
+          const g = tn.long ? 0.12 : 0.04;
+          const eb = c.bio * (S.bioKind === 'alarme' && tn.long ? 1 : 0.15);
+          for (const q of [a, b]) V(BL, q[0], q[1], q[2], glass[0] * 2 + bio[0] * eb, glass[1] * 2 + bio[1] * eb, glass[2] * 2 + bio[2] * eb, f * (1 + g * 10), col[0] * f * (tn.arm ? 0.9 : 0.6), col[1] * f * (tn.arm ? 0.9 : 0.6), col[2] * f * (tn.arm ? 0.9 : 0.6));
+        }
+        if (S.bioKind === 'lueur' && c.bio > 0.05) { const q = tn.pts[tn.k]; V(BP, q[0], q[1], q[2], bio[0] * c.bio, bio[1] * c.bio, bio[2] * c.bio, R * 0.15); }
+      }
+    }
+    // siphonophore : deux cloches nageuses en tête, une longue tige ondulante semée de lumières
+    function buildPraya(c, t, B, R) {
+      const S = c.S, n = 90, L = R * 26;
+      // les deux nectophores : petites cloches ovales
+      for (const side of [-1, 1]) {
+        const cen = W3(c, B, side * R * 0.55, R * 0.3, 0);
+        for (let i = 0; i < 10; i++) for (let j = 0; j < 20; j++) {
+          const q = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j], [i + 1, j + 1], [i, j + 1]];
+          for (const [a, b] of q) {
+            const u = a / 10, v = (b / 20) * TAU, r = Math.sin(u * Math.PI) * R * 0.55, y = Math.cos(u * Math.PI) * R * 0.85;
+            const p = [cen[0] + B[0][0] * Math.cos(v) * r + B[1][0] * y + B[2][0] * Math.sin(v) * r, cen[1] + B[0][1] * Math.cos(v) * r + B[1][1] * y + B[2][1] * Math.sin(v) * r, cen[2] + B[0][2] * Math.cos(v) * r + B[1][2] * y + B[2][2] * Math.sin(v) * r];
+            const nn = [p[0] - cen[0], p[1] - cen[1], p[2] - cen[2]], l = Math.hypot(...nn) || 1;
+            V(BM, p[0], p[1], p[2], nn[0] / l, nn[1] / l, nn[2] / l, S.glass[0], S.glass[1], S.glass[2], 2.4, S.alb[0], S.alb[1], S.alb[2]);
+          }
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        const a = c.stem[i], b = c.stem[i + 1], f = 1 - (i / n) * 0.6;
+        V(BL, a[0], a[1], a[2], S.glass[0] * 3, S.glass[1] * 3, S.glass[2] * 3, f, S.alb[0] * f * 0.5, S.alb[1] * f * 0.5, S.alb[2] * f * 0.5);
+        V(BL, b[0], b[1], b[2], S.glass[0] * 3, S.glass[1] * 3, S.glass[2] * 3, f, S.alb[0] * f * 0.5, S.alb[1] * f * 0.5, S.alb[2] * f * 0.5);
+        if (i % 3 === 1) {
+          const sp = c.spots[i % c.spots.length], L = spotLight(c, sp, t + i * 0.05);
+          V(BP, a[0], a[1], a[2], S.bio[0] * L, S.bio[1] * L, S.bio[2] * L, R * 0.25);
+          // filets de pêche : de fins tentacules qui pendent de chaque cormidie
+          const dn = [a[0] + Math.sin(t * 0.7 + i) * R * 0.3, a[1] - R * (1.5 + Math.sin(i * 1.7) * 0.5), a[2] + Math.cos(t * 0.6 + i) * R * 0.3];
+          V(BL, a[0], a[1], a[2], S.glass[0], S.glass[1], S.glass[2], 0.6, S.alb[0] * 0.2, S.alb[1] * 0.2, S.alb[2] * 0.2);
+          V(BL, dn[0], dn[1], dn[2], 0, 0, 0, 0, 0, 0, 0);
+        }
+      }
+    }
+    // pyrosome : un tube couvert de petits zooïdes
+    function buildTube(c, t, B, R) {
+      const S = c.S, L = R * S.H * 10, r0 = R * 1.6;
+      const Pt = (u, v) => { const r = r0 * (0.85 + 0.15 * Math.sin(u * Math.PI)) * (u > 0.97 ? 0.8 : 1); return W3(c, B, Math.cos(v) * r, L * (0.5 - u), Math.sin(v) * r); };
+      for (let i = 0; i < 24; i++) for (let j = 0; j < 36; j++) {
+        const q = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j], [i + 1, j + 1], [i, j + 1]];
+        for (const [a, b] of q) {
+          const u = a / 24, v = (b / 36) * TAU, p = Pt(u, v), cen = W3(c, B, 0, L * (0.5 - u), 0);
+          const nn = [p[0] - cen[0], p[1] - cen[1], p[2] - cen[2]], l = Math.hypot(...nn) || 1;
+          V(BM, p[0], p[1], p[2], nn[0] / l, nn[1] / l, nn[2] / l, S.glass[0], S.glass[1], S.glass[2], 2, S.alb[0], S.alb[1], S.alb[2]);
+        }
+      }
+      for (const sp of c.spots) { const L2 = spotLight(c, sp, t), p = Pt(sp.u, sp.v); if (L2 > 0.01) V(BP, p[0], p[1], p[2], S.bio[0] * L2, S.bio[1] * L2, S.bio[2] * L2, R * 0.35); }
+    }
+
+    /* ───────── nage et tentacules ───────── */
+    let flowPush = [];
+    function stepCreature(c, dt, t) {
+      const S = c.S, R = S.R * c.sc, B = basis(c);
+      const kPrev = pulse(c);
+      c.ph += dt / S.T;
+      const k = pulse(c);
+      // poussée pendant la contraction, frottement de l'eau
+      const thrust = Math.max(0, k - kPrev) * S.R * Math.sqrt(c.sc) * 7; // les grandes ne nagent pas proportionnellement plus vite
+      for (let i = 0; i < 3; i++) c.v[i] += c.ax[i] * thrust;
+      c.v[1] -= R * 0.05 * dt; // la créature est à peine plus dense que l'eau
+      for (const f of flowPush) { const d = Math.hypot(c.p[0] - f.p[0], c.p[1] - f.p[1], c.p[2] - f.p[2]); if (d < f.r) for (let i = 0; i < 3; i++) c.v[i] += f.v[i] * dt * 2 * (1 - d / f.r); }
+      for (let i = 0; i < 3; i++) { c.v[i] *= Math.exp(-dt * 1.6); c.p[i] += c.v[i] * dt; }
+      // l'axe dérive lentement (on tourne la tête)
+      c.tilt[0] += Math.sin(t * 0.13 + c.seed) * dt * 0.05; c.tilt[1] += Math.cos(t * 0.11 + c.seed * 2) * dt * 0.05;
+      c.tilt[0] *= 1 - dt * 0.12; c.tilt[1] *= 1 - dt * 0.12;
+      const ax = [Math.sin(c.tilt[0]), 1, Math.sin(c.tilt[1])], l = Math.hypot(...ax); c.ax = ax.map((q) => q / l);
+      c.bio *= Math.exp(-dt / (S.bioKind === 'anneau' ? 4 : S.bioKind === 'vague' ? 3 : 1.6));
+      // tentacules : chaînes de Verlet accrochées au bord de la cloche
+      for (const tn of c.tents) {
+        const [r, y] = tn.arm ? [tn.r0, 0] : prof(S, 1, k, tn.a);
+        const anchor = W3(c, B, Math.cos(tn.a) * r * R, y * R, Math.sin(tn.a) * r * R);
+        const seg = tn.L / tn.k;
+        tn.pts[0] = anchor;
+        for (let j = 1; j <= tn.k; j++) {
+          const p = tn.pts[j], q = tn.prev[j];
+          const nx = p[0] + (p[0] - q[0]) * 0.93, ny = p[1] + (p[1] - q[1]) * 0.93 - seg * 0.035, nz = p[2] + (p[2] - q[2]) * 0.93;
+          tn.prev[j] = p.slice();
+          tn.pts[j] = [nx + Math.sin(t * 1.3 + j * 0.4 + tn.a) * seg * 0.012, ny, nz + Math.cos(t * 1.1 + j * 0.3 + tn.a) * seg * 0.012];
+          for (const f of flowPush) { const d = Math.hypot(nx - f.p[0], ny - f.p[1], nz - f.p[2]); if (d < f.r) for (let i = 0; i < 3; i++) tn.pts[j][i] += f.v[i] * dt * 0.5 * (1 - d / f.r); }
+        }
+        for (let it = 0; it < 2; it++) for (let j = 1; j <= tn.k; j++) {
+          const a = tn.pts[j - 1], b = tn.pts[j], dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], d = Math.hypot(dx, dy, dz) || 1, f = seg / d;
+          const nb = [a[0] + dx * f, a[1] + dy * f, a[2] + dz * f], pr = tn.prev[j];
+          for (let i = 0; i < 3; i++) pr[i] += (nb[i] - b[i]) * 0.6; // moins de coups de fouet
+          tn.pts[j] = nb;
+        }
+      }
+      if (c.stem) {
+        const L = R * 26, n = c.stem.length - 1, seg = L / n;
+        c.stem[0] = W3(c, B, 0, -R * 0.5, 0);
+        for (let j = 1; j <= n; j++) {
+          const p = c.stem[j], q = c.stemPrev[j];
+          c.stemPrev[j] = p.slice();
+          c.stem[j] = [p[0] + (p[0] - q[0]) * 0.92 + Math.sin(t * 0.5 + j * 0.15) * seg * 0.006, p[1] + (p[1] - q[1]) * 0.92 - seg * 0.03, p[2] + (p[2] - q[2]) * 0.92 + Math.cos(t * 0.4 + j * 0.12) * seg * 0.006];
+        }
+        // contrainte « suivre le meneur » sans injecter de vitesse (la correction est aussi appliquée à la position précédente)
+        for (let j = 1; j <= n; j++) {
+          const a = c.stem[j - 1], b = c.stem[j], dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], d = Math.hypot(dx, dy, dz) || 1, f = seg / d;
+          const nb = [a[0] + dx * f, a[1] + dy * f, a[2] + dz * f], pr = c.stemPrev[j];
+          for (let i = 0; i < 3; i++) pr[i] += (nb[i] - b[i]) * 0.9;
+          c.stem[j] = nb;
+        }
+      }
+    }
+    function trigger(c) { c.bio = 1; c.bioT = T; if (snd()) au.note(c.S.bioKind === 'alarme' ? 880 : 660, 1.2, 'sine', 0.03, c.S.bioKind === 'alarme' ? 1320 : 990); }
+
+    /* ───────── portrait ───────── */
+    let hero = null, cam = { az: 0.3, el: 0.12, tgt: [0, 0, 0] }, slideT = 0, snow = [];
+    function setHero(key) {
+      cfg.cur = key; slideT = 0; label = null;
+      hero = create(key, 0, 0, 0, 1);
+      for (let i = 0; i < 160; i++) { stepCreature(hero, 1 / 30, i / 30); recentre(hero); }
+      frameBox = heroBox(hero); cam.tgt = frameBox.c.slice();
+      if (Math.random() < 0.5 || key === 'aequorea' || key === 'praya') trigger(hero);
+    }
+    // boîte englobante réelle (cloche, tentacules, tige) : la caméra cadre ce qu'on voit vraiment
+    function heroBox(c) {
+      const R = c.S.R * c.sc; let x0 = c.p[0] - R, x1 = c.p[0] + R, y0 = c.p[1] - R, y1 = c.p[1] + R * Math.max(0.6, c.S.H * 1.2), z0 = c.p[2] - R, z1 = c.p[2] + R;
+      const add = (q) => { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; if (q[2] < z0) z0 = q[2]; if (q[2] > z1) z1 = q[2]; };
+      for (const tn of c.tents) for (const q of tn.pts) add(q);
+      if (c.stem) for (let i = 0; i < c.stem.length * 0.4; i++) add(c.stem[i]); // la tige file hors champ : on cadre la tête
+      if (c.S.profile === 'tube') { const L = R * c.S.H * 10, B = basis(c); add(W3(c, B, 0, L * 0.5 + R, 0)); add(W3(c, B, 0, -L * 0.5 - R, 0)); }
+      if (c.S.profile === 'sack') { const B = basis(c); add(W3(c, B, 0, R * c.S.H * 0.55, 0)); add(W3(c, B, 0, -R * c.S.H * 0.5, 0)); }
+      return { c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], hw: Math.max(x1 - x0, z1 - z0) / 2, hh: (y1 - y0) / 2 };
+    }
+    let frameBox = null;
+    function recentre(c) {
+      const d = c.p.slice(), sh = (q) => { q[0] -= d[0]; q[1] -= d[1]; q[2] -= d[2]; };
+      sh(c.p);
+      for (const tn of c.tents) { for (const q of tn.pts) sh(q); for (const q of tn.prev) sh(q); }
+      if (c.stem) { for (const q of c.stem) sh(q); for (const q of c.stemPrev) sh(q); }
+      for (const sn of snow) sh(sn.p);
+      for (const f of flowPush) sh(f.p);
+    }
+    function heroExtent() { const S = hero.S, R = S.R; if (S.profile === 'praya') return R * 14; if (S.profile === 'tube') return R * S.H * 7; if (S.profile === 'sack') return R * 2.6; return R * (1.2 + Math.max(S.tentL || 0, (S.armL || 0) * 0.7) * (S.longOne ? 1.4 : 0.9)); }
+    function seedSnow(cx, cy, cz, size) { snow = []; for (let i = 0; i < 700; i++) snow.push({ p: [cx + rnd(size, -size), cy + rnd(size, -size), cz + rnd(size, -size)], s: rnd(1, 0.3), ph: rnd(TAU) }); }
+
+    /* ───────── descente ───────── */
+    // La jauge avance en temps accéléré (cfg.depth) ; l'image, elle, défile lentement (camY, en mètres « visuels »)
+    // pour qu'on ait le temps de regarder chaque créature passer.
+    let pop = [], schools = [], sparks = [], camY = 0, lastDepth = 0;
+    const DSC = (k) => (k === 'pyrosoma' || k === 'praya' ? rnd(1.8, 1.2) : rnd(4, 2.6)); // créatures grossies
+    const ZONES = [[0, 200, 'Zone éclairée (épipélagique)'], [200, 1000, 'Zone crépusculaire (mésopélagique)'], [1000, 4000, 'Zone de minuit (bathypélagique)'], [4000, 6000, 'Zone abyssale']];
+    function zoneName(d) { const z = ZONES.find((q) => d >= q[0] && d < q[1]); return z ? z[2] : ZONES[3][2]; }
+    function populate() {
+      // les créatures vivent dans une tranche devant la caméra (z de 1 à 7 m), on les renouvelle en descendant
+      const d = cfg.depth, cy = -camY;
+      if (Math.abs(d - lastDepth) > 150) { pop = []; schools = []; } // saut de profondeur au curseur : autre faune
+      const fresh = !pop.length;
+      lastDepth = d;
+      pop = pop.filter((c) => c.p[1] < cy + 4.5 && c.p[1] > cy - 5);
+      const want = d < 150 ? 6 : d < 1000 ? 8 : d < 3000 ? 7 : 5;
+      let guard = 0;
+      while (pop.length < want && guard++ < 40) {
+        // les nouvelles arrivent par le bas (on descend), sauf au premier remplissage
+        const y = fresh || !pop.length ? cy + rnd(2.2, -3.2) : cy - rnd(4.6, 3.6);
+        const cands = ORDER.filter((k) => d >= SPEC[k].zone[0] && d <= SPEC[k].zone[1]);
+        if (!cands.length) break;
+        const key = cands[rint(cands.length)];
+        const c = create(key, rnd(2.4, -2.4), y, -rnd(4.5, 0.3), DSC(key));
+        for (let i = 0; i < 40; i++) stepCreature(c, 1 / 30, i / 30);
+        if (Math.random() < 0.15) trigger(c);
+        pop.push(c);
+      }
+      // bancs de poissons-lanternes entre 200 et 1 500 m (ils remontent la nuit)
+      schools = schools.filter((s) => s.y < cy + 6 && s.y > cy - 8 && Math.abs(s.x) < 9 && d < 1700);
+      if (d > 150 && d < 1600 && schools.length < 2 && Math.random() < 0.02) {
+        const s = { y: cy - rnd(2.5, -1.5), z: -rnd(5, 1.5), x: rnd(-6, -4), vx: rnd(0.5, 0.25) * (Math.random() < 0.5 ? 1 : -1), fish: [] };
+        if (s.vx < 0) s.x = -s.x;
+        for (let i = 0; i < 26; i++) s.fish.push([rnd(1.2, -1.2), rnd(0.5, -0.5), rnd(0.8, -0.8), rnd(TAU)]);
+        schools.push(s);
+      }
+    }
+
+    /* ───────── son ───────── */
+    let drone = null;
+    if (snd()) drone = au.drone(48, 'sine', 0);
+
+    /* ───────── boucle ───────── */
+    function update(dt) {
+      const k = dt / 0.4;
+      T += k;
+      if (cfg.scene === 'portrait') {
+        stepCreature(hero, k, T);
+        // caméra embarquée : on suit la créature comme un robot sous-marin ; c'est l'eau (la neige) qui défile
+        recentre(hero);
+        const bx = heroBox(hero), fk = Math.min(1, k * 0.6);
+        for (let i = 0; i < 3; i++) frameBox.c[i] += (bx.c[i] - frameBox.c[i]) * fk;
+        frameBox.hw += (bx.hw - frameBox.hw) * fk; frameBox.hh += (bx.hh - frameBox.hh) * fk;
+        cam.tgt = frameBox.c;
+        cam.az += k * 0.05;
+        if (Math.random() < k * 0.06) trigger(hero);
+        if (cfg.slide && (slideT += k) > 45) setHero(ORDER[(ORDER.indexOf(cfg.cur) + 1) % ORDER.length]);
+      } else {
+        const go = cfg.descAuto && cfg.depth < 4500;
+        if (go) { cfg.depth = Math.min(4500, cfg.depth + k * cfg.descSpeed * 6); camY += k * cfg.descSpeed * 0.3; }
+        populate();
+        const deep = clamp((cfg.depth - 150) / 700, 0, 1);
+        for (const c of pop) { stepCreature(c, k, T); if (Math.random() < k * (0.02 + 0.06 * deep)) trigger(c); }
+        for (const s of schools) { s.x += s.vx * k; for (const f of s.fish) f[3] += k * 6; }
+        sparks = sparks.filter((p) => (p.life -= k) > 0);
+        // le plancton (copépodes, dinoflagellés…) scintille quand on le dérange : plus on descend, plus on le voit
+        const rate = deep * (14 + (go ? 40 * cfg.descSpeed : 0)) * k;
+        for (let n = Math.floor(rate + Math.random()); n > 0; n--) {
+          const z = -rnd(5, 0.3), y = -camY + rnd(2.6, -2.6) * (1 + -z * 0.25), l = rnd(1.2, 0.25);
+          sparks.push({ p: [rnd(1, -1) * (1.6 - z * 0.55), y, z], life: l, l0: l, s: rnd(1, 0.4), g: Math.random() < 0.25 });
+        }
+      }
+      // neige marine : elle tombe lentement
+      for (const sn of snow) { sn.p[1] -= k * 0.004 * sn.s; sn.p[0] += Math.sin(T * 0.3 + sn.ph) * k * 0.002; }
+      flowPush = flowPush.filter((f) => (f.t -= k) > 0);
+      if (lampHold > 0) lampHold = Math.max(0, lampHold - k * 0.0);
+      if (drone) drone.gain(0.02);
+      if (label) label.t += k;
+    }
+    let VP = null, eye = [0, 0, 0];
+    function render() {
+      BM.n = BL.n = BP.n = 0;
+      const v = view(), bare = env.decor === false, ink = bare && env.theme === 'light';
+      const light = (cfg.lamp || lamping) ? 1 : 0;
+      let fog, top, bot, rays = 0, amb = cfg.amb;
+      if (cfg.scene === 'portrait') {
+        const ext = heroExtent(), fb = frameBox, vw = v.w / H, th = Math.tan(0.45);
+        // distance qui fait tenir la créature dans ~78 % de la hauteur et de la largeur visibles
+        const dist = Math.max(fb.hh / (th * 0.78), fb.hw / (th * vw * 0.78)) + fb.hw;
+        const tg = cam.tgt;
+        eye = [tg[0] + Math.cos(cam.az) * Math.cos(cam.el) * dist, tg[1] + Math.sin(cam.el) * dist, tg[2] + Math.sin(cam.az) * Math.cos(cam.el) * dist];
+        const shift = ((v.cx - W / 2) / W) * 2, S2 = new Float32Array(16); S2[0] = S2[5] = S2[10] = S2[15] = 1; S2[12] = shift;
+        VP = mul(S2, mul(persp(0.9, W / H, dist * 0.05, dist * 6), lookAt(eye, tg, [0, 1, 0])));
+        const sz = Math.max(fb.hh, fb.hw) * 2.5;
+        if (!snow.length || !snow.sz || Math.abs(Math.log((sz * 100) / snow.sz)) > 0.4) { seedSnow(tg[0], tg[1], tg[2], sz); snow.sz = Math.round(sz * 100); }
+        for (const sn of snow) for (let i = 0; i < 3; i++) { if (sn.p[i] > tg[i] + sz) sn.p[i] -= 2 * sz; else if (sn.p[i] < tg[i] - sz) sn.p[i] += 2 * sz; }
+        buildCreature(hero, T, light);
+        fog = 0.3 / dist; void ext; top = [0.004, 0.012, 0.03]; bot = [0, 0.002, 0.008];
+      } else {
+        const d = cfg.depth;
+        eye = [0, -camY, 2.2];
+        const shift = ((v.cx - W / 2) / W) * 2, S2 = new Float32Array(16); S2[0] = S2[5] = S2[10] = S2[15] = 1; S2[12] = shift;
+        VP = mul(S2, mul(persp(0.95, W / H, 0.05, 40), lookAt(eye, [0, -camY - 0.2, -3], [0, 1, 0])));
+        if (!snow.length || Math.abs(snow[0].p[1] + camY) > 10) seedSnow(0, -camY, -2, 4);
+        for (const sn of snow) if (sn.p[1] > -camY + 4) sn.p[1] -= 8; else if (sn.p[1] < -camY - 4) sn.p[1] += 8;
+        for (const c of pop) buildCreature(c, T, light);
+        for (const s of schools) for (const f of s.fish) {
+          // poisson-lanterne : une rangée de photophores bleus le long du ventre
+          const x = s.x + f[0] * 1.6, y = s.y + f[1] * 1.6 + Math.sin(f[3] * 0.1) * 0.05, z = s.z + f[2], dir = Math.sign(s.vx);
+          for (let i = 0; i < 6; i++) V(BP, x + dir * i * 0.028, y - 0.01, z, 0.25, 0.55, 1.0, 0.024);
+          V(BP, x + dir * 0.17, y + 0.014, z, 0.35, 0.7, 1, 0.04);
+        }
+        for (const p of sparks) { const a2 = p.life / p.l0, k2 = Math.min(1, (1 - a2) * 8) * a2 * (p.s || 1); V(BP, p.p[0], p.p[1], p.p[2], (p.g ? 0.2 : 0.25) * k2, (p.g ? 1 : 0.7) * k2, (p.g ? 0.5 : 1) * k2, 0.025); }
+        // lumière du jour : 1 % vers 200 m, plus rien vers 1 000 m
+        const day = Math.exp(-d / 45);
+        top = [0.02 + 0.25 * day, 0.08 + 0.45 * day, 0.16 + 0.6 * day].map((x) => x * (0.15 + 0.85 * Math.min(1, day * 6 + 0.02)));
+        bot = top.map((x) => x * 0.25);
+        if (d > 900) { top = [0.002, 0.005, 0.012]; bot = [0, 0.001, 0.004]; }
+        rays = day; amb = cfg.amb * (0.3 + 3 * day);
+        fog = 0.18 + 0.1 * day;
+      }
+      for (const sn of snow) V(BP, sn.p[0], sn.p[1], sn.p[2], 0.05 + 0.22 * light, 0.06 + 0.22 * light, 0.07 + 0.2 * light, (cfg.scene === 'portrait' ? Math.max(frameBox.hh, frameBox.hw) * 0.018 : 0.012) * sn.s);
+      // passe additive dans la cible HDR
+      gl.bindFramebuffer(gl.FRAMEBUFFER, A.fb); gl.viewport(0, 0, A.w, A.h); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+      const setU = (P) => { P.use(); gl.uniformMatrix4fv(gl.getUniformLocation(P.p, 'uVP'), false, VP); P.f('uEye', eye[0], eye[1], eye[2]).f('uFog', fog); };
+      const ambCol = [0.25, 0.45, 0.8];
+      setU(PM); PM.f('uAmb', amb * 0.25).f('uLamp', light * 0.32).f('uAmbCol', ...ambCol);
+      gl.bindVertexArray(BM.vao); gl.bindBuffer(gl.ARRAY_BUFFER, BM.vbo); gl.bufferData(gl.ARRAY_BUFFER, BM.data.subarray(0, BM.n), gl.DYNAMIC_DRAW); gl.drawArrays(gl.TRIANGLES, 0, BM.n / BM.stride);
+      setU(PL); PL.f('uAmb', amb * 0.25).f('uLamp', light * 0.45).f('uAmbCol', ...ambCol);
+      gl.bindVertexArray(BL.vao); gl.bindBuffer(gl.ARRAY_BUFFER, BL.vbo); gl.bufferData(gl.ARRAY_BUFFER, BL.data.subarray(0, BL.n), gl.DYNAMIC_DRAW); gl.drawArrays(gl.LINES, 0, BL.n / BL.stride);
+      setU(PP); PP.f('uPx', ch * 1.1);
+      gl.bindVertexArray(BP.vao); gl.bindBuffer(gl.ARRAY_BUFFER, BP.vbo); gl.bufferData(gl.ARRAY_BUFFER, BP.data.subarray(0, BP.n), gl.DYNAMIC_DRAW); gl.drawArrays(gl.POINTS, 0, BP.n / BP.stride);
+      gl.disable(gl.BLEND); gl.bindVertexArray(null);
+      const blur = (src, tmp, dst) => { PB.use().t('uT', src).f('uDir', 1.5 / src.w, 0); K.run(PB, tmp); PB.use().t('uT', tmp).f('uDir', 0, 1.5 / tmp.h); K.run(PB, dst); };
+      blur(A, b1t, b1); blur(b1, b2t, b2); blur(b2, b3t, b3);
+      PC.use().t('uA', A).t('uB1', b1).t('uB2', b2).t('uB3', b3).f('uRes', cw, ch).f('uTop', ...top).f('uBot', ...bot).f('uRays', rays).f('uT', T).f('uBloom', cfg.bloom).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uExpo', 1.6);
+      K.run(PC, null);
+      ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
+      hud(ink);
+      drawLabel();
+    }
+    function hud(ink) {
+      const v = view();
+      ctx.save(); ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = ink ? 'rgba(40,30,80,.75)' : 'rgba(200,225,255,.6)';
+      if (cfg.scene === 'portrait') {
+        const S = hero.S;
+        ctx.font = 'italic 500 20px "Space Grotesk", sans-serif'; ctx.fillStyle = ink ? 'rgba(30,24,50,.85)' : 'rgba(235,245,255,.85)'; ctx.fillText(S.nom, v.x0 + 22, H - 44);
+        ctx.font = '500 10.5px "JetBrains Mono", monospace'; ctx.fillStyle = ink ? 'rgba(40,30,80,.7)' : 'rgba(160,200,255,.65)'; ctx.fillText((S.fr + ' · ' + S.prof).toUpperCase(), v.x0 + 22, H - 24);
+      } else {
+        // jauge de profondeur
+        const d = cfg.depth, x = v.x0 + 26, y0 = H * 0.12, y1 = H * 0.86, f = (dd) => y0 + (y1 - y0) * Math.sqrt(Math.min(1, dd / 4500));
+        ctx.strokeStyle = ink ? 'rgba(40,30,80,.4)' : 'rgba(160,200,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke();
+        for (const [a, , nm] of ZONES) { if (a > 4500) continue; const yy = f(a); ctx.beginPath(); ctx.moveTo(x - 4, yy); ctx.lineTo(x + 4, yy); ctx.stroke(); ctx.fillText(a + ' m', x + 8, yy + 4); void nm; }
+        ctx.fillStyle = ink ? '#4a3a6a' : '#9fd8ff'; ctx.beginPath(); ctx.arc(x, f(d), 4, 0, TAU); ctx.fill();
+        ctx.fillStyle = ink ? 'rgba(40,30,80,.8)' : 'rgba(220,235,255,.75)';
+        ctx.fillText(`${Math.round(d).toLocaleString('fr-FR')} M · ${zoneName(d).toUpperCase()} · LUMIÈRE DU JOUR ${d < 1000 ? (Math.exp(-d / 45) * 100 < 0.01 ? '< 0,01' : fr(Math.exp(-d / 45) * 100, 2)) + ' %' : 'AUCUNE'}`, v.x0 + 16, H - 16);
+      }
+      ctx.restore();
+    }
+    let pending = false;
+    function frame(t, dt) {
+      if (dt > 0) update(dt);
+      if (!pending) { pending = true; queueMicrotask(() => { pending = false; render(); }); }
+    }
+
+    /* ───────── désignation ───────── */
+    function nearest(x, y) {
+      const list = cfg.scene === 'portrait' ? [hero] : pop;
+      let best = null, bd = 1e9;
+      for (const c of list) {
+        const q = proj(VP, c.p[0], c.p[1] - c.S.R * c.sc * 0.5, c.p[2]); if (q[2] <= 0) continue;
+        const sx = ((q[0] + 1) / 2) * W, sy = ((1 - q[1]) / 2) * H, d = Math.hypot(sx - x, sy - y);
+        const rad = Math.max(30, (c.S.R * c.sc * 3 * H) / q[2]);
+        if (d < rad && d < bd) { bd = d; best = c; }
+      }
+      return best;
+    }
+    function drawLabel() {
+      if (!label) return;
+      const a = Math.min(1, label.t * 4, (7 - label.t) * 2);
+      if (a <= 0.01) { label = null; return; }
+      const c = label.c, v = view();
+      const name = c ? c.S.nom : 'Eau', role = c ? `${c.S.fr} · ${c.S.prof}` : `neige marine · ${cfg.scene === 'portrait' ? 'débris qui tombent de la surface' : Math.round(cfg.depth) + ' m'}`;
+      const side = label.x > v.x0 + v.w * 0.5 ? -1 : 1, lx = label.x + side * 40, ly = label.y < 70 ? label.y + 46 : label.y - 36;
+      ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = '#9fd8ff'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(label.x, label.y, 11, 0, TAU); ctx.stroke();
+      ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6; ctx.textAlign = side > 0 ? 'left' : 'right';
+      ctx.fillStyle = 'rgba(250,250,245,.96)'; ctx.font = 'italic 500 14px "Space Grotesk", sans-serif'; ctx.fillText(name, lx, ly);
+      ctx.fillStyle = '#9fd8ff'; ctx.font = '500 9.5px "JetBrains Mono", monospace'; ctx.fillText(role.toUpperCase(), lx, ly + 15);
+      ctx.restore();
+    }
+
+    function setScene(id) {
+      cfg.scene = id; label = null; snow = [];
+      if (id === 'portrait') setHero(cfg.cur);
+      else { pop = []; schools = []; cfg.depth = cfg.depth > 4400 ? 0 : cfg.depth; populate(); }
+    }
+    if (window.FASC_DEBUG) window.FASC_DEBUG.aby = { cfg, setScene, setHero, trigger: () => trigger(hero), run(n, h) { for (let i = 0; i < n; i++) update(h); render(); }, get pop() { return pop; }, get hero() { return hero; }, get box() { return frameBox; }, heroBox, get eye() { return eye; } };
+
+    setScene('portrait');
+    let lamping = false, drag = null;
+    return {
+      livePaused: true,
+      frame,
+      down(p) {
+        const tool = env.tool;
+        drag = { x: p.x, y: p.y };
+        if (tool === 'observer') { label = { x: p.x, y: p.y, t: 0, c: nearest(p.x, p.y) }; return; }
+        if (tool === 'lampe') { lamping = true; return; }
+        if (tool === 'toucher') {
+          const c = nearest(p.x, p.y); if (c) trigger(c);
+          if (cfg.scene === 'descente') for (let i = 0; i < 40; i++) sparks.push({ p: [eye[0] + ((p.x / W) * 2 - 1) * 1.5 + rnd(0.3, -0.3), eye[1] - ((p.y / H) * 2 - 1) * 1.0 + rnd(0.3, -0.3), eye[2] - rnd(2, 0.6)], life: rnd(1.5, 0.5), l0: 1.5, s: 1.4 });
+        }
+      },
+      move(p) {
+        if (!p.down || !drag) return;
+        if (env.tool === 'courant') {
+          const tgt = cfg.scene === 'portrait' ? cam.tgt : [0, -camY, -3], sc = cfg.scene === 'portrait' ? heroExtent() / H * 2.5 : 3 / H;
+          flowPush.push({ p: [tgt[0] + (p.x - W / 2) * sc, tgt[1] - (p.y - H / 2) * sc, tgt[2]], v: [p.dx * sc * 30, -p.dy * sc * 30, 0], r: cfg.scene === 'portrait' ? heroExtent() : 1.5, t: 0.4 });
+          if (cfg.scene === 'portrait') cam.az -= p.dx * 0.002;
+        }
+      },
+      up() { drag = null; lamping = false; },
+      clear() { if (cfg.scene === 'portrait') setHero(cfg.cur); else { cfg.depth = 0; pop = []; } },
+      dispose() { if (drone) drone.stop(); K.lose(); },
+      ui() {
+        const L = [{ type: 'section', label: 'Scènes' }];
+        L.push({ type: 'buttons', items: [
+          { label: 'Portraits', act: () => setScene('portrait') },
+          { label: 'La descente', act: () => setScene('descente') },
+        ] });
+        if (cfg.scene === 'portrait') {
+          const S = SPEC[cfg.cur];
+          L.push({ type: 'section', label: 'Portrait' });
+          L.push({ type: 'choice', label: 'Créature', value: cfg.cur, set: (x) => setHero(x), options: ORDER.map((k) => ({ id: k, label: SPEC[k].nom.split(' ')[0] })) });
+          L.push({ type: 'note', text: `${S.nom} · ${S.fr} · ${S.prof}. ${S.why}` });
+          L.push({ type: 'buttons', items: [
+            { label: '‹ Précédente', act: () => setHero(ORDER[(ORDER.indexOf(cfg.cur) + ORDER.length - 1) % ORDER.length]) },
+            { label: 'Allumer sa lumière', act: () => trigger(hero) },
+            { label: 'Suivante ›', act: () => setHero(ORDER[(ORDER.indexOf(cfg.cur) + 1) % ORDER.length]) },
+          ] });
+          L.push({ type: 'toggle', label: 'Diaporama (une créature toutes les 45 s)', value: cfg.slide, set: (x) => { cfg.slide = x; slideT = 0; } });
+        } else {
+          L.push({ type: 'section', label: 'Descente' });
+          L.push({ type: 'bar', label: 'Profondeur', color: '#9fd8ff', value: clamp(cfg.depth / 4500, 0, 1), txt: Math.round(cfg.depth).toLocaleString('fr-FR') + ' m' });
+          L.push({ type: 'note', text: zoneName(cfg.depth) + '. ' + (cfg.depth < 200 ? 'La lumière du soleil suffit encore à la photosynthèse.' : cfg.depth < 1000 ? 'Une lueur bleue de plus en plus faible ; les animaux s’y cachent en s’éclairant le ventre.' : 'Plus aucune lumière du soleil : seules les créatures éclairent.') });
+          L.push({ type: 'toggle', label: 'Descendre tout seul', value: cfg.descAuto, set: (x) => { cfg.descAuto = x; } });
+          L.push({ type: 'slider', label: 'Profondeur', min: 0, max: 4500, step: 10, value: cfg.depth, fmt: (x) => Math.round(x).toLocaleString('fr-FR') + ' m', set: (x) => { cfg.depth = x; cfg.descAuto = false; } });
+          if (cfg.descAuto) L.push({ type: 'slider', label: 'Vitesse de descente (accélérée)', min: 0.2, max: 4, step: 0.01, value: cfg.descSpeed, fmt: (x) => '×' + fr(x, 1), set: (x) => { cfg.descSpeed = x; } });
+          L.push({ type: 'buttons', items: [{ label: 'Remonter à la surface', act: () => { cfg.depth = 0; pop = []; } }] });
+        }
+        L.push({ type: 'section', label: 'Lumière' });
+        L.push({ type: 'toggle', label: 'Lampe du plongeur (vraies couleurs)', value: cfg.lamp, set: (x) => { cfg.lamp = x; } });
+        L.push({ type: 'slider', label: 'Lueur ambiante', min: 0, max: 1.5, step: 0.01, value: cfg.amb, fmt: (x) => (x < 0.05 ? 'noir total' : Math.round(x * 100) + ' %'), set: (x) => { cfg.amb = x; } });
+        L.push({ type: 'slider', label: 'Halo', min: 0, max: 2, step: 0.01, value: cfg.bloom, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { cfg.bloom = x; } });
+        return L;
+      },
+    };
+  }
 })();
 
 ;

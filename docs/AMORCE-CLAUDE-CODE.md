@@ -117,7 +117,7 @@ Machines refaites (niveau final) :
 - **Tunnel** (octobre 2026, WebGL2) : voir §18.
 - **Lampe à lave** (octobre 2026, WebGL2) : voir §19.
 - **Bulles** (octobre 2026, WebGL2) : voir §20.
-- **Méduses** : 5 espèces (Aurelia, Chrysaora, Atolla, Aequorea, cténophore), nage par contraction, tentacules simulés physiquement, champ de courants, plancton bioluminescent, outils courant, lumière et éclosion. *Pas encore de `ui()` ni de `clear()`.*
+- **Les Abysses** (ex-Méduses, id `meduses` conservé) : refaite en WebGL2, voir §21.
 - **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
 - **Blob** : modèle de Jones, 3 espèces, expériences (labyrinthe, réseau ferré de France, cercle d'avoine, duel), éclat néon, `ui()` complet.
@@ -132,7 +132,7 @@ Points restés en suspens :
 - le Feu WebGL n'a été testé qu'en rendu logiciel (SwiftShader, sans écran) : vérifier la fluidité réelle sur la tablette, et le son (grondement, crépitements) à l'oreille ;
 - vérifier que le blob trouve bien la sortie du labyrinthe ;
 - la nuée d'étourneaux reste un peu compacte, on peut l'étirer davantage pour obtenir des nappes plus fines ;
-- ajouter `ui()` et `clear()` aux Méduses et à la Fourmilière ;
+- ajouter `ui()` et `clear()` à la Fourmilière ;
 - ajouter le pincement (zoom) et des gestes à plusieurs doigts ;
 - à terme : passer en WebGL les machines de fluides, de lumière et de particules (méduses, galaxie… ; le feu et l'eau sont faits) pour des dizaines de milliers de particules, un vrai flou de profondeur et des réfractions.
 
@@ -143,7 +143,7 @@ Points restés en suspens :
 4. Feu refait en WebGL2 (§7).
 5. Générateur de bruits (§8).
 
-Suite possible : retravailler la machine suivante (l'Eau et l'Écoulement profiteraient du même moteur de fluide que le Feu), ajouter `ui()`/`clear()` aux Méduses et à la Fourmilière, héberger `app/` en HTTPS pour la TWA, ou passer par Capacitor pour l'APK.
+Suite possible : retravailler la machine suivante (l'Eau et l'Écoulement profiteraient du même moteur de fluide que le Feu), ajouter `ui()`/`clear()` à la Fourmilière, héberger `app/` en HTTPS pour la TWA, ou passer par Capacitor pour l'APK.
 
 ## 7. Le Feu (WebGL2) — `app/js/machines/s-feu.js`
 
@@ -283,4 +283,13 @@ Le curseur de vitesse est remplacé par une molette dont on ne voit que la tranc
 - **Film dans un cadre** : épaisseur en coin (1 600 nm × y^1,15) qui s'amincit avec le temps, déformée par des tourbillons (fbm) et par ceux lancés au doigt ; film noir en haut ; retrempé toutes les 45 s.
 - **Caténoïde** : r(z) = a ch(z/a), a résolu par Newton (a ch(h/a) = 1) ; plus de solution au-delà de h/R = 0,6627 (Goldschmidt) : deux disques plats. Lancer de rayons par changement de signe + dichotomie, deux surfaces visibles ; anneaux en laiton par marche sur la distance au tore.
 - `s-cosmos.js` ne contient plus que le Visualiseur et la Harpe (catégorie Sons).
+
+## 21. Les Abysses — `app/js/machines/s-abysses.js` (id `meduses` conservé ; remplace `s-meduses.js` et `s-med-corps.js`)
+
+- **Rendu** : vraie 3D en WebGL2. Cloches maillées (profil paramétrique `prof()` : plat, dôme, casque conique avec sillon coronal, sac de cténophore ; contraction rapide puis relâchement lent ; lobes du bord), deux couches (ombrelle et sous-ombrelle), éclairage par effet de bord (Fresnel) ; tentacules en lignes, photophores et neige marine en points. Tout est additif dans une cible RGBA16F (sorties plafonnées à 40), puis halo à trois niveaux, vignettage, ACES ; mode encre en thème clair sans décor.
+- **Pièges** : normale nulle au sommet de la cloche (r = 0) ou au bord du sac → NaN → carrés noirs propagés par le flou ; normales par différences centrées + repli sur l'axe. Chaînes de Verlet « suivre le meneur » : la contrainte injecte de la vitesse (coups de fouet, tige de Praya qui remonte) ; on applique la correction aussi à la position précédente (×0,9 pour la tige, ×0,6 pour les tentacules).
+- **Portraits** : une créature à la fois, plein écran. Caméra embarquée : la créature est recentrée à chaque pas (`recentre`), c'est la neige marine qui défile ; cadrage par la boîte englobante réelle (cloche, tentacules, 40 % de la tige), lissée. Orbite lente, diaporama toutes les 45 s. Sept espèces : Atolla (roue d'alarme), Periphylla (étincelles), Pelagia (lueur de toute la cloche), Aequorea (couronne verte GFP), Beroe (palettes irisées par diffraction, visibles à la lampe, plus éclairs), Praya (siphonophore, chaîne de lumières), Pyrosoma (vague de lumière de zooïde en zooïde).
+- **Lampe** : révèle les vraies couleurs (rouges invisibles en profondeur), volontairement douce (×0,32) pour ne pas saturer.
+- **Descente** : la jauge avance en temps accéléré (6 m/s × vitesse) mais l'image défile lentement (`camY`, 0,3 m/s) pour laisser le temps de regarder. Faune tirée selon la profondeur (`zone` de chaque espèce), créatures grossies ×2,6 à ×4 (pyrosomes et Praya ×1,2 à ×1,8), bancs de poissons-lanternes entre 150 et 1 600 m, plancton qui scintille, d'autant plus qu'on descend et qu'on bouge. Lumière du jour en exp(−d/45). Jauge en racine carrée.
+- Outils : observer, toucher (déclenche la lumière), lampe (maintenir), courant (pousse l'eau et les tentacules).
 

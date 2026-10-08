@@ -21918,7 +21918,27 @@ void main(){
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* rien */ } } };
   const S = { theme: 'dark', themePref: store.get('fasc-theme') || 'auto', decor: store.get('fasc-decor') !== '0', ready: false, id: null, tool: null, sound: false, psy: CFG.psyche !== false, zen: false, paused: false, speed: Number(CFG.speed) > 0 ? Number(CFG.speed) : 1, left: window.innerWidth >= 1200, right: window.innerWidth >= 760, about: false };
   let defs = [], sim = null, env = null, audio = null;
-  let raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null;
+
+  /* en arrière-plan (onglet caché, application Android quittée, écran éteint) : tous les sons se taisent.
+     On recense les contextes audio créés par les machines et les bruits, pour les suspendre puis les reprendre. */
+  const AUDIOS = [];
+  (function () {
+    const A = window.AudioContext || window.webkitAudioContext;
+    if (!A) return;
+    const Wr = function (...a) { const c = new A(...a); AUDIOS.push(c); return c; };
+    Wr.prototype = A.prototype;
+    window.AudioContext = Wr;
+    if (window.webkitAudioContext) window.webkitAudioContext = Wr;
+  })();
+  document.addEventListener('visibilitychange', () => {
+    for (const c of AUDIOS) {
+      try {
+        if (document.hidden) { c._wasRunning = c.state === 'running'; if (c._wasRunning) c.suspend(); }
+        else if (c._wasRunning) c.resume();
+      } catch (e) { /* rien */ }
+    }
+  });
+  let raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null, lastFlt = '';
   let down = false, px = null, py = null;
 
   const canvas = $('cv'), rail = $('rail'), panel = $('panel');
@@ -21963,7 +21983,7 @@ void main(){
     const par = canvas.parentElement;
     const r = par.getBoundingClientRect();
     if (!r.width || !r.height) return null;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(dprCap(S.id), window.devicePixelRatio || 1);
     const w = Math.max(300, Math.round(r.width)), hh = Math.max(220, Math.round(r.height));
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(hh * dpr);
     canvas.style.width = w + 'px'; canvas.style.height = hh + 'px';
@@ -21971,6 +21991,32 @@ void main(){
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, hh);
     return { ctx, canvas, w, h: hh, dpr, t: 0, audio, get tool() { return S.tool; }, get view() { return viewRect(); }, get paused() { return S.paused; }, get decor() { return S.decor; }, get theme() { return S.theme; }, get speed() { return S.speed; }, askSound() { if (!S.sound) setTimeout(toggleSound, 0); } };
+  }
+  /* régulateur de résolution : si une machine n'arrive pas à suivre (images de plus de 26 ms en médiane
+     entre la 1re et la 4e seconde), on la relance une fois avec moins de pixels ; le choix est mémorisé par machine */
+  const DPR_STEPS = [2, 1.5, 1.25, 1];
+  let dprMap = {};
+  try { dprMap = JSON.parse(store.get('fasc-dpr') || '{}') || {}; } catch (e) { dprMap = {}; }
+  const dprCap = (id) => (id && dprMap[id]) || 2;
+  const gov = { t0: 0, ts: [], done: false, lock: false }; // lock : un seul palier par visite
+  function govReset() { gov.t0 = performance.now(); gov.ts = []; gov.done = false; }
+  function govTick(now) {
+    if (gov.done || gov.lock || S.paused || document.hidden) return;
+    const age = now - gov.t0;
+    if (age < 1000) return;
+    gov.ts.push(now);
+    if (age < 4000) return;
+    gov.done = true;
+    const d = []; for (let i = 1; i < gov.ts.length; i++) d.push(gov.ts[i] - gov.ts[i - 1]);
+    if (d.length < 10) return;
+    d.sort((a, b) => a - b);
+    const med = d[d.length >> 1], cur = Math.min(dprCap(S.id), window.devicePixelRatio || 1);
+    const next = DPR_STEPS.find((v) => v < cur - 0.01);
+    if (med > 26 && next) {
+      dprMap[S.id] = next; store.set('fasc-dpr', JSON.stringify(dprMap));
+      console.info('Fascinations : résolution réduite pour', S.id, cur, '→', next, '(' + Math.round(med) + ' ms par image)');
+      gov.lock = true; disposeSim(); build();
+    }
   }
   function disposeSim() {
     if (sim && sim.dispose) { try { sim.dispose(); } catch (e) { /* rien */ } }
@@ -21983,7 +22029,7 @@ void main(){
     if (!e) { setTimeout(build, 60); return; }
     env = e;
     try { sim = def.make(env); } catch (err) { console.warn('Fascination: make', def.id, err); sim = null; }
-    last = 0;
+    last = 0; govReset();
     renderPanel();
   }
   function select(id) {
@@ -21991,7 +22037,7 @@ void main(){
     if (!def) return;
     disposeSim();
     const close = window.innerWidth < 800 && S.left && S.id;
-    S.id = id;
+    S.id = id; gov.lock = false;
     S.tool = def.tools && def.tools.length ? def.tools[0].id : null;
     if (close) S.left = false;
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* cadre isolé */ }
@@ -22016,8 +22062,11 @@ void main(){
     const t = now / 1000;
     const dt = last ? Math.min(0.05, t - last) : 0.016;
     last = t;
-    canvas.style.filter = S.psy ? 'saturate(1.22) contrast(1.04) hue-rotate(' + (Math.sin(t * 0.11) * 16).toFixed(1) + 'deg)' : 'none';
+    // le filtre « psyché » ne change que lentement : inutile de le réécrire à chaque image (coûteux sur tablette)
+    const flt = S.psy ? 'saturate(1.22) contrast(1.04) hue-rotate(' + Math.round(Math.sin(t * 0.11) * 16) + 'deg)' : 'none';
+    if (flt !== lastFlt) { lastFlt = flt; canvas.style.filter = flt; }
     if (!sim) return;
+    govTick(now);
     if (S.paused) {
       if (sim.livePaused) { try { sim.frame(vt, 0); } catch (e) { /* rien */ } }
       return;

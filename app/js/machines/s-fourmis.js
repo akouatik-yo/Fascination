@@ -245,7 +245,7 @@
         g.beginPath(); g.arc(PB.N[0] * k, PB.N[1] * k, PB.R * k, 0, TAU); g.arc(PB.F[0] * k, PB.F[1] * k, PB.R * k, 0, TAU); g.fill();
       }
       function buildWalk() {
-        const L = layer(GW, GH), g = L.g, k = 1 / CS;
+        const L = layer(GW, GH, true), g = L.g, k = 1 / CS;
         g.fillStyle = '#fff'; g.strokeStyle = '#fff'; strokeBridges(g, k, BW, lateOn);
         let d = g.getImageData(0, 0, GW, GH).data; WALK = new Uint8Array(NG); for (let i = 0; i < NG; i++) WALK[i] = d[i * 4 + 3] > 100 ? 1 : 0;
         // repérer les deux branches (hors des abords de l'embranchement)

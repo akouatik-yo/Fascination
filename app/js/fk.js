@@ -16,10 +16,11 @@
     return { c, g, img, d, w, h, flush() { g.putImageData(img, 0, 0); } };
   }
 
-  function layer(w, h) {
+  // read : calque dont on relit souvent les pixels (getImageData) ; le navigateur le garde alors en mémoire centrale
+  function layer(w, h, read) {
     const c = document.createElement('canvas');
     c.width = Math.max(1, w | 0); c.height = Math.max(1, h | 0);
-    return { c, g: c.getContext('2d'), w: c.width, h: c.height };
+    return { c, g: c.getContext('2d', read ? { willReadFrequently: true } : undefined), w: c.width, h: c.height };
   }
 
   function blit(ctx, b, W, H) {

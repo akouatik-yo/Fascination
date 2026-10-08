@@ -138,10 +138,17 @@ void main(){
   vec3 rd = normalize(fw + uv.x * rt + uv.y * up);
   vec3 col = uDecor > .5 ? mix(vec3(.02, .025, .03), vec3(.06, .07, .08), gl_FragCoord.y / uRes.y) : (uInk > .5 ? vec3(.953, .933, .89) : vec3(0.));
   vec3 acc = vec3(0.);
-  if (uBroke < .5){
+  // tout tient dans un cylindre de rayon 1,05 et de demi-hauteur uH + 0,05 : on ne cherche que là
+  float qa = dot(rd.xy, rd.xy), qb = 2. * dot(ro.xy, rd.xy), qc = dot(ro.xy, ro.xy) - 1.1025, qd = qb * qb - 4. * qa * qc;
+  if (qd < 0.){ col = 1. - exp(-col * 1.15); o = vec4(pow(col, vec3(1. / 2.2)), 1.); return; }
+  float c0 = (-qb - sqrt(qd)) / (2. * qa), c1 = (-qb + sqrt(qd)) / (2. * qa);
+  float z0 = (-(uH + .05) - ro.z) / rd.z, z1 = ((uH + .05) - ro.z) / rd.z;
+  float tA = max(max(c0, min(z0, z1)), 0.), tB = min(c1, max(z0, z1));
+  if (uBroke < .5 && tB > tA){
     // on avance le long du rayon et on repère les changements de signe de F (au plus deux surfaces visibles)
-    float t = 1.5, prev = F(ro + rd * t); int hits = 0;
+    float t = tA, prev = F(ro + rd * t); int hits = 0;
     for (int i = 0; i < 160; i++){
+      if (t > tB) break;
       float tn = t + .035; vec3 p = ro + rd * tn; float f = F(p);
       if (abs(p.z) < uH && sign(f) != sign(prev)){
         float a = t, b = tn; for (int k = 0; k < 8; k++){ float m = .5 * (a + b); if (sign(F(ro + rd * m)) == sign(prev)) a = m; else b = m; }
@@ -153,7 +160,7 @@ void main(){
       }
       prev = f; t = tn;
     }
-  } else {
+  } else if (uBroke > .5) {
     // deux disques plats sur les anneaux
     for (int s = 0; s < 2; s++){ float zz = s == 0 ? uH : -uH; float t = (zz - ro.z) / rd.z; if (t > 0.){ vec3 h = ro + rd * t; if (length(h.xy) < 1.){ float d = 500. * (1. - .6 * length(h.xy)); acc += env(reflect(rd, vec3(0., 0., 1.))) * film(d + 40. * fbm(h.xy * 4. + uT * .04), abs(rd.z)) * .4; } } }
   }
@@ -162,7 +169,7 @@ void main(){
   for (int s = 0; s < 2; s++){
     float zz = s == 0 ? uH : -uH;
     float tb = 1e9; vec3 best;
-    float t = 1.; for (int i = 0; i < 90; i++){ vec3 p = ro + rd * t; float dd = length(vec2(length(p.xy) - 1., p.z - zz)) - .03; if (dd < .002){ tb = t; best = p; break; } t += max(dd, .004); if (t > 6.) break; }
+    float t = max(c0 - .05, 0.); for (int i = 0; i < 90; i++){ vec3 p = ro + rd * t; float dd = length(vec2(length(p.xy) - 1., p.z - zz)) - .03; if (dd < .002){ tb = t; best = p; break; } t += max(dd, .004); if (t > c1 + .05) break; }
     if (tb < 1e8 && uDecor > .5) col = vec3(.75, .58, .3) * (.4 + .6 * clamp(best.z - zz + .5, 0., 1.));
     else if (tb < 1e8) col = uInk > .5 ? vec3(.2, .15, .1) : vec3(.6);
   }

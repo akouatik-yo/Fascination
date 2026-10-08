@@ -21,6 +21,8 @@ const index = read('index.html');
 const css = [...between(index, 'css').matchAll(/href="([^"]+)"/g)].map((m) => read(m[1])).join('\n');
 const body = between(index, 'body').trim();
 const files = [...between(index, 'js').matchAll(/src="([^"]+)"/g)].map((m) => m[1]);
+// chaque script doit être syntaxiquement valide : une erreur ici casserait toute l'application
+for (const f of files) { try { new Function(read(f)); } catch (e) { console.error(`Erreur de syntaxe dans app/${f} : ${e.message}`); process.exit(1); } }
 const js = files.map((f) => `/* ═════ ${f} ═════ */\n${read(f)}`).join('\n;\n').replace(/<\/script/gi, '<\\/script');
 const fonts = '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">';
 const head = `<title>Fascinations</title>\n${fonts}\n<style>\n${css}\n</style>`;

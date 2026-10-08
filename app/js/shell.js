@@ -28,7 +28,8 @@
   }
 
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* rien */ } } };
-  const S = { theme: 'dark', themePref: store.get('fasc-theme') || 'auto', decor: store.get('fasc-decor') !== '0', ready: false, id: null, tool: null, sound: false, psy: CFG.psyche !== false, zen: false, paused: false, speed: Number(CFG.speed) > 0 ? Number(CFG.speed) : 1, left: window.innerWidth >= 1200, right: window.innerWidth >= 1000, // tablette en portrait : panneau fermé au départ, la machine garde toute la largeur about: false };
+  // panneau ouvert au départ seulement sur écran large (tablette en portrait : la machine garde toute la largeur)
+  const S = { theme: 'dark', themePref: store.get('fasc-theme') || 'auto', decor: store.get('fasc-decor') !== '0', ready: false, id: null, tool: null, sound: false, psy: CFG.psyche !== false, zen: false, paused: false, speed: Number(CFG.speed) > 0 ? Number(CFG.speed) : 1, left: window.innerWidth >= 1200, right: window.innerWidth >= 1000, about: false };
   let defs = [], sim = null, env = null, audio = null;
 
   /* en arrière-plan (onglet caché, application Android quittée, écran éteint) : tous les sons se taisent.

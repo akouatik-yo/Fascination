@@ -12,7 +12,7 @@
   const gauss = () => (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 1.22;
   const fr = (x, d = 0) => x.toFixed(d).replace('.', ',');
   // réglages gardés quand la machine est reconstruite
-  const keep = { scene: 'decouverte', trails: true, evap: 1, n: 900, np: 160, size: 5, psize: 3, bridge: 'inegal', late: false, more: true, style: 'realiste' };
+  const keep = { scene: 'decouverte', trails: true, evap: 1, n: 900, np: 160, size: 5, psize: 3, bridge: 'inegal', late: false, more: true, style: 'neon', ssize: 3 };
 
   window.FASC.push({
     id: 'fourmis', name: 'La Fourmilière', cat: 'Vivant', glyph: '🜁',
@@ -64,7 +64,9 @@
           L.push({ type: 'buttons', items: [{ label: 'Recommencer l’expérience', act: () => rebuild() }] });
           L.push({ type: 'note', text: 'Les deux branches partent du même angle : à l’embranchement, une fourmi ne peut pas savoir laquelle est la plus courte. Regardez la jauge : au début, moitié-moitié, puis la colonie bascule. Avec deux branches égales, elle choisit quand même, au hasard, et ce n’est pas toujours la même d’une fois sur l’autre. Branche courte ajoutée tard : selon l’évaporation, la colonie en change ou reste fidèle à son ancienne piste (essayez une évaporation faible).' });
         } else {
-          L.push({ type: 'note', text: 'Vue d’ensemble : Lasius niger (piste de recrutement), Atta cephalotes (coupe des feuilles, auto-stoppeuses), Eciton burchellii (raids en éventail venus du bord de l’écran). Outil CHIMIE : les phéromones de chaque société.' });
+          L.push({ type: 'section', label: 'Trois sociétés' });
+          L.push({ type: 'slider', label: 'Taille du terrain', min: 1, max: 5, step: 0.5, value: keep.ssize, fmt: (x) => '×' + fr(x, 1), set: (x) => { keep.ssize = x; rebuild(); } });
+          L.push({ type: 'note', text: 'Vue d’ensemble : Lasius niger (piste de recrutement), Atta cephalotes (coupe des feuilles, auto-stoppeuses), Eciton burchellii (raids en éventail venus du bord de l’écran). Grand terrain : plus de fourmis, de feuilles et de miettes, qui repoussent quand on les a consommées. Outil CHIMIE : les phéromones de chaque société.' });
         }
         L.push({ type: 'section', label: 'Rendu' });
         L.push({ type: 'choice', label: 'Style', value: keep.style, set: (x) => { keep.style = x; rebuild(); }, options: [{ id: 'realiste', label: 'Réaliste' }, { id: 'neon', label: 'Néon' }] });
@@ -84,9 +86,11 @@
       const SCN = keep.scene, SOC = SCN === 'societes', PONT = SCN === 'ponts', DEC = SCN === 'decouverte';
       // la vue rapprochée : tout grandit (fourmis, odorat, grilles de phéromones), le terrain visible rétrécit d'autant
       // ZB : la vue rapprochée d'origine ; « size » agrandit le terrain (×5 par défaut) : tout rétrécit d'autant
-      const ZB = DEC ? 1.8 : PONT ? 1.35 : 1, Z = SOC ? 1 : ZB / (PONT ? keep.psize : keep.size), NEON = keep.style === 'neon';
+      const ZB = DEC ? 1.8 : PONT ? 1.35 : 1, Z = SOC ? 1 / keep.ssize : ZB / (PONT ? keep.psize : keep.size), NEON = keep.style === 'neon';
+      // trois sociétés sur grand terrain : les effectifs croissent moins vite que la surface (sinon des milliers de fourmis)
+      const MS = SOC ? Math.max(1, keep.ssize * keep.ssize * 0.3) : 1;
       const kS = clamp(Math.min(W, H) / 600, 0.9, 1.8) * 1.5 * Z;
-      const area = clamp((W * H) / 960000 / Math.pow(kS / 1.8, 2), 0.35, 1.3);
+      const area = SOC ? clamp((W * H) / 960000 / Math.pow(clamp(Math.min(W, H) / 600, 0.9, 1.8) * 1.5 / 1.8, 2), 0.35, 1.3) : clamp((W * H) / 960000 / Math.pow(kS / 1.8, 2), 0.35, 1.3);
       const V0 = env.view || { x0: 0, x1: W }, VX0 = V0.x0, VW = V0.x1 - V0.x0;
       const CS = Math.max(3, Math.round(7 * Z)), GW = Math.ceil(W / CS) + 1, GH = Math.ceil(H / CS) + 1, NG = GW * GH;
       const G = () => new Float32Array(NG);
@@ -116,7 +120,7 @@
       const foods = [];
       function mkFood(x, y, kind) {
         const pts = []; for (let i = 0; i < 9; i++) pts.push(rnd(1.15, 0.72));
-        const amt = kind === 'sucre' ? 70 : 45;
+        const amt = Math.round((kind === 'sucre' ? 70 : 45) * MS);
         return { x, y, kind, amt, amt0: amt, pts, rot: rnd(TAU), r: 1, pores: Array.from({ length: 5 }, () => [rnd(0.6, -0.6), rnd(0.6, -0.6)]) };
       }
       const leaves = [];
@@ -189,8 +193,13 @@
       leaves.forEach((l) => (l.fade = 1));
       const F0 = PONT ? [] : DEC ? [] : port ? [[0.62, 0.55, 'miette'], [0.12, 0.88, 'sucre'], [0.5, 0.95, 'miette']] : [[0.47, 0.44, 'miette'], [0.12, 0.84, 'sucre'], [0.55, 0.86, 'miette'], [0.36, 0.3, 'sucre']];
       for (const [fx, fy, k] of F0) { foods.push(mkFood(W * fx, H * fy, k)); keepOut.push([W * fx, H * fy, 40 * kS]); }
+      // grand terrain : d'autres feuilles et d'autres miettes, semées loin des nids ; elles repoussent quand on les a consommées
+      const spot = (r) => { for (let k = 0; k < 60; k++) { const x = rnd(W * 0.94, W * 0.06), y = rnd(H * 0.94, H * 0.06); if (!keepOut.some((o) => Math.hypot(o[0] - x, o[1] - y) < o[2] + r)) return [x, y]; } return null; };
+      const NL0 = SOC ? L0.length + Math.round((keep.ssize - 1) * 2) : 0, NF0 = SOC ? F0.length + Math.round((keep.ssize - 1) * 2.5) : 0;
+      for (let i = L0.length; i < NL0; i++) { const q = spot(70 * kS); if (q) { const l = mkLeaf(q[0], q[1], Math.random() < 0.3 ? 'fleur' : 'feuille'); l.fade = 1; leaves.push(l); keepOut.push([q[0], q[1], 70 * kS]); } }
+      for (let i = F0.length; i < NF0; i++) { const q = spot(40 * kS); if (q) { foods.push(mkFood(q[0], q[1], Math.random() < 0.45 ? 'sucre' : 'miette')); keepOut.push([q[0], q[1], 40 * kS]); } }
       let FID = 0;
-      const FK = SOC ? 1 : Math.max(1, (PONT ? keep.np : keep.n) / 70); // une goutte nourrit une colonie à sa mesure
+      const FK = SOC ? MS : Math.max(1, (PONT ? keep.np : keep.n) / 70); // une goutte nourrit une colonie à sa mesure
       function addSugar(x, y, amt) { const f = mkFood(x, y, 'sucre'); f.amt = f.amt0 = Math.round((amt || 160) * (amt > 1e8 ? 1 : FK)); f.id = ++FID; f.t0 = T; f.found = null; f.finder = null; foods.push(f); return f; }
       if (DEC) {
         addSugar(VX0 + VW * (port ? 0.6 : 0.8), H * (port ? 0.22 : 0.3), 320); keepOut.push([foods[0].x, foods[0].y, 60 * kS]);
@@ -198,7 +207,7 @@
       }
       if (PONT) { const f = addSugar(PB.F[0], PB.F[1], 1e9); f.r0 = PB.R * 0.45; }
       const pebbles = [];
-      for (let tries = 0; !PONT && pebbles.length < (DEC ? Math.round(3 + keep.size * 3) : Math.round(6 * area) + 2) && tries < 400; tries++) {
+      for (let tries = 0; !PONT && pebbles.length < (DEC ? Math.round(3 + keep.size * 3) : Math.round((6 * area + 2) * (SOC ? keep.ssize : 1))) && tries < 400; tries++) {
         const p = { x: rnd(W * 0.95, W * 0.05), y: rnd(H * 0.95, H * 0.05), r: rnd(24, 9) * kS * 0.8 };
         if (keepOut.some((k) => Math.hypot(k[0] - p.x, k[1] - p.y) < k[2] + p.r) || pebbles.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < q.r + p.r + 30)) continue;
         pebbles.push(p);
@@ -284,14 +293,14 @@
         col.ants.push(a);
         return a;
       }
-      const nL = SOC ? Math.round(190 * area) : PONT ? keep.np : keep.n, nA = SOC ? Math.round(190 * area) : 0, nE = SOC ? Math.round(240 * area) : 0;
+      const nL = SOC ? Math.round(190 * area * MS) : PONT ? keep.np : keep.n, nA = SOC ? Math.round(190 * area * MS) : 0, nE = SOC ? Math.round(240 * area * MS) : 0;
       for (let i = 0; i < nL; i++) mkAnt(colL, 'ouvrière');
       for (let i = 0; i < nA; i++) { const r = Math.random(); mkAnt(colA, r < 0.07 ? 'soldat' : r < 0.25 ? 'minime' : 'ouvrière'); }
       for (let i = 0; i < nE; i++) mkAnt(colE, Math.random() < 0.06 ? 'soldat' : 'ouvrière');
       const ALL = colL.ants.concat(colA.ants, colE.ants);
 
       /* proies : collemboles */
-      const prey = [], nP = SOC ? Math.round(9 * area) + 4 : DEC ? Math.round(3 * keep.size) : 0;
+      const prey = [], nP = SOC ? Math.round((9 * area + 4) * keep.ssize) : DEC ? Math.round(3 * keep.size) : 0;
       const mkPrey = () => ({ prey: true, x: rnd(W * 0.95, W * 0.05), y: rnd(H * 0.95, H * 0.05), a: rnd(TAU), hop: 0, vx: 0, vy: 0, L: rnd(8, 5.5) * kS * 0.8, still: rnd(3), fade: 0, dead: false, hue: rnd(270, 220) });
       for (let i = 0; i < nP; i++) prey.push(mkPrey());
 
@@ -540,7 +549,7 @@
           }
           raid.fx += Math.cos(raid.dir) * v * dt; raid.fy += Math.sin(raid.dir) * v * dt;
           if (raid.t > 10) {
-            colE.acc = Math.min(4, colE.acc + dt * 15);
+            colE.acc = Math.min(4 * MS, colE.acc + dt * 15 * MS);
             for (const a of colE.ants) {
               if (colE.acc < 1) break;
               if (a.st !== 'nid') continue;
@@ -556,7 +565,7 @@
         /* sorties des nids */
         for (const col of [colL, colA]) {
           // vue rapprochée : quelques éclaireuses sortent d'abord ; chaque retour chargé stimule les sœurs restées au nid
-          col.acc = Math.min(3 * FK, col.acc + dt * (SOC ? 6 : (0.35 + recruit * 1.2) * FK));
+          col.acc = Math.min(3 * FK, col.acc + dt * (SOC ? 6 * MS : (0.35 + recruit * 1.2) * FK));
           for (const a of col.ants) {
             if (a.st !== 'nid') continue;
             a.tIn -= dt;
@@ -665,6 +674,8 @@
           if (f.amt <= 0) { if (f.id) { spent.push({ id: f.id, found: f.found, end: T, t0: f.t0 }); if (!SOC) toast(`Le sucre n° ${f.id} est épuisé : plus personne ne renforce sa piste, elle va s’évaporer.`); } foods.splice(i, 1); continue; }
           f.r = Math.max(2, (f.kind === 'sucre' ? 11 : 9) * kS * 0.8 * (SOC || PONT ? 1 : 1.8) * Math.sqrt(f.amt / f.amt0));
         }
+        if (SOC && foods.length < NF0 && Math.random() < dt / 14) { const q = spot(0); if (q) foods.push(mkFood(q[0], q[1], Math.random() < 0.45 ? 'sucre' : 'miette')); }
+        if (SOC && leaves.filter((l) => !l.dying).length < NL0 && Math.random() < dt / 25) { const q = spot(0); if (q) leaves.push(mkLeaf(q[0], q[1], Math.random() < 0.3 ? 'fleur' : 'feuille')); }
         for (let i = leaves.length - 1; i >= 0; i--) {
           const lf = leaves[i];
           lf.fade = clamp(lf.fade + (lf.dying ? -dt * 0.4 : dt * 2), 0, 1);
@@ -959,13 +970,13 @@
           const tool = env.tool;
           this._wipe = false;
           if (tool === 'nourriture') {
-            if (foods.length >= 14) foods.shift();
+            if (foods.length >= Math.max(14, NF0 + 6)) foods.shift();
             foods.push(mkFood(p.x, p.y, Math.random() < 0.45 ? 'sucre' : 'miette'));
             if (snd()) au.pluck(scale(rint(5) + 5, 220), 0.6, 0.04);
             return;
           }
           if (tool === 'feuille') {
-            if (leaves.length >= 7) leaves[0].dying = true;
+            if (leaves.length >= Math.max(7, NL0 + 4)) leaves[0].dying = true;
             leaves.push(mkLeaf(p.x, p.y, Math.random() < 0.3 ? 'fleur' : 'feuille'));
             if (snd()) au.noise(0.25, 0.04, 1800, 0.7, 'bandpass', 600);
             return;

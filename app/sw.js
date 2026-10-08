@@ -1,6 +1,6 @@
 /* Fascination — service worker : l'application fonctionne hors ligne une fois visitée.
    Changer VERSION à chaque publication pour forcer la mise à jour du cache. */
-const VERSION = 'fascination-v17';
+const VERSION = 'fascination-v18';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/fascination.css',
   './js/fk.js', './js/fkgl.js', './js/fk-son.js', './js/shell.js', './js/bruits.js',

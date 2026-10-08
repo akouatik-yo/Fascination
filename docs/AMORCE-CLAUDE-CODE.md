@@ -118,13 +118,13 @@ Machines refaites (niveau final) :
 - **Lampe à lave** (octobre 2026, WebGL2) : voir §19.
 - **Bulles** (octobre 2026, WebGL2) : voir §20.
 - **Les Abysses** (ex-Méduses, id `meduses` conservé) : refaite en WebGL2, voir §21.
-- **Fourmilière** : *Lasius*, *Atta* (coupe-feuille), *Eciton* (raids), phéromones, vue chimie. *Pas encore de `ui()` ni de `clear()`.*
+- **Fourmilière** : trois scènes, voir §25.
 - **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
 - **Blob** : modèle de Jones, 3 espèces, expériences (labyrinthe, réseau ferré de France, cercle d'avoine, duel), éclat néon, `ui()` complet.
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Toutes les machines ont été refaites, sauf la **Fourmilière** et le **Mycélium** (Vivant), restés dans leur version d'avant les refontes. La catégorie Motifs est entièrement refaite (§24) ; `s-motifs.js` n'existe plus.
+Toutes les machines ont été refaites, sauf le **Mycélium** (Vivant), resté dans sa version d'avant les refontes. La catégorie Motifs est entièrement refaite (§24) ; `s-motifs.js` n'existe plus.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -322,4 +322,11 @@ Le curseur de vitesse est remplacé par une molette dont on ne voit que la tranc
 - **L'Harmonographe** (`s-harmono.js`) : harmonographe latéral à table tournante (3 pendules amortis), encre plus épaisse quand la plume ralentit, papier généré (bruit + fibres), son de l'intervalle ; spirographe (hypotrochoïde/épitrochoïde, r/pgcd(R,r) tours, 3 couches).
 - **L'Attracteur** (`s-attracteur.js`) : 131 072 particules, RK4 dans le shader, 6 systèmes ; initialisation large (sinon Rössler, peu chaotique, reste un amas) + 2 240 pas de mise en place ; effet papillon : nuage de 10⁻³ (le flottant 32 bits ne distingue pas 10⁻⁵ autour de 27) parti d'un point pris sur l'attracteur (un point de départ près d'un point fixe instable restait collé), courbe d'écart calculée en double précision en JS ; plans de Clifford / de Jong en densité **demi-flottante** (le mélange additif en RGBA32F demande EXT_float_blend).
 - **Le Moiré** (`s-moire.js`) : produit de deux transparences, traits lissés par `fwidth` à la résolution de l'écran ; 8 trames, 8 expériences, interfrange p / (2 sin θ/2) affiché ; ombro-cinéma (6 images procédurales entrelacées, grille à fentes qui glisse).
+
+## 25. La Fourmilière (octobre 2026) — `s-fourmis.js` (+ `s-four-corps.js` pour l'anatomie et le décor)
+
+- **Structure** : `makeAnts` garde les réglages (`keep`) et reconstruit un monde (`makeWorld`) à chaque changement de scène. Une seule simulation pour les trois scènes, paramétrée par un facteur de vue rapprochée `Z` (1,8 pour la découverte, 1,35 pour le pont, 1 pour les trois sociétés) qui multiplie la taille des fourmis, leur odorat, la maille des phéromones (`CS = 7 Z`) et la grille de voisinage. Attention : le tableau local des zones à garder libres s'appelle `keepOut` (il masquait `keep`).
+- **La découverte** : une colonie de *Lasius* (70 ouvrières par défaut), une goutte de sucre loin du nid, de nouvelles sources au fil du temps. Sorties du nid : quelques éclaireuses (0,35 par seconde) puis recrutement (`recruit`, +0,6 par retour chargé, décroît en 25 s). L'odeur du sucre ne porte qu'à 20 kS (48 kS en vue d'ensemble). Au retour, les fourmis suivent aussi la piste de nourriture. Piste affichée en ambre, tableau : temps de découverte, nombre de fourmis par source, épuisement ; la découvreuse est étiquetée.
+- **Le double pont** : masque de marche (`WALK`) et repérage des branches (`BR`) dessinés dans un canevas à la maille des phéromones avec les mêmes béziers que le décor ; les deux branches partent à 30° ; inégal : décalages 0,06 H et 0,42 H (la longue fait près du double ; avec 0,12/0,27 H les longueurs ne différaient que de 6 % et la colonie choisissait au hasard). Antennes qui sentent le bord, pas annulé s'il mène à l'eau, phéromones nulles sur l'eau. Marquage aussi à l'aller (0,9) et suivi non linéaire plus fidèle sur le pont. Lecture **bilinéaire** des phéromones (la lecture à la case inférieure biaisait toutes les fourmis vers un côté : avec deux branches égales, la colonie choisissait toujours celle du haut). Résultats mesurés sans écran : branche courte choisie 8 fois sur 8 ; branches égales : choix franc dans environ deux essais sur trois, des deux côtés ; branche courte ajoutée à 50 s : la colonie en change 2 fois sur 3.
+- **Trois sociétés** : la vue d'ensemble d'avant (Lasius, Atta, Eciton), inchangée.
 

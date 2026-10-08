@@ -3,7 +3,7 @@
    Les machines (s-*.js) et fk.js sont chargés tels quels ; seul le contrat env/sim compte. */
 (function () {
   'use strict';
-  const ORDER = ['fourmis', 'mycelium', 'blob', 'meduses', 'lucioles', 'boids', 'feu', 'eau', 'fluide', 'sable', 'foudre', 'cristal', 'rd', 'spirales', 'chladni', 'kaleido', 'harmono', 'attracteur', 'fractal', 'moire', 'galaxie', 'tunnel', 'lave', 'bulles', 'viz', 'harpe', 'pendules', 'sonillus', 'quantique'];
+  const ORDER = ['fourmis', 'mycelium', 'blob', 'meduses', 'lucioles', 'boids', 'feu', 'eau', 'fluide', 'sable', 'foudre', 'ciel', 'cristal', 'rd', 'spirales', 'chladni', 'kaleido', 'harmono', 'attracteur', 'fractal', 'moire', 'galaxie', 'tunnel', 'lave', 'bulles', 'viz', 'harpe', 'pendules', 'sonillus', 'quantique'];
   const ACCENT = { 'Vivant': '#79f3b4', 'Éléments': '#ff9c5c', 'Motifs': '#c09aff', 'Cosmos': '#6fd4ff', 'Sons': '#ff8ad8', 'Invisible': '#ffd36e' };
   const ACCENT_L = { 'Vivant': '#0e8a57', 'Éléments': '#c4501a', 'Motifs': '#6f45d4', 'Cosmos': '#137fae', 'Sons': '#c2368f', 'Invisible': '#9a6b00' };
   // vitesse affichée ×1 = 0,4 fois la vitesse d'origine des machines (demande de Yoann : tout allait trop vite)

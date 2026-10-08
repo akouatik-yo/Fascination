@@ -42,9 +42,14 @@ node tools/smoke.mjs        # parcourt les 26 machines, teste le Feu et les brui
 
 `←` `→` changer de machine · `R` hasard · `espace` pause · `H` zen · `S` son des machines · `N` bruits · `D` décor · `T` thème · `[` `]` volets · `+` `−` vitesse.
 
-## Vers l'APK Android
+## L'APK Android
 
-La base PWA est en place (manifeste, service worker, icônes, y compris l'icône « maskable »). Deux chemins possibles :
+`node tools/build-apk.mjs` produit `dist/fascinations.apk` (environ 0,7 Mo), installable directement sur une tablette ou un téléphone Android 7 ou plus récent :
 
-1. **TWA** (Trusted Web Activity) avec Bubblewrap : il faut d'abord héberger `app/` en HTTPS (GitHub Pages, Netlify…).
-2. **Capacitor** : on copie `app/` dans le projet natif ; pas besoin d'hébergement, et l'application reste utilisable hors ligne.
+- `android/` : une coquille minimale (une activité WebView plein écran, `MainActivity.java`), le manifeste, les icônes et les polices ;
+- l'application web est assemblée en un seul fichier (`tools/build.mjs`), les polices y sont intégrées : tout fonctionne hors ligne ;
+- aucun SDK Android n'est nécessaire : aapt2 (dans apktool), dx, android.jar et apksig sont pris sur Maven Central et mis en cache dans `~/.cache/fascinations-apk` ; il faut Java (JDK 17 ou plus) et Python 3 ;
+- `tools/zipalign.py` aligne les fichiers non compressés ; la signature (schéma v2) utilise `android/fascinations.p12` (mot de passe `fascinations`). Cette clé est volontairement dans le dépôt : sans elle, une nouvelle version ne pourrait pas s'installer par-dessus l'ancienne. Elle ne convient qu'à une diffusion privée, pas à un magasin d'applications.
+- Le numéro de version suit le nombre de commits.
+
+Installation : copier l'APK sur l'appareil, l'ouvrir, autoriser l'installation d'applications de cette source. Sur l'appareil, l'application mémorise par machine une résolution réduite si l'animation n'arrive pas à suivre (clé `fasc-dpr` du stockage local).

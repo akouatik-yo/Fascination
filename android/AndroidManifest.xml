@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fascinations : une coquille Android minimale autour de l'application web (WebView plein écran, hors ligne). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="fr.fascinations.app">
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-feature android:glEsVersion="0x00030000" android:required="false" />
+    <application
+        android:label="Fascinations"
+        android:icon="@mipmap/ic_launcher"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
+        android:allowBackup="false"
+        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="unspecified"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

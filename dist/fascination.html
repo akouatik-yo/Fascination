@@ -18060,7 +18060,7 @@ void main(){
 
 ;
 /* ═════ js/machines/s-myce.js ═════ */
-/* Fascination — Le Mycélium · quatre champignons qui colonisent l'écran */
+/* Fascinations — Le Mycélium · le combat (ici), les ronds de sorcières (s-myce-ronds.js), le réseau souterrain (s-myce-reseau.js) */
 (function boot() {
   if (!window.FK) return setTimeout(boot, 12);
   const { TAU, clamp, rnd, rint, layer, buf, diffuse, scale } = window.FK;
@@ -18080,669 +18080,1557 @@ void main(){
     return s.c;
   }
 
+
+  // réglages gardés quand la machine est reconstruite
+  const keep = { scene: 'combat', sp: 0 };
+  const M = (window.FK_MYCE = window.FK_MYCE || {});
+
   window.FASC.push({
     id: 'mycelium', name: 'Le Mycélium', cat: 'Vivant', glyph: '🜃',
-    blurb: 'Quatre champignons colonisent l’écran',
-    hint: 'Touchez un espace libre pour semer l’espèce choisie · glissez pour ensemencer une traînée · touchez le mycélium pour y envoyer une onde électrique.',
-    intro: 'Le mycélium est la partie cachée des champignons : un réseau de filaments microscopiques, les hyphes, qui explore le sol, digère ce qu’il touche et relie les êtres vivants entre eux. Quatre espèces se disputent ici le même substrat.',
+    blurb: 'Moisissures rivales, ronds de sorcières, réseau sous la forêt',
+    hint: 'SEMER : une spore germe là où vous touchez · touchez un mycélium dense pour y envoyer une onde · NOURRIR, TRACER, GRATTER, OMBRER, ARROSER selon la scène.',
+    intro: 'Le mycélium est la partie cachée des champignons : un réseau de filaments microscopiques, les hyphes, qui explore le sol, digère ce qu’il touche et relie les êtres vivants entre eux. Trois échelles : quatre moisissures qui se disputent un substrat, une prairie où des cercles s’élargissent d’année en année, une forêt dont les racines échangent sucre et minéraux avec un champignon.',
     legend: [
-      { color: '#e4e2d6', name: 'Mucor mucedo', role: 'neutre', desc: 'Pousse vite et s’arrête au contact des autres. En vieillissant, devient cotonneuse et se couvre de sporanges noirs.' },
-      { color: '#ffc25c', name: 'Laccaria bicolor', role: 'symbiotique', desc: 'Cherche les autres espèces et s’entrelace avec elles. À chaque rencontre, elle enrichit le sol et échange des signaux lumineux.' },
-      { color: '#9ee2ec', name: 'Penicillium chrysogenum', role: 'craintive', desc: 'Fuit les autres, diffuse de la pénicilline autour d’elle et trace des lignes noires de défense que personne ne franchit.' },
-      { color: '#f682c2', name: 'Fusarium oxysporum', role: 'prédatrice', desc: 'Fonce sur les autres colonies et les dévore. Freinée par l’antibiotique, arrêtée par les lignes de défense.' },
+      { color: '#e4e2d6', name: 'Mucor mucedo', role: 'le combat · neutre', desc: 'Pousse vite et s’arrête au contact des autres. En vieillissant, devient cotonneuse et se couvre de sporanges noirs.' },
+      { color: '#ffc25c', name: 'Laccaria bicolor', role: 'le combat · symbiotique', desc: 'Cherche les autres espèces et s’entrelace avec elles. À chaque rencontre, elle enrichit le sol et échange des signaux lumineux.' },
+      { color: '#9ee2ec', name: 'Penicillium chrysogenum', role: 'le combat · craintive', desc: 'Fuit les autres, diffuse de la pénicilline autour d’elle et trace des lignes noires de défense que personne ne franchit.' },
+      { color: '#f682c2', name: 'Fusarium oxysporum', role: 'le combat · prédatrice', desc: 'Fonce sur les autres colonies et les dévore. Freinée par l’antibiotique, arrêtée par les lignes de défense.' },
     ],
     about: [
-      'Chaque filament ne pousse que par sa pointe. Il se ramifie quand le substrat est riche, évite ses propres filaments pour mieux couvrir l’espace, et fusionne parfois avec eux : c’est l’anastomose.',
-      'Les anneaux concentriques naissent du rythme de sporulation : la colonie produit ses spores par vagues pendant que son front avance. Au bout de quelques minutes, le centre épuisé dépérit et le front continue : ce sont les « ronds de sorcières ».',
-      'Des signaux électriques parcourent réellement les réseaux fongiques. Ici, toucher le mycélium envoie une onde qui remonte jusqu’à la spore d’origine, puis se propage à toute la colonie.',
-      'Les lignes noires sont des lignes de démarcation : on les observe dans le bois dit « spalté », là où deux champignons se sont affrontés.',
+      'Chaque filament ne pousse que par sa pointe. Il se ramifie quand le substrat est riche, évite ses propres filaments pour mieux couvrir l’espace, et fusionne parfois avec eux : c’est l’anastomose. Un gramme de sol forestier peut contenir des dizaines de mètres d’hyphes.',
+      'Le combat : les comportements des quatre espèces sont stylisés, mais s’inspirent du réel. Penicillium produit bien de la pénicilline, qui tue les bactéries (Alexander Fleming, 1928, une boîte de Petri contaminée) ; les lignes noires de démarcation s’observent dans le bois dit « spalté », là où deux champignons se sont affrontés. Des signaux électriques parcourent réellement les réseaux fongiques ; leur rôle reste discuté.',
+      'Les ronds de sorcières : une spore germe, le mycélium s’étend en disque, épuise la matière organique au centre et ne survit plus qu’au bord. Le disque devient un anneau qui s’élargit de quelques dizaines de centimètres par an. Au front, le champignon libère de l’azote : l’herbe y est plus verte ; là où son feutrage rend le sol imperméable, elle jaunit en été. Les champignons sortent sur l’anneau à l’automne. Deux anneaux qui se rencontrent s’annulent : derrière chaque front, il n’y a plus rien à manger. On cite un rond de près de 600 m de diamètre près de Belfort, âgé de plusieurs siècles.',
+      'Le réseau souterrain : la plupart des plantes vivent en mycorhize (du grec mykês, champignon, et rhiza, racine). Le champignon enveloppe les racines et leur apporte eau, phosphore et azote, qu’il va chercher bien plus loin qu’elles ; la plante le paie en sucres, une part notable de ce qu’elle produit. L’échange est surveillé des deux côtés : une plante donne plus de sucre aux champignons qui lui apportent plus de phosphore, et réciproquement (Kiers et al., 2011). Une plante bien fertilisée réduit ce qu’elle donne.',
+      'L’idée que les arbres se « partagent » du carbone à travers le réseau, et qu’un vieil arbre nourrisse ses descendants à l’ombre (Suzanne Simard, 1997), a rendu célèbre le wood wide web. Elle est aujourd’hui très discutée : des transferts existent, mais leur importance en forêt reste à démontrer (Karst et al., 2023). Dans la scène, ce partage est une option, éteinte par défaut.',
     ],
     tools: [
-      { id: 'neutre', label: 'neutre', desc: 'Touchez un espace libre pour semer Mucor, la moisissure blanche. Glissez pour ensemencer une traînée.' },
-      { id: 'symbiote', label: 'symbiote', desc: 'Touchez pour semer Laccaria, le réseau doré qui s’allie aux autres espèces. Glissez pour une traînée.' },
-      { id: 'craintive', label: 'craintive', desc: 'Touchez pour semer Penicillium, la moisissure bleue qui fuit et se protège. Glissez pour une traînée.' },
-      { id: 'predatrice', label: 'prédatrice', desc: 'Touchez pour semer Fusarium, la prédatrice rose qui dévore les autres. Glissez pour une traînée.' },
-      { id: 'nutriment', label: 'nutriment', desc: 'Déposez des gouttes nourricières : les filaments s’y précipitent et s’y ramifient en abondance.' },
-      { id: 'mur', label: 'mur', desc: 'Tracez une rainure dans le substrat : aucun champignon ne peut la franchir. Idéal pour construire des labyrinthes ou séparer des espèces.' },
-      { id: 'gratter', label: 'gratter', desc: 'Grattez le substrat pour effacer le mycélium, les murs et les spores sous votre doigt.' },
+      { id: 'semer', label: 'semer', desc: 'Combat : sème l’espèce choisie dans le panneau (touchez un mycélium dense pour y envoyer une onde). Ronds : une spore germe. Réseau : plante un jeune arbre.' },
+      { id: 'nourrir', label: 'nourrir', desc: 'Combat : une goutte nourricière. Ronds : un tas de matière organique. Réseau : de l’engrais au pied d’un arbre (il paie moins le champignon).' },
+      { id: 'tracer', label: 'tracer', desc: 'Combat : une rainure infranchissable. Ronds : une allée de gravier. Réseau : tranche les hyphes sur votre passage.' },
+      { id: 'gratter', label: 'gratter', desc: 'Combat : efface le mycélium sous le doigt. Ronds : retourne la terre (plus de mycélium, ni d’herbe).' },
+      { id: 'ombrer', label: 'ombrer', desc: 'Réseau : touchez un arbre pour le mettre à l’ombre (ou l’en sortir).' },
+      { id: 'arroser', label: 'arroser', desc: 'Ronds : une pluie fait sortir les champignons sur les anneaux. Réseau : une averse.' },
     ],
-    make(env) {
-      const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-      let quiet = true;
-      const snd = () => !quiet && au && au.on;
-      const Q = Math.min(2, window.devicePixelRatio || 1);
-      const kS = clamp(Math.min(W, H) / 800, 0.75, 1.4);
-      const CS = 6, GW = Math.ceil(W / CS), GH = Math.ceil(H / CS), NC = GW * GH;
-      const F32 = () => new Float32Array(NC);
-      const D = [F32(), F32(), F32(), F32()];
-      const N = F32(), N0 = F32(), AB = F32(), TMP = F32(), BIRTH = F32().fill(-1);
-      const SA = F32(), SR = F32(), SG = F32(), SB = F32();
-      const BAR = new Uint8Array(NC), FL = new Uint8Array(NC), SPO = new Uint8Array(NC);
-      const NGR = [0, 1, 2, 3].map(() => new Int32Array(NC).fill(-1));
-      const ci = (x, y) => (x < 0 || y < 0 || x >= GW * CS || y >= GH * CS ? -1 : ((y / CS) | 0) * GW + ((x / CS) | 0));
-      const RT = 14;
-      const cfg = { nut: 1, br: 1, life: true, sen: 210, spont: true, showAB: false, glow: true };
-      const cov = [0, 0, 0, 0];
-      let covT = 0;
-      const jit = (i) => (((i * 2654435761) >>> 0) % 1000) * 0.09;
+    make(env) { return makeMy(env); },
+  });
 
-      /* substrat nourricier */
-      const blobs = [];
-      for (let i = 0; i < 14; i++) blobs.push([rnd(W), rnd(H), rnd(W * 0.18, W * 0.05), rnd(0.7, 0.25)]);
-      for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
-        const x = (gx + 0.5) * CS, y = (gy + 0.5) * CS;
-        let n = 0.72 + rnd(0.12);
-        for (const b of blobs) { const dx = x - b[0], dy = y - b[1]; n += b[3] * Math.exp(-(dx * dx + dy * dy) / (b[2] * b[2])); }
-        N[gy * GW + gx] = N0[gy * GW + gx] = n;
+  function makeMy(env) {
+    const build = () => (keep.scene === 'ronds' && M.ronds ? M.ronds(env, keep) : keep.scene === 'reseau' && M.reseau ? M.reseau(env, keep) : combat(env));
+    let w = build();
+    const rebuild = () => { try { w.dispose && w.dispose(); } catch (e) { /* rien */ } w = build(); };
+    const api = {
+      livePaused: true,
+      frame: (t, dt) => w.frame(t, dt), down: (p) => w.down(p), move: (p) => w.move(p), up: () => w.up && w.up(),
+      dispose: () => w.dispose && w.dispose(), clear: () => (w.clear ? w.clear() : rebuild()),
+      ui() {
+        const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [
+          { label: 'Le combat', act: () => { keep.scene = 'combat'; rebuild(); } },
+          { label: 'Les ronds de sorcières', act: () => { keep.scene = 'ronds'; rebuild(); } },
+          { label: 'Le réseau souterrain', act: () => { keep.scene = 'reseau'; rebuild(); } },
+        ] }];
+        return L.concat(w.ui ? w.ui() : []);
+      },
+    };
+    if (window.FASC_DEBUG) window.FASC_DEBUG.myce = { keep, get w() { return w; }, scene(id) { keep.scene = id; rebuild(); } };
+    return api;
+  }
+
+  /* ───────── scène 1 : le combat de quatre moisissures ───────── */
+  function combat(env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    let quiet = true;
+    const snd = () => !quiet && au && au.on;
+    const Q = Math.min(2, window.devicePixelRatio || 1);
+    const kS = clamp(Math.min(W, H) / 800, 0.75, 1.4);
+    const CS = 6, GW = Math.ceil(W / CS), GH = Math.ceil(H / CS), NC = GW * GH;
+    const F32 = () => new Float32Array(NC);
+    const D = [F32(), F32(), F32(), F32()];
+    const N = F32(), N0 = F32(), AB = F32(), TMP = F32(), BIRTH = F32().fill(-1);
+    const SA = F32(), SR = F32(), SG = F32(), SB = F32();
+    const BAR = new Uint8Array(NC), FL = new Uint8Array(NC), SPO = new Uint8Array(NC);
+    const NGR = [0, 1, 2, 3].map(() => new Int32Array(NC).fill(-1));
+    const ci = (x, y) => (x < 0 || y < 0 || x >= GW * CS || y >= GH * CS ? -1 : ((y / CS) | 0) * GW + ((x / CS) | 0));
+    const RT = 14;
+    const cfg = { nut: 1, br: 1, life: true, sen: 210, spont: true, showAB: false, glow: true };
+    const cov = [0, 0, 0, 0];
+    let covT = 0;
+    const jit = (i) => (((i * 2654435761) >>> 0) % 1000) * 0.09;
+
+    /* substrat nourricier */
+    const blobs = [];
+    for (let i = 0; i < 14; i++) blobs.push([rnd(W), rnd(H), rnd(W * 0.18, W * 0.05), rnd(0.7, 0.25)]);
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
+      const x = (gx + 0.5) * CS, y = (gy + 0.5) * CS;
+      let n = 0.72 + rnd(0.12);
+      for (const b of blobs) { const dx = x - b[0], dy = y - b[1]; n += b[3] * Math.exp(-(dx * dx + dy * dy) / (b[2] * b[2])); }
+      N[gy * GW + gx] = N0[gy * GW + gx] = n;
+    }
+    const bg = layer(W, H);
+    {
+      const g = bg.g;
+      g.fillStyle = '#15110e'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 40; i++) {
+        const x = rnd(W), y = rnd(H), r = rnd(W * 0.25, W * 0.05), light = Math.random() < 0.5;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r);
+        gr.addColorStop(0, light ? 'rgba(70,56,42,.22)' : 'rgba(4,3,2,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r);
       }
-      const bg = layer(W, H);
-      {
-        const g = bg.g;
-        g.fillStyle = '#15110e'; g.fillRect(0, 0, W, H);
-        for (let i = 0; i < 40; i++) {
-          const x = rnd(W), y = rnd(H), r = rnd(W * 0.25, W * 0.05), light = Math.random() < 0.5;
-          const gr = g.createRadialGradient(x, y, 0, x, y, r);
-          gr.addColorStop(0, light ? 'rgba(70,56,42,.22)' : 'rgba(4,3,2,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-          g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r);
+      for (const b of blobs) {
+        const gr = g.createRadialGradient(b[0], b[1], 0, b[0], b[1], b[2]);
+        gr.addColorStop(0, `rgba(92,70,44,${(b[3] * 0.32).toFixed(3)})`); gr.addColorStop(1, 'rgba(92,70,44,0)');
+        g.fillStyle = gr; g.fillRect(b[0] - b[2], b[1] - b[2], 2 * b[2], 2 * b[2]);
+      }
+      for (let i = 0; i < (W * H) / 9; i++) {
+        const r = Math.random();
+        g.fillStyle = r < 0.5 ? 'rgba(255,230,200,.05)' : 'rgba(0,0,0,.18)';
+        g.fillRect(rnd(W), rnd(H), 1, 1);
+      }
+      for (let i = 0; i < (W * H) / 2500; i++) {
+        g.fillStyle = `rgba(${rnd(150, 90) | 0},${rnd(120, 70) | 0},${rnd(90, 50) | 0},${rnd(0.3, 0.1).toFixed(2)})`;
+        g.beginPath(); g.arc(rnd(W), rnd(H), rnd(1.4, 0.4), 0, TAU); g.fill();
+      }
+      const v = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.hypot(W, H) * 0.62);
+      v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.6)');
+      g.fillStyle = v; g.fillRect(0, 0, W, H);
+    }
+
+    const HL = layer(W * Q, H * Q), hg = HL.g;
+    hg.setTransform(Q, 0, 0, Q, 0, 0); hg.lineCap = 'round'; hg.lineJoin = 'round';
+    const GL = layer(Math.ceil(W / 5), Math.ceil(H / 5));
+    const WL = layer(W * Q, H * Q), wg = WL.g;
+    wg.setTransform(Q, 0, 0, Q, 0, 0); wg.lineCap = 'round'; wg.lineJoin = 'round';
+    const ABB = buf(GW, GH);
+    const STB = buf(GW, GH);
+    const sprW = sprite([255, 255, 255]), sprTip = SP.map((s) => sprite(s.tip));
+
+    /* graphe du réseau */
+    const NMAX = 170000, NX = new Float32Array(NMAX), NY = new Float32Array(NMAX), NP = new Int32Array(NMAX), NCH = new Int32Array(NMAX).fill(-1), NNX = new Int32Array(NMAX).fill(-1), NS = new Uint8Array(NMAX);
+    let nN = 0;
+    function addNode(x, y, p, s) {
+      if (nN >= NMAX) return p;
+      const n = nN++;
+      NX[n] = x; NY[n] = y; NP[n] = p; NS[n] = s;
+      if (p >= 0) { NNX[n] = NCH[p]; NCH[p] = n; }
+      const c = ci(x, y); if (c >= 0) NGR[s][c] = n;
+      return n;
+    }
+
+    const tips = [], cnt = [0, 0, 0, 0];
+    const TMAX = Math.round(clamp((W * H) / 850, 500, 1700)), SMAX = Math.round(TMAX * 0.42);
+    function mkTip(s, x, y, a, gen, node, e) {
+      if (cnt[s] >= SMAX) return;
+      cnt[s]++;
+      tips.push({ s, x, y, a, gen, node, e, w: 0, nz: 0, lx: x, ly: y, dn: 0, bc: rnd(0.5), cd: 0, fd: false });
+    }
+    const spores = [], rings = [], drops = [], pulses = [];
+    let label = null;
+    const ER = [], DK = [], BR = [], KN = [], SEG = SP.map(() => [[], [], []]), FLB = SP.map(() => []), SPB = SP.map(() => []), DRB = [];
+    let lastSeed = 0, lastFeed = 0, lastBar = 0, lastSym = 0, lastCrk = 0;
+
+    function seed(s, x, y, n) {
+      const root = addNode(x, y, -1, s), k = n || rint(3) + 4, a0 = rnd(TAU);
+      for (let i = 0; i < k; i++) mkTip(s, x, y, a0 + (i * TAU) / k + rnd(0.3, -0.3), 0, root, 2);
+      spores.push({ x, y, s, t: 0 });
+      hg.fillStyle = rgba(SP[s].tip, 0.9); hg.beginPath(); hg.arc(x, y, 2.2, 0, TAU); hg.fill();
+      if (snd() && performance.now() - lastSeed > 90) { lastSeed = performance.now(); au.pluck(scale(rint(4) + s * 2, 110), 2.6, 0.06); }
+    }
+
+    function stain(i, c, a) {
+      SA[i] += a; SR[i] += c[0] * a; SG[i] += c[1] * a; SB[i] += c[2] * a;
+      if (SA[i] > 1.6) { const k = 1.6 / SA[i]; SA[i] *= k; SR[i] *= k; SG[i] *= k; SB[i] *= k; }
+    }
+
+    function pulse(n, dir, b) {
+      if (n < 0 || pulses.length >= 700) return;
+      const tgt = dir < 0 ? NP[n] : NCH[n];
+      if (tgt < 0) return;
+      pulses.push({ n, tgt, f: 0, dir, s: NS[n], b });
+    }
+    function nearNode(s, x, y, R) {
+      const c0 = ci(x, y); if (c0 < 0) return -1;
+      const gx = c0 % GW, gy = (c0 / GW) | 0;
+      for (let r = 0; r <= R; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x2 = gx + dx, y2 = gy + dy;
+        if (x2 < 0 || y2 < 0 || x2 >= GW || y2 >= GH) continue;
+        const n = NGR[s][y2 * GW + x2];
+        if (n >= 0) return n;
+      }
+      return -1;
+    }
+
+    function symbio(p, i0, t) {
+      pulse(p.node, -1, 0.85);
+      for (let o = 0; o < 4; o++) {
+        if (o === 1 || D[o][i0] < 0.2) continue;
+        const n = nearNode(o, p.x, p.y, 2);
+        pulse(n, -1, 0.85);
+        if (n >= 0 && o !== 2 && Math.random() < 0.35) mkTip(o, p.x, p.y, rnd(TAU), 3, n, 1.6);
+      }
+      const gx = i0 % GW, gy = (i0 / GW) | 0;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const x2 = gx + dx, y2 = gy + dy;
+        if (x2 >= 0 && y2 >= 0 && x2 < GW && y2 < GH) { const j = y2 * GW + x2; N[j] = Math.min(2.5, N[j] + 0.35); }
+      }
+      KN.push(p.x, p.y);
+      if (snd() && t - lastSym > 0.7) { lastSym = t; const b = rint(5); au.pluck(scale(b + 7, 220), 2.2, 0.035); au.pluck(scale(b + 9, 220), 2.6, 0.03); }
+    }
+
+    function grow(p, dt, t) {
+      const s = p.s, sp = SP[s], Ds = D[s], i0 = ci(p.x, p.y);
+      if (i0 < 0) return false;
+      p.cd -= dt;
+      const sd = 13, aL = p.a - 0.55, aR = p.a + 0.55, ca = Math.cos(p.a), sa = Math.sin(p.a);
+      const il = ci(p.x + Math.cos(aL) * sd, p.y + Math.sin(aL) * sd), ic = ci(p.x + ca * sd, p.y + sa * sd), ir = ci(p.x + Math.cos(aR) * sd, p.y + Math.sin(aR) * sd);
+      const fo = (i) => (i < 0 ? 0 : D[0][i] + D[1][i] + D[2][i] + D[3][i] - Ds[i]);
+      const ab = (i) => (i < 0 ? 0 : AB[i]);
+      let wd = 0;
+      wd += ((ir < 0 ? -1 : N[ir]) - (il < 0 ? -1 : N[il])) * 1.6;
+      const oc = ic < 0 ? 0 : Ds[ic];
+      wd += ((il < 0 ? 2 : Ds[il]) - (ir < 0 ? 2 : Ds[ir])) * 1.4;
+      if (oc > 0.95 && p.gen > 0 && Math.random() < dt * 3) return false;
+      const fl = fo(il), fr = fo(ir), fc = fo(ic), f0 = fo(i0), a0 = AB[i0];
+      p.fd = false;
+      if (s === 0) {
+        wd += (fl - fr) * 2.2 + (ab(il) - ab(ir)) * 4;
+        if (fc > 0.35 && Math.random() < dt * 4) return false;
+        if (a0 > 0.55 && Math.random() < dt * 2) return false;
+      } else if (s === 1) {
+        wd += (fr - fl) * 2.4 + (ab(il) - ab(ir)) * 1.2;
+        if (f0 > 0.3 && p.cd <= 0) { p.cd = 5; symbio(p, i0, t); }
+      } else if (s === 2) {
+        const s2 = 30;
+        const jl = ci(p.x + Math.cos(p.a - 0.7) * s2, p.y + Math.sin(p.a - 0.7) * s2), jc = ci(p.x + ca * s2, p.y + sa * s2), jr = ci(p.x + Math.cos(p.a + 0.7) * s2, p.y + Math.sin(p.a + 0.7) * s2);
+        const gl = fo(jl), gr = fo(jr), gc = fo(jc);
+        wd += (gl - gr) * 6;
+        if (gc > 0.3) wd += (gl >= gr ? 1 : -1) * 4;
+        if (f0 > 0.22) {
+          const gx = i0 % GW, gy = (i0 / GW) | 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const x2 = gx + dx, y2 = gy + dy;
+            if (x2 >= 0 && y2 >= 0 && x2 < GW && y2 < GH) BAR[y2 * GW + x2] = 1;
+          }
+          BR.push(p.x, p.y);
+          if (snd() && t - lastBar > 0.25) { lastBar = t; au.noise(0.06, 0.03, rnd(3000, 2200), 12, 'bandpass'); }
+          return false;
         }
-        for (const b of blobs) {
-          const gr = g.createRadialGradient(b[0], b[1], 0, b[0], b[1], b[2]);
-          gr.addColorStop(0, `rgba(92,70,44,${(b[3] * 0.32).toFixed(3)})`); gr.addColorStop(1, 'rgba(92,70,44,0)');
-          g.fillStyle = gr; g.fillRect(b[0] - b[2], b[1] - b[2], 2 * b[2], 2 * b[2]);
+        AB[i0] = Math.min(3, AB[i0] + dt * 0.9);
+      } else {
+        wd += (fr - fl) * 3;
+        if (a0 > 0) p.e -= a0 * 0.6 * dt;
+        if (f0 > 0.15) {
+          let got = 0;
+          for (let o = 0; o < 3; o++) { const d = D[o][i0]; if (d > 0) { const tk = Math.min(d, 1.6 * dt); D[o][i0] = d - tk; got += tk; } }
+          if (got > 0.005) {
+            p.fd = true; p.e = Math.min(3, p.e + got * 1.2); p.bc += got * 0.5;
+            stain(i0, [70, 18, 40], got * 0.25);
+            if (snd() && t - lastFeed > 0.9) { lastFeed = t; au.noise(0.5, 0.025, 170, 1, 'lowpass'); }
+          }
         }
-        for (let i = 0; i < (W * H) / 9; i++) {
-          const r = Math.random();
-          g.fillStyle = r < 0.5 ? 'rgba(255,230,200,.05)' : 'rgba(0,0,0,.18)';
-          g.fillRect(rnd(W), rnd(H), 1, 1);
+      }
+      if (s !== 2 ? BAR[i0] : BAR[i0] === 2) return false;
+      if (ic >= 0 && (s !== 2 ? BAR[ic] : BAR[ic] === 2)) wd += (p.w >= 0 ? 1 : -1) * 6;
+      p.nz += -p.nz * 1.2 * dt + gauss() * 1.0 * Math.sqrt(dt);
+      wd += p.nz * 0.55;
+      p.w += (clamp(wd, -4, 4) - p.w) * Math.min(1, dt * 6);
+      p.a += p.w * dt;
+      const nloc = N[i0];
+      const ds = sp.v * kS * dt * (0.45 + 0.55 * Math.min(1.3, nloc) / 1.3) * (p.fd ? 1.25 : 1);
+      p.x += Math.cos(p.a) * ds; p.y += Math.sin(p.a) * ds;
+      if (p.x < 1 || p.y < 1 || p.x > W - 1 || p.y > H - 1) return false;
+      const eat = nloc * 0.22 * dt;
+      N[i0] = nloc - eat * 0.55;
+      p.e = Math.min(3, p.e + eat - ds * 0.014);
+      if (p.e <= 0) return false;
+      const i1 = ci(p.x, p.y);
+      if (i1 >= 0) {
+        Ds[i1] = Math.min(3, Ds[i1] + ds * 0.085);
+        if (BIRTH[i1] < 0 && Ds[i1] > 0.3) BIRTH[i1] = t;
+      }
+      const mx = p.x - p.lx, my = p.y - p.ly;
+      if (mx * mx + my * my > 6.25) {
+        SEG[s][p.gen === 0 ? 0 : p.gen < 3 ? 1 : 2].push(p.lx, p.ly, p.x, p.y);
+        if (p.fd) ER.push(p.x, p.y);
+        p.lx = p.x; p.ly = p.y;
+      }
+      p.dn += ds;
+      if (p.dn > 8) { p.node = addNode(p.x, p.y, p.node, s); p.dn = 0; }
+      p.bc += ds * sp.br * cfg.br * (0.4 + 0.6 * Math.min(1.3, nloc)) * (p.gen > 5 ? 0.6 : 1);
+      if (p.bc >= 1) {
+        p.bc = 0;
+        if (p.e > 0.6 && cnt[s] < SMAX && tips.length < TMAX) {
+          p.node = addNode(p.x, p.y, p.node, s); p.dn = 0;
+          const side = Math.random() < 0.5 ? -1 : 1;
+          mkTip(s, p.x, p.y, p.a + side * rnd(1.05, 0.55), p.gen + 1, p.node, p.e * 0.5);
+          p.e *= 0.6; p.a -= side * 0.12;
         }
-        for (let i = 0; i < (W * H) / 2500; i++) {
-          g.fillStyle = `rgba(${rnd(150, 90) | 0},${rnd(120, 70) | 0},${rnd(90, 50) | 0},${rnd(0.3, 0.1).toFixed(2)})`;
-          g.beginPath(); g.arc(rnd(W), rnd(H), rnd(1.4, 0.4), 0, TAU); g.fill();
-        }
-        const v = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.hypot(W, H) * 0.62);
-        v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.6)');
-        g.fillStyle = v; g.fillRect(0, 0, W, H);
       }
+      return true;
+    }
 
-      const HL = layer(W * Q, H * Q), hg = HL.g;
-      hg.setTransform(Q, 0, 0, Q, 0, 0); hg.lineCap = 'round'; hg.lineJoin = 'round';
-      const GL = layer(Math.ceil(W / 5), Math.ceil(H / 5));
-      const WL = layer(W * Q, H * Q), wg = WL.g;
-      wg.setTransform(Q, 0, 0, Q, 0, 0); wg.lineCap = 'round'; wg.lineJoin = 'round';
-      const ABB = buf(GW, GH);
-      const STB = buf(GW, GH);
-      const sprW = sprite([255, 255, 255]), sprTip = SP.map((s) => sprite(s.tip));
-
-      /* graphe du réseau */
-      const NMAX = 170000, NX = new Float32Array(NMAX), NY = new Float32Array(NMAX), NP = new Int32Array(NMAX), NCH = new Int32Array(NMAX).fill(-1), NNX = new Int32Array(NMAX).fill(-1), NS = new Uint8Array(NMAX);
-      let nN = 0;
-      function addNode(x, y, p, s) {
-        if (nN >= NMAX) return p;
-        const n = nN++;
-        NX[n] = x; NY[n] = y; NP[n] = p; NS[n] = s;
-        if (p >= 0) { NNX[n] = NCH[p]; NCH[p] = n; }
-        const c = ci(x, y); if (c >= 0) NGR[s][c] = n;
-        return n;
+    function step(dt, t) {
+      for (let i = tips.length - 1; i >= 0; i--) {
+        const p = tips[i];
+        if (!grow(p, dt, t)) { cnt[p.s]--; tips[i] = tips[tips.length - 1]; tips.pop(); }
       }
-
-      const tips = [], cnt = [0, 0, 0, 0];
-      const TMAX = Math.round(clamp((W * H) / 850, 500, 1700)), SMAX = Math.round(TMAX * 0.42);
-      function mkTip(s, x, y, a, gen, node, e) {
-        if (cnt[s] >= SMAX) return;
-        cnt[s]++;
-        tips.push({ s, x, y, a, gen, node, e, w: 0, nz: 0, lx: x, ly: y, dn: 0, bc: rnd(0.5), cd: 0, fd: false });
-      }
-      const spores = [], rings = [], drops = [], pulses = [];
-      let label = null;
-      const ER = [], DK = [], BR = [], KN = [], SEG = SP.map(() => [[], [], []]), FLB = SP.map(() => []), SPB = SP.map(() => []), DRB = [];
-      let lastSeed = 0, lastFeed = 0, lastBar = 0, lastSym = 0, lastCrk = 0;
-
-      function seed(s, x, y, n) {
-        const root = addNode(x, y, -1, s), k = n || rint(3) + 4, a0 = rnd(TAU);
-        for (let i = 0; i < k; i++) mkTip(s, x, y, a0 + (i * TAU) / k + rnd(0.3, -0.3), 0, root, 2);
-        spores.push({ x, y, s, t: 0 });
-        hg.fillStyle = rgba(SP[s].tip, 0.9); hg.beginPath(); hg.arc(x, y, 2.2, 0, TAU); hg.fill();
-        if (snd() && performance.now() - lastSeed > 90) { lastSeed = performance.now(); au.pluck(scale(rint(4) + s * 2, 110), 2.6, 0.06); }
-      }
-
-      function stain(i, c, a) {
-        SA[i] += a; SR[i] += c[0] * a; SG[i] += c[1] * a; SB[i] += c[2] * a;
-        if (SA[i] > 1.6) { const k = 1.6 / SA[i]; SA[i] *= k; SR[i] *= k; SG[i] *= k; SB[i] *= k; }
-      }
-
-      function pulse(n, dir, b) {
-        if (n < 0 || pulses.length >= 700) return;
-        const tgt = dir < 0 ? NP[n] : NCH[n];
-        if (tgt < 0) return;
-        pulses.push({ n, tgt, f: 0, dir, s: NS[n], b });
-      }
-      function nearNode(s, x, y, R) {
-        const c0 = ci(x, y); if (c0 < 0) return -1;
-        const gx = c0 % GW, gy = (c0 / GW) | 0;
-        for (let r = 0; r <= R; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          const x2 = gx + dx, y2 = gy + dy;
-          if (x2 < 0 || y2 < 0 || x2 >= GW || y2 >= GH) continue;
-          const n = NGR[s][y2 * GW + x2];
-          if (n >= 0) return n;
-        }
-        return -1;
-      }
-
-      function symbio(p, i0, t) {
-        pulse(p.node, -1, 0.85);
-        for (let o = 0; o < 4; o++) {
-          if (o === 1 || D[o][i0] < 0.2) continue;
-          const n = nearNode(o, p.x, p.y, 2);
-          pulse(n, -1, 0.85);
-          if (n >= 0 && o !== 2 && Math.random() < 0.35) mkTip(o, p.x, p.y, rnd(TAU), 3, n, 1.6);
-        }
-        const gx = i0 % GW, gy = (i0 / GW) | 0;
-        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-          const x2 = gx + dx, y2 = gy + dy;
-          if (x2 >= 0 && y2 >= 0 && x2 < GW && y2 < GH) { const j = y2 * GW + x2; N[j] = Math.min(2.5, N[j] + 0.35); }
-        }
-        KN.push(p.x, p.y);
-        if (snd() && t - lastSym > 0.7) { lastSym = t; const b = rint(5); au.pluck(scale(b + 7, 220), 2.2, 0.035); au.pluck(scale(b + 9, 220), 2.6, 0.03); }
-      }
-
-      function grow(p, dt, t) {
-        const s = p.s, sp = SP[s], Ds = D[s], i0 = ci(p.x, p.y);
-        if (i0 < 0) return false;
-        p.cd -= dt;
-        const sd = 13, aL = p.a - 0.55, aR = p.a + 0.55, ca = Math.cos(p.a), sa = Math.sin(p.a);
-        const il = ci(p.x + Math.cos(aL) * sd, p.y + Math.sin(aL) * sd), ic = ci(p.x + ca * sd, p.y + sa * sd), ir = ci(p.x + Math.cos(aR) * sd, p.y + Math.sin(aR) * sd);
-        const fo = (i) => (i < 0 ? 0 : D[0][i] + D[1][i] + D[2][i] + D[3][i] - Ds[i]);
-        const ab = (i) => (i < 0 ? 0 : AB[i]);
-        let wd = 0;
-        wd += ((ir < 0 ? -1 : N[ir]) - (il < 0 ? -1 : N[il])) * 1.6;
-        const oc = ic < 0 ? 0 : Ds[ic];
-        wd += ((il < 0 ? 2 : Ds[il]) - (ir < 0 ? 2 : Ds[ir])) * 1.4;
-        if (oc > 0.95 && p.gen > 0 && Math.random() < dt * 3) return false;
-        const fl = fo(il), fr = fo(ir), fc = fo(ic), f0 = fo(i0), a0 = AB[i0];
-        p.fd = false;
-        if (s === 0) {
-          wd += (fl - fr) * 2.2 + (ab(il) - ab(ir)) * 4;
-          if (fc > 0.35 && Math.random() < dt * 4) return false;
-          if (a0 > 0.55 && Math.random() < dt * 2) return false;
-        } else if (s === 1) {
-          wd += (fr - fl) * 2.4 + (ab(il) - ab(ir)) * 1.2;
-          if (f0 > 0.3 && p.cd <= 0) { p.cd = 5; symbio(p, i0, t); }
-        } else if (s === 2) {
-          const s2 = 30;
-          const jl = ci(p.x + Math.cos(p.a - 0.7) * s2, p.y + Math.sin(p.a - 0.7) * s2), jc = ci(p.x + ca * s2, p.y + sa * s2), jr = ci(p.x + Math.cos(p.a + 0.7) * s2, p.y + Math.sin(p.a + 0.7) * s2);
-          const gl = fo(jl), gr = fo(jr), gc = fo(jc);
-          wd += (gl - gr) * 6;
-          if (gc > 0.3) wd += (gl >= gr ? 1 : -1) * 4;
-          if (f0 > 0.22) {
-            const gx = i0 % GW, gy = (i0 / GW) | 0;
-            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-              const x2 = gx + dx, y2 = gy + dy;
-              if (x2 >= 0 && y2 >= 0 && x2 < GW && y2 < GH) BAR[y2 * GW + x2] = 1;
+      const v = 85 * kS;
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        const q = pulses[i];
+        let alive = true;
+        q.b *= Math.exp(-dt * 0.2);
+        const len = Math.max(1, Math.hypot(NX[q.tgt] - NX[q.n], NY[q.tgt] - NY[q.n]));
+        q.f += (v * dt) / len;
+        while (q.f >= 1 && alive) {
+          q.f -= 1; q.n = q.tgt;
+          if (q.dir < 0) {
+            q.tgt = NP[q.n];
+            if (q.tgt < 0) {
+              alive = false;
+              if (q.b > 0.55) for (let c = NCH[q.n]; c >= 0; c = NNX[c]) if (pulses.length < 700) pulses.push({ n: q.n, tgt: c, f: 0, dir: 1, s: q.s, b: q.b * 0.95 });
             }
-            BR.push(p.x, p.y);
-            if (snd() && t - lastBar > 0.25) { lastBar = t; au.noise(0.06, 0.03, rnd(3000, 2200), 12, 'bandpass'); }
-            return false;
-          }
-          AB[i0] = Math.min(3, AB[i0] + dt * 0.9);
-        } else {
-          wd += (fr - fl) * 3;
-          if (a0 > 0) p.e -= a0 * 0.6 * dt;
-          if (f0 > 0.15) {
-            let got = 0;
-            for (let o = 0; o < 3; o++) { const d = D[o][i0]; if (d > 0) { const tk = Math.min(d, 1.6 * dt); D[o][i0] = d - tk; got += tk; } }
-            if (got > 0.005) {
-              p.fd = true; p.e = Math.min(3, p.e + got * 1.2); p.bc += got * 0.5;
-              stain(i0, [70, 18, 40], got * 0.25);
-              if (snd() && t - lastFeed > 0.9) { lastFeed = t; au.noise(0.5, 0.025, 170, 1, 'lowpass'); }
-            }
-          }
-        }
-        if (s !== 2 ? BAR[i0] : BAR[i0] === 2) return false;
-        if (ic >= 0 && (s !== 2 ? BAR[ic] : BAR[ic] === 2)) wd += (p.w >= 0 ? 1 : -1) * 6;
-        p.nz += -p.nz * 1.2 * dt + gauss() * 1.0 * Math.sqrt(dt);
-        wd += p.nz * 0.55;
-        p.w += (clamp(wd, -4, 4) - p.w) * Math.min(1, dt * 6);
-        p.a += p.w * dt;
-        const nloc = N[i0];
-        const ds = sp.v * kS * dt * (0.45 + 0.55 * Math.min(1.3, nloc) / 1.3) * (p.fd ? 1.25 : 1);
-        p.x += Math.cos(p.a) * ds; p.y += Math.sin(p.a) * ds;
-        if (p.x < 1 || p.y < 1 || p.x > W - 1 || p.y > H - 1) return false;
-        const eat = nloc * 0.22 * dt;
-        N[i0] = nloc - eat * 0.55;
-        p.e = Math.min(3, p.e + eat - ds * 0.014);
-        if (p.e <= 0) return false;
-        const i1 = ci(p.x, p.y);
-        if (i1 >= 0) {
-          Ds[i1] = Math.min(3, Ds[i1] + ds * 0.085);
-          if (BIRTH[i1] < 0 && Ds[i1] > 0.3) BIRTH[i1] = t;
-        }
-        const mx = p.x - p.lx, my = p.y - p.ly;
-        if (mx * mx + my * my > 6.25) {
-          SEG[s][p.gen === 0 ? 0 : p.gen < 3 ? 1 : 2].push(p.lx, p.ly, p.x, p.y);
-          if (p.fd) ER.push(p.x, p.y);
-          p.lx = p.x; p.ly = p.y;
-        }
-        p.dn += ds;
-        if (p.dn > 8) { p.node = addNode(p.x, p.y, p.node, s); p.dn = 0; }
-        p.bc += ds * sp.br * cfg.br * (0.4 + 0.6 * Math.min(1.3, nloc)) * (p.gen > 5 ? 0.6 : 1);
-        if (p.bc >= 1) {
-          p.bc = 0;
-          if (p.e > 0.6 && cnt[s] < SMAX && tips.length < TMAX) {
-            p.node = addNode(p.x, p.y, p.node, s); p.dn = 0;
-            const side = Math.random() < 0.5 ? -1 : 1;
-            mkTip(s, p.x, p.y, p.a + side * rnd(1.05, 0.55), p.gen + 1, p.node, p.e * 0.5);
-            p.e *= 0.6; p.a -= side * 0.12;
-          }
-        }
-        return true;
-      }
-
-      function step(dt, t) {
-        for (let i = tips.length - 1; i >= 0; i--) {
-          const p = tips[i];
-          if (!grow(p, dt, t)) { cnt[p.s]--; tips[i] = tips[tips.length - 1]; tips.pop(); }
-        }
-        const v = 85 * kS;
-        for (let i = pulses.length - 1; i >= 0; i--) {
-          const q = pulses[i];
-          let alive = true;
-          q.b *= Math.exp(-dt * 0.2);
-          const len = Math.max(1, Math.hypot(NX[q.tgt] - NX[q.n], NY[q.tgt] - NY[q.n]));
-          q.f += (v * dt) / len;
-          while (q.f >= 1 && alive) {
-            q.f -= 1; q.n = q.tgt;
-            if (q.dir < 0) {
-              q.tgt = NP[q.n];
-              if (q.tgt < 0) {
-                alive = false;
-                if (q.b > 0.55) for (let c = NCH[q.n]; c >= 0; c = NNX[c]) if (pulses.length < 700) pulses.push({ n: q.n, tgt: c, f: 0, dir: 1, s: q.s, b: q.b * 0.95 });
-              }
-            } else {
-              const c = NCH[q.n];
-              if (c < 0) alive = false;
-              else {
-                q.tgt = c;
-                if (q.b > 0.25) for (let k = NNX[c]; k >= 0; k = NNX[k]) if (pulses.length < 700) pulses.push({ n: q.n, tgt: k, f: q.f, dir: 1, s: q.s, b: q.b * 0.92 });
-              }
-            }
-          }
-          if (!alive) { pulses[i] = pulses[pulses.length - 1]; pulses.pop(); }
-        }
-        if (tips.length && Math.random() < dt * 1.6) { const p = tips[rint(tips.length)]; pulse(p.node, -1, 0.35); }
-      }
-
-      function mature(dt, t) {
-        const M = Math.min(450, Math.round(3200 * dt));
-        for (let k = 0; k < M; k++) {
-          const i = rint(NC), b = BIRTH[i];
-          if (b < 0) continue;
-          let s = 0, m = D[0][i];
-          for (let o = 1; o < 4; o++) if (D[o][i] > m) { m = D[o][i]; s = o; }
-          const x = ((i % GW) + Math.random()) * CS, y = (((i / GW) | 0) + Math.random()) * CS;
-          if (m < 0.3) {
-            if (m < 0.12) { BIRTH[i] = -1; FL[i] = 0; SPO[i] = 0; }
-            continue;
-          }
-          const age = t - b;
-          if (age < 7) continue;
-          const sp = SP[s], ring = 0.5 + 0.5 * Math.cos((TAU * b) / RT);
-          stain(i, sp.stain, (s === 0 ? 0.006 : 0.02) * Math.min(1.5, m));
-          if (s === 2) AB[i] = Math.min(3, AB[i] + 0.08);
-          if (FL[i] < sp.fcap && Math.random() < 0.45 + 0.55 * ring) { FL[i]++; FLB[s].push(x, y); }
-          if (age > 16 && SPO[i] < 8 && Math.random() < ring * ring * 0.8) {
-            SPO[i]++; SPB[s].push(x, y);
-            if (s === 2 && age > 40 && Math.random() < 0.03) DRB.push(x, y, rnd(3.8, 1.6) * kS);
-          }
-          if (cfg.life && age > cfg.sen + jit(i) && Math.random() < 0.3) {
-            for (let o = 0; o < 4; o++) D[o][i] *= 0.55;
-            N[i] = Math.min(N0[i] * 1.1, N[i] + 0.3);
-            stain(i, [40, 26, 16], 0.06);
-            DK.push(x, y);
-          }
-        }
-      }
-
-      function flush() {
-        const g = hg;
-        if (ER.length || DK.length) {
-          g.globalCompositeOperation = 'destination-out';
-          g.globalAlpha = 0.3;
-          for (let k = 0; k < ER.length; k += 2) g.drawImage(sprW, ER[k] - 5, ER[k + 1] - 5, 10, 10);
-          g.globalAlpha = 0.22;
-          for (let k = 0; k < DK.length; k += 2) g.drawImage(sprW, DK[k] - 9, DK[k + 1] - 9, 18, 18);
-          g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
-        }
-        if (BR.length) {
-          g.fillStyle = 'rgba(40,110,110,.18)'; g.beginPath();
-          for (let k = 0; k < BR.length; k += 2) { g.moveTo(BR[k] + 3.2, BR[k + 1]); g.arc(BR[k], BR[k + 1], 3.2, 0, TAU); }
-          g.fill();
-          g.fillStyle = 'rgba(5,4,10,.7)'; g.beginPath();
-          for (let k = 0; k < BR.length; k += 2) { g.moveTo(BR[k] + 1.7, BR[k + 1]); g.arc(BR[k], BR[k + 1], 1.7, 0, TAU); }
-          g.fill();
-        }
-        const LW = [1.3, 0.85, 0.55], AL = [0.55, 0.45, 0.38];
-        for (let s = 0; s < 4; s++) for (let b = 0; b < 3; b++) {
-          const A = SEG[s][b];
-          if (!A.length) continue;
-          g.beginPath();
-          for (let k = 0; k < A.length; k += 4) { g.moveTo(A[k], A[k + 1]); g.lineTo(A[k + 2], A[k + 3]); }
-          g.lineWidth = LW[b] * kS; g.strokeStyle = rgba(SP[s].hy, AL[b]); g.stroke();
-          A.length = 0;
-        }
-        for (let s = 0; s < 4; s++) {
-          const A = FLB[s];
-          if (!A.length) continue;
-          g.beginPath();
-          for (let k = 0; k < A.length; k += 2) for (let h = 0; h < 3; h++) {
-            const an = rnd(TAU), l = rnd(6, 2) * kS, x = A[k], y = A[k + 1];
-            g.moveTo(x, y);
-            g.quadraticCurveTo(x + Math.cos(an + 0.6) * l * 0.5, y + Math.sin(an + 0.6) * l * 0.5, x + Math.cos(an) * l, y + Math.sin(an) * l);
-          }
-          g.lineWidth = 0.5; g.strokeStyle = rgba(SP[s].fluff, 0.14); g.stroke();
-          A.length = 0;
-        }
-        for (let s = 0; s < 4; s++) {
-          const A = SPB[s];
-          if (!A.length) continue;
-          const c = SP[s].spore;
-          if (s === 0) {
-            g.beginPath();
-            for (let k = 0; k < A.length; k += 2) { const an = rnd(TAU), l = rnd(5, 2) * kS; g.moveTo(A[k], A[k + 1]); g.lineTo(A[k] + Math.cos(an) * l, A[k + 1] + Math.sin(an) * l); A[k] += Math.cos(an) * l; A[k + 1] += Math.sin(an) * l; }
-            g.lineWidth = 0.45; g.strokeStyle = 'rgba(230,226,215,.3)'; g.stroke();
-            g.fillStyle = rgba(c, 0.75); g.beginPath();
-            for (let k = 0; k < A.length; k += 2) { const r = rnd(1.6, 0.9) * kS; g.moveTo(A[k] + r, A[k + 1]); g.arc(A[k], A[k + 1], r, 0, TAU); }
-            g.fill();
           } else {
-            const per = s === 2 ? 3 : s === 3 ? 2 : 1, a = s === 2 ? 0.5 : s === 3 ? 0.35 : 0.4, rr = s === 1 ? 0.6 : s === 2 ? 0.95 : 1.2;
-            g.fillStyle = rgba(c, a); g.beginPath();
-            for (let k = 0; k < A.length; k += 2) for (let h = 0; h < per; h++) {
-              const x = A[k] + rnd(3, -3), y = A[k + 1] + rnd(3, -3), r = rr * rnd(1.3, 0.7) * kS;
-              g.moveTo(x + r, y); g.arc(x, y, r, 0, TAU);
+            const c = NCH[q.n];
+            if (c < 0) alive = false;
+            else {
+              q.tgt = c;
+              if (q.b > 0.25) for (let k = NNX[c]; k >= 0; k = NNX[k]) if (pulses.length < 700) pulses.push({ n: q.n, tgt: k, f: q.f, dir: 1, s: q.s, b: q.b * 0.92 });
             }
-            g.fill();
           }
-          A.length = 0;
         }
-        for (let k = 0; k < DRB.length; k += 3) {
-          const x = DRB[k], y = DRB[k + 1], r = DRB[k + 2];
-          g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.arc(x + r * 0.25, y + r * 0.35, r, 0, TAU); g.fill();
-          const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
-          gr.addColorStop(0, 'rgba(255,240,170,.9)'); gr.addColorStop(0.6, 'rgba(225,180,50,.8)'); gr.addColorStop(1, 'rgba(160,110,20,.85)');
-          g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
-          g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(x - r * 0.35, y - r * 0.38, r * 0.22, 0, TAU); g.fill();
+        if (!alive) { pulses[i] = pulses[pulses.length - 1]; pulses.pop(); }
+      }
+      if (tips.length && Math.random() < dt * 1.6) { const p = tips[rint(tips.length)]; pulse(p.node, -1, 0.35); }
+    }
+
+    function mature(dt, t) {
+      const M = Math.min(450, Math.round(3200 * dt));
+      for (let k = 0; k < M; k++) {
+        const i = rint(NC), b = BIRTH[i];
+        if (b < 0) continue;
+        let s = 0, m = D[0][i];
+        for (let o = 1; o < 4; o++) if (D[o][i] > m) { m = D[o][i]; s = o; }
+        const x = ((i % GW) + Math.random()) * CS, y = (((i / GW) | 0) + Math.random()) * CS;
+        if (m < 0.3) {
+          if (m < 0.12) { BIRTH[i] = -1; FL[i] = 0; SPO[i] = 0; }
+          continue;
         }
-        DRB.length = 0;
-        if (KN.length) {
-          g.fillStyle = 'rgba(255,214,130,.55)'; g.beginPath();
-          for (let k = 0; k < KN.length; k += 2) { g.moveTo(KN[k] + 1.1, KN[k + 1]); g.arc(KN[k], KN[k + 1], 1.1, 0, TAU); }
+        const age = t - b;
+        if (age < 7) continue;
+        const sp = SP[s], ring = 0.5 + 0.5 * Math.cos((TAU * b) / RT);
+        stain(i, sp.stain, (s === 0 ? 0.006 : 0.02) * Math.min(1.5, m));
+        if (s === 2) AB[i] = Math.min(3, AB[i] + 0.08);
+        if (FL[i] < sp.fcap && Math.random() < 0.45 + 0.55 * ring) { FL[i]++; FLB[s].push(x, y); }
+        if (age > 16 && SPO[i] < 8 && Math.random() < ring * ring * 0.8) {
+          SPO[i]++; SPB[s].push(x, y);
+          if (s === 2 && age > 40 && Math.random() < 0.03) DRB.push(x, y, rnd(3.8, 1.6) * kS);
+        }
+        if (cfg.life && age > cfg.sen + jit(i) && Math.random() < 0.3) {
+          for (let o = 0; o < 4; o++) D[o][i] *= 0.55;
+          N[i] = Math.min(N0[i] * 1.1, N[i] + 0.3);
+          stain(i, [40, 26, 16], 0.06);
+          DK.push(x, y);
+        }
+      }
+    }
+
+    function flush() {
+      const g = hg;
+      if (ER.length || DK.length) {
+        g.globalCompositeOperation = 'destination-out';
+        g.globalAlpha = 0.3;
+        for (let k = 0; k < ER.length; k += 2) g.drawImage(sprW, ER[k] - 5, ER[k + 1] - 5, 10, 10);
+        g.globalAlpha = 0.22;
+        for (let k = 0; k < DK.length; k += 2) g.drawImage(sprW, DK[k] - 9, DK[k + 1] - 9, 18, 18);
+        g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      }
+      if (BR.length) {
+        g.fillStyle = 'rgba(40,110,110,.18)'; g.beginPath();
+        for (let k = 0; k < BR.length; k += 2) { g.moveTo(BR[k] + 3.2, BR[k + 1]); g.arc(BR[k], BR[k + 1], 3.2, 0, TAU); }
+        g.fill();
+        g.fillStyle = 'rgba(5,4,10,.7)'; g.beginPath();
+        for (let k = 0; k < BR.length; k += 2) { g.moveTo(BR[k] + 1.7, BR[k + 1]); g.arc(BR[k], BR[k + 1], 1.7, 0, TAU); }
+        g.fill();
+      }
+      const LW = [1.3, 0.85, 0.55], AL = [0.55, 0.45, 0.38];
+      for (let s = 0; s < 4; s++) for (let b = 0; b < 3; b++) {
+        const A = SEG[s][b];
+        if (!A.length) continue;
+        g.beginPath();
+        for (let k = 0; k < A.length; k += 4) { g.moveTo(A[k], A[k + 1]); g.lineTo(A[k + 2], A[k + 3]); }
+        g.lineWidth = LW[b] * kS; g.strokeStyle = rgba(SP[s].hy, AL[b]); g.stroke();
+        A.length = 0;
+      }
+      for (let s = 0; s < 4; s++) {
+        const A = FLB[s];
+        if (!A.length) continue;
+        g.beginPath();
+        for (let k = 0; k < A.length; k += 2) for (let h = 0; h < 3; h++) {
+          const an = rnd(TAU), l = rnd(6, 2) * kS, x = A[k], y = A[k + 1];
+          g.moveTo(x, y);
+          g.quadraticCurveTo(x + Math.cos(an + 0.6) * l * 0.5, y + Math.sin(an + 0.6) * l * 0.5, x + Math.cos(an) * l, y + Math.sin(an) * l);
+        }
+        g.lineWidth = 0.5; g.strokeStyle = rgba(SP[s].fluff, 0.14); g.stroke();
+        A.length = 0;
+      }
+      for (let s = 0; s < 4; s++) {
+        const A = SPB[s];
+        if (!A.length) continue;
+        const c = SP[s].spore;
+        if (s === 0) {
+          g.beginPath();
+          for (let k = 0; k < A.length; k += 2) { const an = rnd(TAU), l = rnd(5, 2) * kS; g.moveTo(A[k], A[k + 1]); g.lineTo(A[k] + Math.cos(an) * l, A[k + 1] + Math.sin(an) * l); A[k] += Math.cos(an) * l; A[k + 1] += Math.sin(an) * l; }
+          g.lineWidth = 0.45; g.strokeStyle = 'rgba(230,226,215,.3)'; g.stroke();
+          g.fillStyle = rgba(c, 0.75); g.beginPath();
+          for (let k = 0; k < A.length; k += 2) { const r = rnd(1.6, 0.9) * kS; g.moveTo(A[k] + r, A[k + 1]); g.arc(A[k], A[k + 1], r, 0, TAU); }
+          g.fill();
+        } else {
+          const per = s === 2 ? 3 : s === 3 ? 2 : 1, a = s === 2 ? 0.5 : s === 3 ? 0.35 : 0.4, rr = s === 1 ? 0.6 : s === 2 ? 0.95 : 1.2;
+          g.fillStyle = rgba(c, a); g.beginPath();
+          for (let k = 0; k < A.length; k += 2) for (let h = 0; h < per; h++) {
+            const x = A[k] + rnd(3, -3), y = A[k + 1] + rnd(3, -3), r = rr * rnd(1.3, 0.7) * kS;
+            g.moveTo(x + r, y); g.arc(x, y, r, 0, TAU);
+          }
           g.fill();
         }
-        ER.length = 0; DK.length = 0; BR.length = 0; KN.length = 0;
+        A.length = 0;
       }
+      for (let k = 0; k < DRB.length; k += 3) {
+        const x = DRB[k], y = DRB[k + 1], r = DRB[k + 2];
+        g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.arc(x + r * 0.25, y + r * 0.35, r, 0, TAU); g.fill();
+        const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+        gr.addColorStop(0, 'rgba(255,240,170,.9)'); gr.addColorStop(0.6, 'rgba(225,180,50,.8)'); gr.addColorStop(1, 'rgba(160,110,20,.85)');
+        g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(x - r * 0.35, y - r * 0.38, r * 0.22, 0, TAU); g.fill();
+      }
+      DRB.length = 0;
+      if (KN.length) {
+        g.fillStyle = 'rgba(255,214,130,.55)'; g.beginPath();
+        for (let k = 0; k < KN.length; k += 2) { g.moveTo(KN[k] + 1.1, KN[k + 1]); g.arc(KN[k], KN[k + 1], 1.1, 0, TAU); }
+        g.fill();
+      }
+      ER.length = 0; DK.length = 0; BR.length = 0; KN.length = 0;
+    }
 
-      function stainPaint() {
-        diffuse(SA, TMP, GW, GH, 0.08); diffuse(SR, TMP, GW, GH, 0.08); diffuse(SG, TMP, GW, GH, 0.08); diffuse(SB, TMP, GW, GH, 0.08);
-        const d = STB.d;
-        for (let i = 0; i < NC; i++) {
-          const a = SA[i], o = i * 4;
-          if (a < 0.004) { d[o + 3] = 0; continue; }
-          d[o] = SR[i] / a; d[o + 1] = SG[i] / a; d[o + 2] = SB[i] / a; d[o + 3] = Math.min(150, a * 190);
-        }
-        STB.flush();
-        if (cfg.showAB) {
-          const a = ABB.d;
-          for (let i = 0; i < NC; i++) { const o = i * 4; a[o] = 80; a[o + 1] = 220; a[o + 2] = 255; a[o + 3] = Math.min(170, AB[i] * 60); }
-          ABB.flush();
-        }
+    function stainPaint() {
+      diffuse(SA, TMP, GW, GH, 0.08); diffuse(SR, TMP, GW, GH, 0.08); diffuse(SG, TMP, GW, GH, 0.08); diffuse(SB, TMP, GW, GH, 0.08);
+      const d = STB.d;
+      for (let i = 0; i < NC; i++) {
+        const a = SA[i], o = i * 4;
+        if (a < 0.004) { d[o + 3] = 0; continue; }
+        d[o] = SR[i] / a; d[o + 1] = SG[i] / a; d[o + 2] = SB[i] / a; d[o + 3] = Math.min(150, a * 190);
       }
-      function stats() {
-        const c = [0, 0, 0, 0];
-        for (let i = 0; i < NC; i++) {
-          let s = -1, m = 0.3;
-          for (let o = 0; o < 4; o++) if (D[o][i] > m) { m = D[o][i]; s = o; }
-          if (s >= 0) c[s]++;
-        }
-        for (let s = 0; s < 4; s++) cov[s] = c[s] / NC;
+      STB.flush();
+      if (cfg.showAB) {
+        const a = ABB.d;
+        for (let i = 0; i < NC; i++) { const o = i * 4; a[o] = 80; a[o + 1] = 220; a[o + 2] = 255; a[o + 3] = Math.min(170, AB[i] * 60); }
+        ABB.flush();
       }
-      function cellsAround(x, y, r, fn) {
-        const R = Math.ceil(r / CS), c0 = ci(clamp(x, 0, W - 1), clamp(y, 0, H - 1));
-        const gx = c0 % GW, gy = (c0 / GW) | 0;
-        for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
-          const x2 = gx + dx, y2 = gy + dy;
-          if (x2 < 0 || y2 < 0 || x2 >= GW || y2 >= GH || dx * dx + dy * dy > R * R) continue;
-          fn(y2 * GW + x2);
-        }
+    }
+    function stats() {
+      const c = [0, 0, 0, 0];
+      for (let i = 0; i < NC; i++) {
+        let s = -1, m = 0.3;
+        for (let o = 0; o < 4; o++) if (D[o][i] > m) { m = D[o][i]; s = o; }
+        if (s >= 0) c[s]++;
       }
-      let wallLast = null;
-      function wall(x, y) {
-        const a = wallLast || { x, y };
-        const d = Math.hypot(x - a.x, y - a.y), n = Math.max(1, Math.ceil(d / 3));
-        for (let k = 0; k <= n; k++) cellsAround(a.x + ((x - a.x) * k) / n, a.y + ((y - a.y) * k) / n, 7, (i) => { BAR[i] = 2; });
-        wg.strokeStyle = 'rgba(0,0,0,.5)'; wg.lineWidth = 8; wg.beginPath(); wg.moveTo(a.x, a.y); wg.lineTo(x + 0.01, y); wg.stroke();
-        wg.strokeStyle = 'rgba(92,80,68,.9)'; wg.lineWidth = 4.5; wg.stroke();
-        wg.strokeStyle = 'rgba(236,222,200,.35)'; wg.lineWidth = 1; wg.beginPath(); wg.moveTo(a.x - 1, a.y - 1.4); wg.lineTo(x - 0.99, y - 1.4); wg.stroke();
-        wallLast = { x, y };
+      for (let s = 0; s < 4; s++) cov[s] = c[s] / NC;
+    }
+    function cellsAround(x, y, r, fn) {
+      const R = Math.ceil(r / CS), c0 = ci(clamp(x, 0, W - 1), clamp(y, 0, H - 1));
+      const gx = c0 % GW, gy = (c0 / GW) | 0;
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        const x2 = gx + dx, y2 = gy + dy;
+        if (x2 < 0 || y2 < 0 || x2 >= GW || y2 >= GH || dx * dx + dy * dy > R * R) continue;
+        fn(y2 * GW + x2);
       }
-      function scrape(x, y) {
-        const r = 16;
-        cellsAround(x, y, r, (i) => {
-          for (let o = 0; o < 4; o++) { D[o][i] = 0; NGR[o][i] = -1; }
-          BIRTH[i] = -1; FL[i] = 0; SPO[i] = 0; AB[i] *= 0.3; BAR[i] = 0;
-          SA[i] *= 0.3; SR[i] *= 0.3; SG[i] *= 0.3; SB[i] *= 0.3;
-        });
-        for (let i = tips.length - 1; i >= 0; i--) {
-          const p = tips[i];
-          if (Math.hypot(p.x - x, p.y - y) < r) { cnt[p.s]--; tips[i] = tips[tips.length - 1]; tips.pop(); }
-        }
-        for (const g of [hg, wg]) {
-          g.globalCompositeOperation = 'destination-out';
-          g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
-          g.globalCompositeOperation = 'source-over';
-        }
+    }
+    let wallLast = null;
+    function wall(x, y) {
+      const a = wallLast || { x, y };
+      const d = Math.hypot(x - a.x, y - a.y), n = Math.max(1, Math.ceil(d / 3));
+      for (let k = 0; k <= n; k++) cellsAround(a.x + ((x - a.x) * k) / n, a.y + ((y - a.y) * k) / n, 7, (i) => { BAR[i] = 2; });
+      wg.strokeStyle = 'rgba(0,0,0,.5)'; wg.lineWidth = 8; wg.beginPath(); wg.moveTo(a.x, a.y); wg.lineTo(x + 0.01, y); wg.stroke();
+      wg.strokeStyle = 'rgba(92,80,68,.9)'; wg.lineWidth = 4.5; wg.stroke();
+      wg.strokeStyle = 'rgba(236,222,200,.35)'; wg.lineWidth = 1; wg.beginPath(); wg.moveTo(a.x - 1, a.y - 1.4); wg.lineTo(x - 0.99, y - 1.4); wg.stroke();
+      wallLast = { x, y };
+    }
+    function scrape(x, y) {
+      const r = 16;
+      cellsAround(x, y, r, (i) => {
+        for (let o = 0; o < 4; o++) { D[o][i] = 0; NGR[o][i] = -1; }
+        BIRTH[i] = -1; FL[i] = 0; SPO[i] = 0; AB[i] *= 0.3; BAR[i] = 0;
+        SA[i] *= 0.3; SR[i] *= 0.3; SG[i] *= 0.3; SB[i] *= 0.3;
+      });
+      for (let i = tips.length - 1; i >= 0; i--) {
+        const p = tips[i];
+        if (Math.hypot(p.x - x, p.y - y) < r) { cnt[p.s]--; tips[i] = tips[tips.length - 1]; tips.pop(); }
       }
-      function clearAll() {
-        for (const d of D) d.fill(0);
-        N.set(N0); AB.fill(0); BAR.fill(0); BIRTH.fill(-1); FL.fill(0); SPO.fill(0);
-        SA.fill(0); SR.fill(0); SG.fill(0); SB.fill(0);
-        for (const g of NGR) g.fill(-1);
-        NCH.fill(-1); NNX.fill(-1); nN = 0;
-        tips.length = 0; cnt.fill(0); pulses.length = 0; spores.length = 0; drops.length = 0; rings.length = 0; label = null;
-        for (const L of [HL, WL]) { L.g.save(); L.g.setTransform(1, 0, 0, 1, 0, 0); L.g.clearRect(0, 0, L.w, L.h); L.g.restore(); }
-        GL.g.clearRect(0, 0, GL.w, GL.h);
-        stainPaint(); stats();
+      for (const g of [hg, wg]) {
+        g.globalCompositeOperation = 'destination-out';
+        g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+        g.globalCompositeOperation = 'source-over';
       }
-      function seedRandom() {
-        const v = env.view || { x0: 0, x1: W };
-        for (let k = 0; k < 4; k++) seed(rint(4), rnd(v.x1 - 40, v.x0 + 40), rnd(H * 0.9, H * 0.1));
-      }
-      function seedFour() {
-        const v = env.view || { x0: 0, x1: W }, vw = v.x1 - v.x0;
-        [[0, 0.22, 0.3], [2, 0.78, 0.28], [1, 0.3, 0.74], [3, 0.8, 0.76]].forEach(([s, fx, fy]) => seed(s, v.x0 + vw * fx, H * fy, 6));
-      }
+    }
+    function clearAll() {
+      for (const d of D) d.fill(0);
+      N.set(N0); AB.fill(0); BAR.fill(0); BIRTH.fill(-1); FL.fill(0); SPO.fill(0);
+      SA.fill(0); SR.fill(0); SG.fill(0); SB.fill(0);
+      for (const g of NGR) g.fill(-1);
+      NCH.fill(-1); NNX.fill(-1); nN = 0;
+      tips.length = 0; cnt.fill(0); pulses.length = 0; spores.length = 0; drops.length = 0; rings.length = 0; label = null;
+      for (const L of [HL, WL]) { L.g.save(); L.g.setTransform(1, 0, 0, 1, 0, 0); L.g.clearRect(0, 0, L.w, L.h); L.g.restore(); }
+      GL.g.clearRect(0, 0, GL.w, GL.h);
+      stainPaint(); stats();
+    }
+    function seedRandom() {
+      const v = env.view || { x0: 0, x1: W };
+      for (let k = 0; k < 4; k++) seed(rint(4), rnd(v.x1 - 40, v.x0 + 40), rnd(H * 0.9, H * 0.1));
+    }
+    function seedFour() {
+      const v = env.view || { x0: 0, x1: W }, vw = v.x1 - v.x0;
+      [[0, 0.22, 0.3], [2, 0.78, 0.28], [1, 0.3, 0.74], [3, 0.8, 0.76]].forEach(([s, fx, fy]) => seed(s, v.x0 + vw * fx, H * fy, 6));
+    }
 
-      function spontaneous(t) {
-        for (let k = 0; k < 50; k++) {
-          const x = rnd(W * 0.94, W * 0.06), y = rnd(H * 0.94, H * 0.06), i = ci(x, y);
-          if (i < 0 || N[i] < 0.6 || BAR[i]) continue;
-          if (D[0][i] + D[1][i] + D[2][i] + D[3][i] > 0.1) continue;
-          seed(rint(4), x, y, 3);
+    function spontaneous(t) {
+      for (let k = 0; k < 50; k++) {
+        const x = rnd(W * 0.94, W * 0.06), y = rnd(H * 0.94, H * 0.06), i = ci(x, y);
+        if (i < 0 || N[i] < 0.6 || BAR[i]) continue;
+        if (D[0][i] + D[1][i] + D[2][i] + D[3][i] > 0.1) continue;
+        seed(rint(4), x, y, 3);
+        return;
+      }
+    }
+
+    function wave(x, y) {
+      let any = false;
+      for (let s = 0; s < 4; s++) {
+        const n = nearNode(s, x, y, 3);
+        if (n < 0) continue;
+        any = true; pulse(n, -1, 1); pulse(n, 1, 1);
+      }
+      return any;
+    }
+
+    function drawLabel() {
+      const L = label, a = Math.min(1, L.t, (6 - L.t) * 2.5);
+      if (a <= 0.01) return;
+      const sp = SP[L.s], side = L.x > W * 0.68 ? -1 : 1, lx = L.x + side * 46, ly = L.y - 36;
+      ctx.save();
+      ctx.strokeStyle = rgba(sp.tip, (a * 0.6).toFixed(3)); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(L.x, L.y, 14, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(L.x + side * 10, L.y - 10); ctx.lineTo(lx - side * 6, ly + 6); ctx.stroke();
+      ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 6;
+      ctx.textAlign = side > 0 ? 'left' : 'right';
+      ctx.fillStyle = `rgba(255,248,236,${(a * 0.95).toFixed(3)})`;
+      ctx.font = 'italic 500 14px "Space Grotesk", sans-serif';
+      ctx.fillText(sp.nom, lx, ly);
+      ctx.fillStyle = rgba(sp.tip, (a * 0.9).toFixed(3));
+      ctx.font = '500 9.5px "JetBrains Mono", monospace';
+      ctx.fillText(sp.fr.toUpperCase(), lx, ly + 15);
+      ctx.restore();
+    }
+
+    /* colonies de départ */
+    const port = H > W * 1.1;
+    // dans la partie visible de l'écran (les panneaux latéraux cachent les bords)
+    const V0 = env.view || { x0: 0, x1: W }, VW = V0.x1 - V0.x0;
+    const START = port ? [[0, 0.3, 0.2], [2, 0.72, 0.38], [1, 0.35, 0.62], [3, 0.72, 0.84]] : [[0, 0.22, 0.3], [2, 0.76, 0.28], [1, 0.4, 0.72], [3, 0.8, 0.76]];
+    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, 6);
+    for (let k = 0; k < 60; k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
+    flush(); stainPaint();
+    let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);
+    quiet = false;
+    const drones = [];
+    if (au && au.live) drones.push(au.drone(49, 'sine', 0.03), au.drone(73.4, 'sine', 0.014), au.drone(146.8, 'triangle', 0.004));
+
+    return {
+      frame(tt, dt) {
+        const n = Math.max(1, Math.ceil(dt / 0.04)), h = dt / n;
+        for (let i = 0; i < n; i++) { T0 += h; step(h, T0); }
+        const t = T0;
+        mature(dt, t);
+        flush();
+        if ((abT -= dt) <= 0) {
+          abT = 0.25; diffuse(AB, TMP, GW, GH, 0.18);
+          const f = Math.exp(-0.03 * 0.25); for (let i = 0; i < NC; i++) AB[i] *= f;
+        }
+        if ((stT -= dt) <= 0) { stT = 0.5; stainPaint(); }
+        if ((glT -= dt) <= 0) { glT = 0.2; GL.g.clearRect(0, 0, GL.w, GL.h); GL.g.drawImage(HL.c, 0, 0, GL.w, GL.h); }
+        if ((nextSp -= dt) <= 0) { nextSp = rnd(32, 18); if (cfg.spont) spontaneous(t); }
+        if ((covT -= dt) <= 0) { covT = 1; stats(); }
+        for (const sp of spores) sp.t += dt;
+        while (spores.length && spores[0].t > 5) spores.shift();
+        for (const r of rings) r.t += dt;
+        while (rings.length && rings[0].t > 1.6) rings.shift();
+        if (label) { label.t -= dt; if (label.t <= 0) label = null; }
+        if (snd() && tips.length > 40 && t - lastCrk > 0.1 && Math.random() < 0.35) { lastCrk = t; au.noise(0.04, Math.min(0.012, tips.length * 0.00001), rnd(9000, 6000), 6, 'bandpass'); }
+
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(bg.c, 0, 0, W, H);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(STB.c, 0, 0, GW * CS, GH * CS);
+        for (let i = drops.length - 1; i >= 0; i--) {
+          const d = drops[i], c = ci(d.x, d.y), k = c < 0 ? 0 : clamp((N[c] - 0.6) / 2.2, 0, 1);
+          if (k <= 0.02) { drops.splice(i, 1); continue; }
+          const r = d.r * Math.sqrt(k);
+          const gr = ctx.createRadialGradient(d.x - r * 0.3, d.y - r * 0.35, r * 0.1, d.x, d.y, r);
+          gr.addColorStop(0, 'rgba(255,236,190,.55)'); gr.addColorStop(0.7, 'rgba(200,150,80,.32)'); gr.addColorStop(1, 'rgba(140,100,50,.4)');
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(d.x, d.y, r, 0, TAU); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(d.x - r * 0.35, d.y - r * 0.38, r * 0.16, 0, TAU); ctx.fill();
+        }
+        if (cfg.showAB) { ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(ABB.c, 0, 0, GW * CS, GH * CS); ctx.globalCompositeOperation = 'source-over'; }
+        ctx.drawImage(HL.c, 0, 0, W, H);
+        ctx.drawImage(WL.c, 0, 0, W, H);
+        ctx.globalCompositeOperation = 'lighter';
+        if (cfg.glow) { ctx.globalAlpha = 0.32; ctx.drawImage(GL.c, 0, 0, W, H); }
+        for (let s = 0; s < 4; s++) {
+          const spr = sprTip[s], z = 7 * kS;
+          ctx.globalAlpha = 0.6;
+          for (const p of tips) if (p.s === s) { const zz = p.fd ? z * 1.8 : z; ctx.drawImage(spr, p.x - zz / 2, p.y - zz / 2, zz, zz); }
+        }
+        for (const sp of spores) {
+          const a = (1 - sp.t / 5) * (0.6 + 0.4 * Math.sin(sp.t * 5)), z = 26 * kS;
+          ctx.globalAlpha = Math.max(0, a); ctx.drawImage(sprTip[sp.s], sp.x - z / 2, sp.y - z / 2, z, z);
+        }
+        for (const q of pulses) {
+          const x = NX[q.n] + (NX[q.tgt] - NX[q.n]) * q.f, y = NY[q.n] + (NY[q.tgt] - NY[q.n]) * q.f, z = (6 + 10 * q.b) * kS;
+          ctx.globalAlpha = Math.min(1, q.b); ctx.drawImage(sprTip[q.s], x - z / 2, y - z / 2, z, z);
+        }
+        for (const r of rings) {
+          const k = r.t / 1.6;
+          ctx.globalAlpha = (1 - k) * 0.5; ctx.strokeStyle = 'rgba(255,245,225,1)'; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(r.x, r.y, 8 + k * 60 * kS, 0, TAU); ctx.stroke();
+        }
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+        if (label) drawLabel();
+      },
+      down(p) {
+        this._mode = null; this._d = 0;
+        const tool = env.tool;
+        if (tool === 'nourrir') { this._mode = 'nut'; feed(p.x, p.y); return; }
+        if (tool === 'tracer') { this._mode = 'mur'; wallLast = null; wall(p.x, p.y); if (snd()) au.noise(0.15, 0.03, 900, 1, 'bandpass'); return; }
+        if (tool === 'gratter') { this._mode = 'gratter'; scrape(p.x, p.y); if (snd()) au.noise(0.2, 0.04, 2400, 0.8, 'bandpass'); return; }
+        let tot = 0, best = -1, bm = 0;
+        const c0 = ci(p.x, p.y);
+        if (c0 >= 0) {
+          const gx = c0 % GW, gy = (c0 / GW) | 0;
+          for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+            const x2 = gx + dx, y2 = gy + dy;
+            if (x2 < 0 || y2 < 0 || x2 >= GW || y2 >= GH) continue;
+            for (let s = 0; s < 4; s++) { const v = D[s][y2 * GW + x2]; tot += v; if (v > bm) { bm = v; best = s; } }
+          }
+        }
+        if (tot > 1.2 && wave(p.x, p.y)) {
+          label = { x: p.x, y: p.y, s: best, t: 6 }; rings.push({ x: p.x, y: p.y, t: 0 });
+          if (navigator.vibrate) navigator.vibrate([5, 25, 5]);
+          if (snd()) [0, 2, 4, 7, 9].forEach((d, k) => setTimeout(() => au.pluck(scale(best * 2 + d + 5, 220), 1.6, 0.035), k * 70));
           return;
         }
-      }
+        if (tool !== 'semer') return;
+        const s = keep.sp;
+        seed(s, p.x, p.y); this._mode = 'seed'; this._s = s; this._n = 0;
+        if (navigator.vibrate) navigator.vibrate(6);
+      },
+      move(p) {
+        if (!p.down || !this._mode) return;
+        this._d += Math.hypot(p.dx, p.dy);
+        if (this._mode === 'mur') { if (this._d > 4) { this._d = 0; wall(p.x, p.y); } return; }
+        if (this._mode === 'gratter') { if (this._d > 5) { this._d = 0; scrape(p.x, p.y); if (snd() && Math.random() < 0.15) au.noise(0.12, 0.02, 2400, 0.8, 'bandpass'); } return; }
+        if (this._mode === 'nut' && this._d > 22) { this._d = 0; feed(p.x, p.y); }
+        else if (this._mode === 'seed' && this._d > 40 && this._n < 10) { this._d = 0; this._n++; seed(this._s, p.x, p.y, 2); }
+      },
+      up() { this._mode = null; wallLast = null; },
+      dispose() { drones.forEach((d) => d.stop()); },
+      livePaused: true,
+      clear: clearAll,
+      ui() {
+        const L = [{ type: 'section', label: 'Le combat' }];
+        L.push({ type: 'choice', label: 'Espèce semée (outil SEMER)', value: keep.sp, options: SP.map((sp, i) => ({ id: i, label: sp.nom.split(' ')[0] })), set: (v) => { keep.sp = v; } });
+        L.push({ type: 'note', text: SP[keep.sp].nom + ' : ' + SP[keep.sp].fr + '.' });
+        SP.forEach((sp, s) => L.push({ type: 'bar', label: sp.nom, color: rgba(sp.tip, 1), value: cov[s] * 1.6, txt: Math.round(cov[s] * 100) + ' % · ' + cnt[s] + ' pointes' }));
+        L.push({ type: 'buttons', items: [{ label: 'Une colonie de chaque', act: seedFour }, { label: 'Semer au hasard', act: seedRandom }] });
+        L.push({ type: 'section', label: 'Substrat' });
+        L.push({ type: 'slider', label: 'Richesse du substrat', min: 0.3, max: 2.5, step: 0.05, value: cfg.nut, fmt: (v) => '×' + v.toFixed(2), set: (v) => { const r = v / cfg.nut; for (let i = 0; i < NC; i++) { N[i] *= r; N0[i] *= r; } cfg.nut = v; } });
+        L.push({ type: 'slider', label: 'Ramification', min: 0.4, max: 2.5, step: 0.05, value: cfg.br, fmt: (v) => '×' + v.toFixed(2), set: (v) => { cfg.br = v; } });
+        L.push({ type: 'section', label: 'Cycle de vie' });
+        L.push({ type: 'toggle', label: 'Les vieilles colonies dépérissent', value: cfg.life, set: (v) => { cfg.life = v; } });
+        L.push({ type: 'slider', label: 'Âge du dépérissement', min: 60, max: 600, step: 10, value: cfg.sen, fmt: (v) => Math.round(v / 60 * 10) / 10 + ' min', set: (v) => { cfg.sen = v; } });
+        L.push({ type: 'toggle', label: 'Germinations spontanées', value: cfg.spont, set: (v) => { cfg.spont = v; } });
+        L.push({ type: 'section', label: 'Affichage' });
+        L.push({ type: 'toggle', label: 'Révéler la pénicilline', value: cfg.showAB, set: (v) => { cfg.showAB = v; if (v) stainPaint(); } });
+        L.push({ type: 'toggle', label: 'Halo lumineux', value: cfg.glow, set: (v) => { cfg.glow = v; } });
+        return L;
+      },
+    };
 
-      function wave(x, y) {
-        let any = false;
-        for (let s = 0; s < 4; s++) {
-          const n = nearNode(s, x, y, 3);
-          if (n < 0) continue;
-          any = true; pulse(n, -1, 1); pulse(n, 1, 1);
+    function feed(x, y) {
+      const r = 30 * kS, R = Math.ceil(r / CS), c0 = ci(x, y);
+      if (c0 < 0) return;
+      const gx = c0 % GW, gy = (c0 / GW) | 0;
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        const x2 = gx + dx, y2 = gy + dy, d = Math.hypot(dx, dy) / R;
+        if (d > 1 || x2 < 0 || y2 < 0 || x2 >= GW || y2 >= GH) continue;
+        const j = y2 * GW + x2; N[j] = Math.min(3.2, N[j] + 2.2 * (1 - d * d));
+      }
+      if (drops.length > 40) drops.shift();
+      drops.push({ x, y, r: rnd(14, 9) * kS });
+      if (snd()) au.note(rnd(760, 560), 0.3, 'sine', 0.035, 380);
+    }
+  }
+})();
+
+;
+/* ═════ js/machines/s-myce-ronds.js ═════ */
+/* Fascinations — Le Mycélium · scène 2 : les ronds de sorcières (une prairie vue du ciel, en années accélérées) */
+(function boot() {
+  if (!window.FK) return setTimeout(boot, 12);
+  const { TAU, clamp, rnd, rint, layer, buf, scale } = window.FK;
+  const M = (window.FK_MYCE = window.FK_MYCE || {});
+  const fr = (x, d = 0) => x.toFixed(d).replace('.', ',');
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // teinte de saison (multipliée sur l'herbe), mois par mois
+  const SAISON = [[196, 206, 214], [200, 210, 212], [222, 236, 214], [236, 255, 222], [240, 255, 226], [250, 250, 214], [255, 240, 196], [255, 230, 182], [246, 232, 190], [236, 220, 176], [216, 206, 182], [198, 204, 210]];
+  // réglages gardés d'une reconstruction à l'autre
+  const cfg = { year: 8, speed: 25, auto: true, sous: false };
+
+  M.ronds = function (env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    let quiet = true;
+    const snd = () => !quiet && au && au.on;
+    const V = () => env.view || { x0: 0, x1: W };
+    const V0 = V(), VW = V0.x1 - V0.x0;
+    // échelle : environ 8 m de prairie dans la largeur visible
+    const PXM = clamp(Math.max(VW, H * 1.2) / 8, 70, 240);
+    const CS = W * H > 1.6e6 ? 5 : 4, GW = Math.ceil(W / CS), GH = Math.ceil(H / CS), NC = GW * GH;
+    const F32 = () => new Float32Array(NC);
+    const F = F32(), F2 = F32(), S = F32(), S0 = F32(), N = F32(), G = F32().fill(1), BARE = F32(), BLK = new Uint8Array(NC);
+    const TH = 0.45; // en dessous de ce seuil de matière organique, le mycélium meurt de faim
+
+    /* matière organique du sol : irrégulière, quelques zones plus riches ou plus pauvres */
+    const blobs = [];
+    for (let i = 0; i < 18; i++) blobs.push([rnd(W), rnd(H), rnd(2.2, 0.6) * PXM, rnd(0.22, -0.2)]);
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) {
+      const x = (gx + 0.5) * CS, y = (gy + 0.5) * CS;
+      let s = 1 + rnd(0.06, -0.06);
+      for (const b of blobs) { const dx = x - b[0], dy = y - b[1]; s += b[3] * Math.exp(-(dx * dx + dy * dy) / (b[2] * b[2])); }
+      S[gy * GW + gx] = S0[gy * GW + gx] = s;
+    }
+
+    const SB = S0.slice();
+    const hmax = () => 0.2 / Math.max(1, ((cfg.speed / 100) * PXM) / CS / (2 * Math.sqrt(1 - TH)) * 1.7);
+
+    /* l'herbe : une fois pour toutes, en haute résolution */
+    const grass = layer(W, H);
+    {
+      const g = grass.g;
+      g.fillStyle = '#4d7a32'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 70; i++) {
+        const x = rnd(W), y = rnd(H), r = rnd(1.6, 0.4) * PXM, gr = g.createRadialGradient(x, y, 0, x, y, r);
+        const c = Math.random() < 0.5 ? '96,140,58' : '52,88,32';
+        gr.addColorStop(0, `rgba(${c},.35)`); gr.addColorStop(1, `rgba(${c},0)`);
+        g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r);
+      }
+      const COLS = ['rgba(120,168,70,.55)', 'rgba(88,134,52,.6)', 'rgba(60,100,38,.6)', 'rgba(150,186,92,.4)', 'rgba(40,74,28,.55)', 'rgba(170,190,110,.3)'];
+      const L = clamp(PXM / 26, 3, 9);
+      for (const col of COLS) {
+        g.strokeStyle = col; g.lineWidth = Math.max(0.7, L * 0.16); g.lineCap = 'round'; g.beginPath();
+        for (let i = 0; i < (W * H) / 60; i++) {
+          const x = rnd(W), y = rnd(H), a = rnd(TAU), l = rnd(L, L * 0.4);
+          g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
         }
-        return any;
+        g.stroke();
       }
-
-      function drawLabel() {
-        const L = label, a = Math.min(1, L.t, (6 - L.t) * 2.5);
-        if (a <= 0.01) return;
-        const sp = SP[L.s], side = L.x > W * 0.68 ? -1 : 1, lx = L.x + side * 46, ly = L.y - 36;
-        ctx.save();
-        ctx.strokeStyle = rgba(sp.tip, (a * 0.6).toFixed(3)); ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(L.x, L.y, 14, 0, TAU); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(L.x + side * 10, L.y - 10); ctx.lineTo(lx - side * 6, ly + 6); ctx.stroke();
-        ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 6;
-        ctx.textAlign = side > 0 ? 'left' : 'right';
-        ctx.fillStyle = `rgba(255,248,236,${(a * 0.95).toFixed(3)})`;
-        ctx.font = 'italic 500 14px "Space Grotesk", sans-serif';
-        ctx.fillText(sp.nom, lx, ly);
-        ctx.fillStyle = rgba(sp.tip, (a * 0.9).toFixed(3));
-        ctx.font = '500 9.5px "JetBrains Mono", monospace';
-        ctx.fillText(sp.fr.toUpperCase(), lx, ly + 15);
-        ctx.restore();
+      // trèfle et pâquerettes
+      for (let i = 0; i < (W * H) / 9000; i++) {
+        const x = rnd(W), y = rnd(H), r = L * 0.45;
+        g.fillStyle = 'rgba(70,120,50,.7)';
+        for (let k = 0; k < 3; k++) { const a = (k * TAU) / 3 + rnd(0.3); g.beginPath(); g.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, r, 0, TAU); g.fill(); }
       }
+      for (let i = 0; i < (W * H) / 4000; i++) {
+        const x = rnd(W), y = rnd(H), r = L * 0.32;
+        g.fillStyle = 'rgba(250,248,240,.85)';
+        for (let k = 0; k < 8; k++) { const a = (k * TAU) / 8; g.beginPath(); g.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, r * 0.45, 0, TAU); g.fill(); }
+        g.fillStyle = '#f2c230'; g.beginPath(); g.arc(x, y, r * 0.45, 0, TAU); g.fill();
+      }
+    }
+    const snow = layer(Math.ceil(W / 3), Math.ceil(H / 3));
+    {
+      const g = snow.g; g.fillStyle = 'rgba(244,247,250,.86)'; g.fillRect(0, 0, snow.w, snow.h);
+      for (let i = 0; i < 24; i++) { const x = rnd(snow.w), y = rnd(snow.h), r = rnd(snow.w * 0.3, snow.w * 0.08), gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(206,218,232,.22)'); gr.addColorStop(1, 'rgba(206,218,232,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); }
+      for (let i = 0; i < (snow.w * snow.h) / 30; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.7)' : 'rgba(170,186,200,.35)'; g.fillRect(rnd(snow.w), rnd(snow.h), 1, 1); }
+    }
+    const deco = layer(W, H); // allées de gravier
+    const tint = buf(GW, GH);
+    const idx = (x, y) => { const gx = Math.floor(x / CS), gy = Math.floor(y / CS); return gx < 0 || gy < 0 || gx >= GW || gy >= GH ? -1 : gy * GW + gx; };
+    function disk(x, y, r, fn) {
+      const R = Math.ceil(r / CS), cx = Math.floor(x / CS), cy = Math.floor(y / CS);
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        const gx = cx + dx, gy = cy + dy;
+        if (gx < 0 || gy < 0 || gx >= GW || gy >= GH) continue;
+        const d = Math.hypot(dx, dy) / Math.max(1, R);
+        if (d <= 1) fn(gy * GW + gx, d);
+      }
+    }
 
-      /* colonies de départ */
-      const port = H > W * 1.1;
-      const START = port ? [[0, 0.3, 0.2], [2, 0.75, 0.38], [1, 0.35, 0.62], [3, 0.8, 0.88]] : [[0, 0.2, 0.3], [2, 0.78, 0.26], [1, 0.42, 0.72], [3, 0.88, 0.82]];
-      for (const [s, fx, fy] of START) seed(s, W * fx, H * fy, 6);
-      for (let k = 0; k < 60; k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
-      flush(); stainPaint();
-      let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);
-      quiet = false;
-      const drones = [];
-      if (au && au.live) drones.push(au.drone(49, 'sine', 0.03), au.drone(73.4, 'sine', 0.014), au.drone(146.8, 'triangle', 0.004));
+    /* le temps : T en années ; janvier = 0 */
+    let T = 0, lastT = 0;
+    const month = () => Math.floor((((T % 1) + 1) % 1) * 12);
+    // croissance saisonnière : surtout au printemps et à l'automne humides (moyenne 1)
+    const GROW = [0.25, 0.25, 0.7, 1.4, 1.6, 1.1, 0.7, 0.8, 1.5, 1.7, 1.2, 0.45];
+    let drought = 0.8, rain = 0, rainT = 0, snowA = 0, snowy = false, lastYear = -1, nextSpore = rnd(4, 2);
+    const spores = []; // pour le tableau : où et quand chaque rond est né
+    const shrooms = [];
+    let front = []; // cases du front (pour faire sortir les champignons)
 
-      return {
-        frame(tt, dt) {
-          const n = Math.max(1, Math.ceil(dt / 0.04)), h = dt / n;
-          for (let i = 0; i < n; i++) { T0 += h; step(h, T0); }
-          const t = T0;
-          mature(dt, t);
-          flush();
-          if ((abT -= dt) <= 0) {
-            abT = 0.25; diffuse(AB, TMP, GW, GH, 0.18);
-            const f = Math.exp(-0.03 * 0.25); for (let i = 0; i < NC; i++) AB[i] *= f;
-          }
-          if ((stT -= dt) <= 0) { stT = 0.5; stainPaint(); }
-          if ((glT -= dt) <= 0) { glT = 0.2; GL.g.clearRect(0, 0, GL.w, GL.h); GL.g.drawImage(HL.c, 0, 0, GL.w, GL.h); }
-          if ((nextSp -= dt) <= 0) { nextSp = rnd(32, 18); if (cfg.spont) spontaneous(t); }
-          if ((covT -= dt) <= 0) { covT = 1; stats(); }
-          for (const sp of spores) sp.t += dt;
-          while (spores.length && spores[0].t > 5) spores.shift();
-          for (const r of rings) r.t += dt;
-          while (rings.length && rings[0].t > 1.6) rings.shift();
-          if (label) { label.t -= dt; if (label.t <= 0) label = null; }
-          if (snd() && tips.length > 40 && t - lastCrk > 0.1 && Math.random() < 0.35) { lastCrk = t; au.noise(0.04, Math.min(0.012, tips.length * 0.00001), rnd(9000, 6000), 6, 'bandpass'); }
+    function seed(x, y, quietly) {
+      const i = idx(x, y); if (i < 0 || BLK[i] || S[i] < TH + 0.1) return false;
+      disk(x, y, CS * 1.6, (j) => { if (!BLK[j]) F[j] = Math.max(F[j], 0.5); });
+      spores.push({ x, y, t0: T });
+      if (!quietly && snd()) au.pluck(scale(rint(5) + 3, 220), 2.2, 0.05);
+      return true;
+    }
 
+    function step(h) {
+      const m = month(), sf = GROW[m];
+      // vitesse du front (Fisher-KPP) : c = 2·√(D·r·(S−seuil)) ; on prend D = r (en cases) pour un front de quelques cases
+      const c = ((cfg.speed / 100) * PXM) / CS, r = (c / (2 * Math.sqrt(1 - TH))) * sf, D = r;
+      const kap = 2.2 * Math.max(0.4, sf), regen = 0.035;
+      for (let gy = 0; gy < GH; gy++) {
+        const o = gy * GW;
+        for (let gx = 0; gx < GW; gx++) {
+          const i = o + gx;
+          if (BLK[i]) { F2[i] = 0; continue; }
+          const f = F[i];
+          const l = gx > 0 ? F[i - 1] : f, rr = gx < GW - 1 ? F[i + 1] : f, u = gy > 0 ? F[i - GW] : f, d = gy < GH - 1 ? F[i + GW] : f;
+          const lap = l + rr + u + d - 4 * f;
+          if (f < 1e-4 && lap < 1e-4) { F2[i] = 0; continue; }
+          const s = S[i];
+          // au-dessus du seuil, croissance logistique ; en dessous, le mycélium meurt de faim
+          const reac = s > TH ? r * f * (s - TH) * (1 - f) : 3 * r * f * (s - TH);
+          let nf = f + h * (D * lap + reac);
+          if (nf < 2e-4) nf = 0;
+          F2[i] = nf > 1 ? 1 : nf;
+          // il digère la matière organique et libère de l'azote
+          const eat = kap * f * s * h;
+          S[i] = s - eat;
+          N[i] += eat * 1.6;
+        }
+      }
+      F.set(F2);
+      const dry = m >= 5 && m <= 8 ? drought * (m === 6 || m === 7 ? 1 : 0.5) : 0;
+      const nd = Math.exp(-h / 1.3), gRec = (m >= 2 && m <= 9 ? 1.4 : 0.25) * h;
+      for (let i = 0; i < NC; i++) {
+        if (BLK[i]) continue;
+        S[i] += (S0[i] - S[i]) * regen * h;
+        N[i] *= nd;
+        // le feutrage de mycélium rend le sol imperméable : l'été sec, l'herbe jaunit au-dessus
+        const f = F[i];
+        G[i] += gRec * (1 - G[i]) * (1 - BARE[i] * 0.7) - h * G[i] * f * dry * 9;
+        if (G[i] < 0) G[i] = 0;
+        if (BARE[i] > 0) BARE[i] = Math.max(0, BARE[i] - h * 0.9);
+      }
+      T += h;
+    }
+
+    function flush(h) {
+      // les champignons sortent sur l'anneau, après une pluie, surtout à l'automne (un peu à la fin du printemps)
+      const m = month(), mf = m >= 7 && m <= 10 ? 1 : m === 5 || m === 6 ? 0.25 : 0;
+      if (!rain || !mf || !front.length || snowA > 0.3) return;
+      const n = front.length * h * 0.7 * rain * mf;
+      let k = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
+      while (k-- > 0 && shrooms.length < 2400) {
+        const i = front[rint(front.length)], x = ((i % GW) + Math.random()) * CS, y = (((i / GW) | 0) + Math.random()) * CS;
+        const nb = 1 + rint(2);
+        for (let q = 0; q < nb; q++) {
+          shrooms.push({ x: x + rnd(6, -6), y: y + rnd(6, -6), r: rnd(2.5, 1.1) * 0.01 * PXM * 1.6, t0: T, life: Math.max(0.06, 1.2 / cfg.year) * rnd(1.3, 0.8), hue: rnd(1) });
+        }
+        if (snd() && Math.random() < 0.08) au.note(rnd(2400, 1600), 0.04, 'sine', 0.012);
+      }
+    }
+
+    function scanFront() {
+      front = [];
+      for (let i = 0; i < NC; i++) if (F[i] > 0.4 && S[i] > TH * 0.8) front.push(i);
+    }
+
+    function paintTint() {
+      const d = tint.d;
+      if (cfg.sous) {
+        for (let i = 0; i < NC; i++) {
+          const o = i * 4, f = F[i], s = clamp(S[i], 0, 2);
+          if (BLK[i]) { d[o] = 120; d[o + 1] = 118; d[o + 2] = 112; d[o + 3] = 255; continue; }
+          const live = clamp(f * (S[i] - TH) * 3, 0, 1);
+          // sol : plus sombre là où il ne reste plus de matière organique ; mycélium blanc, front doré
+          let R = 28 + s * 34, Gc = 20 + s * 22, B = 14 + s * 12;
+          R += (236 - R) * f * 0.9; Gc += (230 - Gc) * f * 0.9; B += (214 - B) * f * 0.9;
+          R += (255 - R) * live * 0.6; Gc += (200 - Gc) * live * 0.6; B += (90 - B) * live * 0.6;
+          d[o] = R; d[o + 1] = Gc; d[o + 2] = B; d[o + 3] = 255;
+        }
+      } else {
+        for (let i = 0; i < NC; i++) {
+          const o = i * 4;
+          if (BLK[i]) { d[o + 3] = 0; continue; }
+          // vert sombre : l'azote libéré ; paille : l'herbe desséchée ; brun : terre nue ou tas de feuilles
+          let r = 0, g = 0, b = 0, a = 0;
+          const add = (cr, cg, cb, ca) => { if (ca <= 0) return; const na = ca + a * (1 - ca); r = (cr * ca + r * a * (1 - ca)) / na; g = (cg * ca + g * a * (1 - ca)) / na; b = (cb * ca + b * a * (1 - ca)) / na; a = na; };
+          add(14, 66, 12, Math.min(0.72, N[i] * 0.9));
+          add(204, 180, 112, (1 - G[i]) * 0.88);
+          add(92, 66, 42, BARE[i] * 0.95);
+          const ex = S[i] - S0[i] - 0.15; if (ex > 0) add(78, 52, 30, Math.min(0.85, ex * 0.8));
+          d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = a * 255;
+        }
+      }
+      tint.flush();
+    }
+
+    /* un dispositif de départ : une allée de gravier et quatre ronds d'âges différents */
+    function gravel(x, y, r) {
+      disk(x, y, r, (j) => { BLK[j] = 1; F[j] = 0; S[j] = 0; S0[j] = 0; });
+      const g = deco.g;
+      g.fillStyle = 'rgba(150,140,124,.9)'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+      for (let k = 0; k < r * 1.4; k++) {
+        const a = rnd(TAU), dd = Math.sqrt(Math.random()) * r, s = rnd(2.4, 0.8);
+        g.fillStyle = ['#cfc6b4', '#8e8574', '#b2a894', '#6f685c'][rint(4)];
+        g.beginPath(); g.ellipse(x + Math.cos(a) * dd, y + Math.sin(a) * dd, s, s * 0.7, rnd(TAU), 0, TAU); g.fill();
+      }
+    }
+    let lastG = null;
+    function pathTo(x, y) {
+      const a = lastG || { x, y }, d = Math.hypot(x - a.x, y - a.y), n = Math.max(1, Math.ceil(d / 4)), r = 0.2 * PXM;
+      for (let k = 0; k <= n; k++) gravel(a.x + ((x - a.x) * k) / n, a.y + ((y - a.y) * k) / n, r);
+      lastG = { x, y };
+    }
+    {
+      const P = [];
+      for (let k = 0; k <= 40; k++) { const u = k / 40; P.push([V0.x0 + VW * (0.52 + 0.5 * u) + Math.sin(u * 5) * PXM * 0.4, H * (1.05 - 0.75 * u)]); }
+      lastG = null; for (const [x, y] of P) pathTo(x, y); lastG = null;
+      const plan = [[0, 0.24, 0.72], [4, 0.66, 0.3], [7, 0.86, 0.78], [9, 0.38, 0.28], [10.5, 0.55, 0.62]];
+      let pi = 0;
+      while (T < 12.6) {
+        while (pi < plan.length && T >= plan[pi][0]) { seed(V0.x0 + VW * plan[pi][1], H * plan[pi][2], true); pi++; }
+        step(Math.min(0.02, hmax()));
+      }
+      drought = 1;
+      scanFront(); paintTint();
+    }
+    quiet = false;
+    const drones = [];
+    if (au && au.live) drones.push(au.drone(98, 'sine', 0.012), au.drone(147, 'sine', 0.006));
+
+    function hud() {
+      const v = V(), x0 = v.x0 + 16;
+      ctx.save(); ctx.font = '500 11px "JetBrains Mono", monospace';
+      const line = (txt, y, strong) => { const w = ctx.measureText(txt).width; ctx.fillStyle = 'rgba(10,14,8,.62)'; ctx.fillRect(x0 - 6, y - 13, w + 12, 18); ctx.fillStyle = strong ? 'rgba(236,246,200,.96)' : 'rgba(230,236,220,.85)'; ctx.fillText(txt, x0, y); };
+      const yr = Math.floor(T), m = month();
+      let y = H - 58;
+      line(`ANNÉE ${yr} · ${MOIS[m].toUpperCase()}${rain ? ' · PLUIE' : ''}${m >= 5 && m <= 8 && drought > 1.1 ? ' · ÉTÉ SEC' : ''}`, y, true); y += 20;
+      const old = spores.length ? T - spores[0].t0 : 0;
+      line(`${spores.length} SPORES GERMÉES · LE PLUS VIEUX ROND A ${Math.floor(old)} ANS ET ${fr(2 * old * cfg.speed / 100, 1)} M DE DIAMÈTRE`, y); y += 20;
+      // échelle
+      ctx.fillStyle = 'rgba(10,14,8,.62)'; ctx.fillRect(x0 - 6, y - 12, PXM + 50, 16);
+      ctx.strokeStyle = 'rgba(236,246,200,.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, y - 7); ctx.lineTo(x0, y - 2); ctx.lineTo(x0 + PXM, y - 2); ctx.lineTo(x0 + PXM, y - 7); ctx.stroke();
+      ctx.fillStyle = 'rgba(236,246,200,.9)'; ctx.fillText('1 m', x0 + PXM + 8, y);
+      ctx.restore();
+    }
+
+    function drawShrooms() {
+      const sh = 'rgba(20,30,10,.35)';
+      for (let k = shrooms.length - 1; k >= 0; k--) {
+        const s = shrooms[k], age = (T - s.t0) / s.life;
+        if (age > 1) { shrooms.splice(k, 1); continue; }
+      }
+      ctx.fillStyle = sh;
+      ctx.beginPath();
+      for (const s of shrooms) { const age = (T - s.t0) / s.life, z = s.r * Math.min(1, age * 4); ctx.moveTo(s.x + z * 0.6 + z, s.y + z * 0.5); ctx.ellipse(s.x + z * 0.6, s.y + z * 0.5, z, z * 0.8, 0, 0, TAU); }
+      ctx.fill();
+      for (const s of shrooms) {
+        const age = (T - s.t0) / s.life, z = s.r * Math.min(1, age * 4), old = clamp((age - 0.6) / 0.4, 0, 1);
+        if (z < 0.6) continue;
+        // faux mousseron : chapeau chamois, mamelon plus sombre ; il brunit et se ratatine en vieillissant
+        const c1 = [240 - old * 70, 222 - old * 80, 186 - old * 90], c2 = [196 - old * 60, 150 - old * 60, 100 - old * 50];
+        const gr = ctx.createRadialGradient(s.x - z * 0.3, s.y - z * 0.35, z * 0.1, s.x, s.y, z);
+        gr.addColorStop(0, `rgb(${c2[0] | 0},${c2[1] | 0},${c2[2] | 0})`); gr.addColorStop(0.35, `rgb(${c1[0] | 0},${c1[1] | 0},${c1[2] | 0})`); gr.addColorStop(1, `rgb(${(c1[0] * 0.85) | 0},${(c1[1] * 0.85) | 0},${(c1[2] * 0.85) | 0})`);
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(s.x, s.y, z * (1 - old * 0.25), 0, TAU); ctx.fill();
+      }
+    }
+
+    let tintT = 0, frontT = 0;
+    const drops = [];
+    return {
+      frame(t, dt) {
+        dt = Math.min(dt, 0.1);
+        const yrs = dt / cfg.year;
+        let left = yrs;
+        const hm = hmax();
+        while (left > 1e-9) { const h = Math.min(hm, left); step(h); flush(h); left -= h; }
+        // météo : pluies plus fréquentes à l'automne ; neige certains hivers
+        const m = month();
+        if (Math.floor(T) !== lastYear) { lastYear = Math.floor(T); drought = rnd(1.5, 0.4); snowy = Math.random() < 0.55; }
+        if (rainT > 0) { rainT -= yrs; rain = 1; if (rainT <= 0) rain = 0; }
+        else if (Math.random() < yrs * (m >= 8 && m <= 10 ? 26 : m === 5 ? 8 : m >= 6 && m <= 7 ? 2 : 6)) { rainT = rnd(0.035, 0.015); }
+        const wantSnow = snowy && (m === 0 || m === 1 || m === 11) ? 1 : 0;
+        snowA += (wantSnow - snowA) * Math.min(1, yrs * 30);
+        if (cfg.auto && (nextSpore -= yrs) <= 0) {
+          nextSpore = rnd(5, 2.5);
+          for (let k = 0; k < 30; k++) { const v = V(); if (seed(rnd(v.x1 - 30, v.x0 + 30), rnd(H - 30, 30))) break; }
+        }
+        if ((frontT -= dt) <= 0) { frontT = 0.25; scanFront(); }
+        if ((tintT -= dt) <= 0) { tintT = 0.08; paintTint(); }
+        if (snd() && rain && Math.random() < dt * 6) au.noise(0.5, 0.012, rnd(4200, 2600), 0.6, 'bandpass');
+
+        /* rendu */
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        ctx.imageSmoothingEnabled = true;
+        if (cfg.sous) {
+          ctx.drawImage(tint.c, 0, 0, GW * CS, GH * CS);
+        } else {
+          ctx.drawImage(grass.c, 0, 0);
+          // la saison, multipliée sur l'herbe
+          const ph = (((T % 1) + 1) % 1) * 12, m0 = Math.floor(ph) % 12, m1 = (m0 + 1) % 12, u = ph - Math.floor(ph);
+          const sc = [0, 1, 2].map((k) => Math.round(SAISON[m0][k] * (1 - u) + SAISON[m1][k] * u));
+          ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = `rgb(${sc[0]},${sc[1]},${sc[2]})`; ctx.fillRect(0, 0, W, H);
           ctx.globalCompositeOperation = 'source-over';
-          ctx.drawImage(bg.c, 0, 0, W, H);
-          ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(STB.c, 0, 0, GW * CS, GH * CS);
-          for (let i = drops.length - 1; i >= 0; i--) {
-            const d = drops[i], c = ci(d.x, d.y), k = c < 0 ? 0 : clamp((N[c] - 0.6) / 2.2, 0, 1);
-            if (k <= 0.02) { drops.splice(i, 1); continue; }
-            const r = d.r * Math.sqrt(k);
-            const gr = ctx.createRadialGradient(d.x - r * 0.3, d.y - r * 0.35, r * 0.1, d.x, d.y, r);
-            gr.addColorStop(0, 'rgba(255,236,190,.55)'); gr.addColorStop(0.7, 'rgba(200,150,80,.32)'); gr.addColorStop(1, 'rgba(140,100,50,.4)');
-            ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(d.x, d.y, r, 0, TAU); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(d.x - r * 0.35, d.y - r * 0.38, r * 0.16, 0, TAU); ctx.fill();
-          }
-          if (cfg.showAB) { ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(ABB.c, 0, 0, GW * CS, GH * CS); ctx.globalCompositeOperation = 'source-over'; }
-          ctx.drawImage(HL.c, 0, 0, W, H);
-          ctx.drawImage(WL.c, 0, 0, W, H);
-          ctx.globalCompositeOperation = 'lighter';
-          if (cfg.glow) { ctx.globalAlpha = 0.32; ctx.drawImage(GL.c, 0, 0, W, H); }
-          for (let s = 0; s < 4; s++) {
-            const spr = sprTip[s], z = 7 * kS;
-            ctx.globalAlpha = 0.6;
-            for (const p of tips) if (p.s === s) { const zz = p.fd ? z * 1.8 : z; ctx.drawImage(spr, p.x - zz / 2, p.y - zz / 2, zz, zz); }
-          }
-          for (const sp of spores) {
-            const a = (1 - sp.t / 5) * (0.6 + 0.4 * Math.sin(sp.t * 5)), z = 26 * kS;
-            ctx.globalAlpha = Math.max(0, a); ctx.drawImage(sprTip[sp.s], sp.x - z / 2, sp.y - z / 2, z, z);
-          }
-          for (const q of pulses) {
-            const x = NX[q.n] + (NX[q.tgt] - NX[q.n]) * q.f, y = NY[q.n] + (NY[q.tgt] - NY[q.n]) * q.f, z = (6 + 10 * q.b) * kS;
-            ctx.globalAlpha = Math.min(1, q.b); ctx.drawImage(sprTip[q.s], x - z / 2, y - z / 2, z, z);
-          }
-          for (const r of rings) {
-            const k = r.t / 1.6;
-            ctx.globalAlpha = (1 - k) * 0.5; ctx.strokeStyle = 'rgba(255,245,225,1)'; ctx.lineWidth = 1.2;
-            ctx.beginPath(); ctx.arc(r.x, r.y, 8 + k * 60 * kS, 0, TAU); ctx.stroke();
-          }
-          ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-          if (label) drawLabel();
-        },
-        down(p) {
-          this._mode = null; this._d = 0;
-          const tool = env.tool;
-          if (tool === 'nutriment') { this._mode = 'nut'; feed(p.x, p.y); return; }
-          if (tool === 'mur') { this._mode = 'mur'; wallLast = null; wall(p.x, p.y); if (snd()) au.noise(0.15, 0.03, 900, 1, 'bandpass'); return; }
-          if (tool === 'gratter') { this._mode = 'gratter'; scrape(p.x, p.y); if (snd()) au.noise(0.2, 0.04, 2400, 0.8, 'bandpass'); return; }
-          let tot = 0, best = -1, bm = 0;
-          const c0 = ci(p.x, p.y);
-          if (c0 >= 0) {
-            const gx = c0 % GW, gy = (c0 / GW) | 0;
-            for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-              const x2 = gx + dx, y2 = gy + dy;
-              if (x2 < 0 || y2 < 0 || x2 >= GW || y2 >= GH) continue;
-              for (let s = 0; s < 4; s++) { const v = D[s][y2 * GW + x2]; tot += v; if (v > bm) { bm = v; best = s; } }
-            }
-          }
-          if (tot > 1.2 && wave(p.x, p.y)) {
-            label = { x: p.x, y: p.y, s: best, t: 6 }; rings.push({ x: p.x, y: p.y, t: 0 });
-            if (navigator.vibrate) navigator.vibrate([5, 25, 5]);
-            if (snd()) [0, 2, 4, 7, 9].forEach((d, k) => setTimeout(() => au.pluck(scale(best * 2 + d + 5, 220), 1.6, 0.035), k * 70));
-            return;
-          }
-          const s = Math.max(0, SP.findIndex((q) => q.key === tool));
-          seed(s, p.x, p.y); this._mode = 'seed'; this._s = s; this._n = 0;
-          if (navigator.vibrate) navigator.vibrate(6);
-        },
-        move(p) {
-          if (!p.down || !this._mode) return;
-          this._d += Math.hypot(p.dx, p.dy);
-          if (this._mode === 'mur') { if (this._d > 4) { this._d = 0; wall(p.x, p.y); } return; }
-          if (this._mode === 'gratter') { if (this._d > 5) { this._d = 0; scrape(p.x, p.y); if (snd() && Math.random() < 0.15) au.noise(0.12, 0.02, 2400, 0.8, 'bandpass'); } return; }
-          if (this._mode === 'nut' && this._d > 22) { this._d = 0; feed(p.x, p.y); }
-          else if (this._mode === 'seed' && this._d > 40 && this._n < 10) { this._d = 0; this._n++; seed(this._s, p.x, p.y, 2); }
-        },
-        up() { this._mode = null; wallLast = null; },
-        dispose() { drones.forEach((d) => d.stop()); },
-        livePaused: true,
-        clear: clearAll,
-        ui() {
-          const L = [{ type: 'section', label: 'Population' }];
-          SP.forEach((sp, s) => L.push({ type: 'bar', label: sp.nom, color: rgba(sp.tip, 1), value: cov[s] * 1.6, txt: Math.round(cov[s] * 100) + ' % · ' + cnt[s] + ' pointes' }));
-          L.push({ type: 'buttons', items: [{ label: 'Une colonie de chaque', act: seedFour }, { label: 'Semer au hasard', act: seedRandom }] });
-          L.push({ type: 'section', label: 'Substrat' });
-          L.push({ type: 'slider', label: 'Richesse du substrat', min: 0.3, max: 2.5, step: 0.05, value: cfg.nut, fmt: (v) => '×' + v.toFixed(2), set: (v) => { const r = v / cfg.nut; for (let i = 0; i < NC; i++) { N[i] *= r; N0[i] *= r; } cfg.nut = v; } });
-          L.push({ type: 'slider', label: 'Ramification', min: 0.4, max: 2.5, step: 0.05, value: cfg.br, fmt: (v) => '×' + v.toFixed(2), set: (v) => { cfg.br = v; } });
-          L.push({ type: 'section', label: 'Cycle de vie' });
-          L.push({ type: 'toggle', label: 'Les vieilles colonies dépérissent', value: cfg.life, set: (v) => { cfg.life = v; } });
-          L.push({ type: 'slider', label: 'Âge du dépérissement', min: 60, max: 600, step: 10, value: cfg.sen, fmt: (v) => Math.round(v / 60 * 10) / 10 + ' min', set: (v) => { cfg.sen = v; } });
-          L.push({ type: 'toggle', label: 'Germinations spontanées', value: cfg.spont, set: (v) => { cfg.spont = v; } });
-          L.push({ type: 'section', label: 'Affichage' });
-          L.push({ type: 'toggle', label: 'Révéler la pénicilline', value: cfg.showAB, set: (v) => { cfg.showAB = v; if (v) stainPaint(); } });
-          L.push({ type: 'toggle', label: 'Halo lumineux', value: cfg.glow, set: (v) => { cfg.glow = v; } });
-          return L;
-        },
-      };
-
-      function feed(x, y) {
-        const r = 30 * kS, R = Math.ceil(r / CS), c0 = ci(x, y);
-        if (c0 < 0) return;
-        const gx = c0 % GW, gy = (c0 / GW) | 0;
-        for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
-          const x2 = gx + dx, y2 = gy + dy, d = Math.hypot(dx, dy) / R;
-          if (d > 1 || x2 < 0 || y2 < 0 || x2 >= GW || y2 >= GH) continue;
-          const j = y2 * GW + x2; N[j] = Math.min(3.2, N[j] + 2.2 * (1 - d * d));
+          ctx.drawImage(tint.c, 0, 0, GW * CS, GH * CS);
         }
-        if (drops.length > 40) drops.shift();
-        drops.push({ x, y, r: rnd(14, 9) * kS });
-        if (snd()) au.note(rnd(760, 560), 0.3, 'sine', 0.035, 380);
+        ctx.drawImage(deco.c, 0, 0);
+        if (!cfg.sous) {
+          drawShrooms();
+          if (snowA > 0.02) { ctx.globalAlpha = snowA * 0.72; ctx.drawImage(snow.c, 0, 0, W, H); ctx.globalAlpha = 1; }
+          if (rain) {
+            ctx.fillStyle = 'rgba(30,40,60,.16)'; ctx.fillRect(0, 0, W, H);
+            ctx.strokeStyle = 'rgba(210,225,240,.35)'; ctx.lineWidth = 1; ctx.beginPath();
+            for (let k = 0; k < (W * H) / 5000; k++) { const x = rnd(W + 80), y = rnd(H); ctx.moveTo(x, y); ctx.lineTo(x - 7, y + 22); }
+            ctx.stroke();
+          }
+        } else {
+          ctx.globalAlpha = 0.5; drawShrooms(); ctx.globalAlpha = 1;
+        }
+        for (let k = drops.length - 1; k >= 0; k--) {
+          const q = drops[k]; q.t += dt; if (q.t > 1.4) { drops.splice(k, 1); continue; }
+          ctx.strokeStyle = `rgba(255,250,220,${(0.6 * (1 - q.t / 1.4)).toFixed(3)})`; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(q.x, q.y, 6 + q.t * 40, 0, TAU); ctx.stroke();
+        }
+        hud();
+      },
+      down(p) {
+        this._d = 0;
+        const tool = env.tool;
+        if (tool === 'semer') { if (seed(p.x, p.y)) drops.push({ x: p.x, y: p.y, t: 0 }); return; }
+        if (tool === 'nourrir') { this.heap(p.x, p.y); return; }
+        if (tool === 'tracer') { lastG = null; pathTo(p.x, p.y); if (snd()) au.noise(0.2, 0.03, 1600, 0.7, 'bandpass'); return; }
+        if (tool === 'gratter') { this.dig(p.x, p.y); return; }
+        if (tool === 'arroser') { rainT = 0.05; rain = 1; return; }
+      },
+      move(p) {
+        if (!p.down) return;
+        this._d = (this._d || 0) + Math.hypot(p.dx, p.dy);
+        const tool = env.tool;
+        if (tool === 'tracer') { if (this._d > 3) { this._d = 0; pathTo(p.x, p.y); } }
+        else if (tool === 'gratter') { if (this._d > 6) { this._d = 0; this.dig(p.x, p.y); } }
+        else if (tool === 'nourrir') { if (this._d > 20) { this._d = 0; this.heap(p.x, p.y); } }
+      },
+      up() { lastG = null; },
+      heap(x, y) { disk(x, y, 0.35 * PXM, (j, d) => { if (!BLK[j]) S[j] = Math.min(3, S[j] + 1.4 * (1 - d * d)); }); if (snd()) au.noise(0.3, 0.03, 700, 0.8, 'bandpass'); },
+      dig(x, y) { disk(x, y, 0.28 * PXM, (j) => { if (!BLK[j]) { F[j] = 0; G[j] = 0; BARE[j] = 1; N[j] = 0; } }); if (snd() && Math.random() < 0.4) au.noise(0.15, 0.03, 900, 0.8, 'bandpass'); },
+      clear() {
+        F.fill(0); N.fill(0); G.fill(1); BARE.fill(0); BLK.fill(0); S0.set(SB); S.set(S0);
+        deco.g.clearRect(0, 0, W, H); shrooms.length = 0; spores.length = 0; front = [];
+        paintTint();
+      },
+      dispose() { drones.forEach((d) => d.stop()); },
+      ui() {
+        const L = [{ type: 'section', label: 'Les ronds de sorcières' }];
+        L.push({ type: 'slider', label: 'Durée d’une année', min: 3, max: 30, step: 1, value: cfg.year, fmt: (v) => v + ' s', set: (v) => { cfg.year = v; } });
+        L.push({ type: 'slider', label: 'Avancée du front', min: 5, max: 60, step: 1, value: cfg.speed, fmt: (v) => v + ' cm par an', set: (v) => { cfg.speed = v; } });
+        L.push({ type: 'toggle', label: 'Des spores apportées par le vent', value: cfg.auto, set: (v) => { cfg.auto = v; } });
+        L.push({ type: 'toggle', label: 'Voir sous la surface', value: cfg.sous, set: (v) => { cfg.sous = v; paintTint(); } });
+        L.push({ type: 'buttons', items: [{ label: 'Une averse', act: () => { rainT = 0.05; rain = 1; } }, { label: 'Une spore au hasard', act: () => { for (let k = 0; k < 30; k++) { const v = V(); if (seed(rnd(v.x1 - 30, v.x0 + 30), rnd(H - 30, 30))) break; } } }] });
+        L.push({ type: 'note', text: 'Ce que l’on voit, de l’intérieur vers l’extérieur d’un anneau : l’herbe redevenue normale (le sol est épuisé, le mycélium est mort), une bande vert sombre (l’azote libéré par la digestion), en été une bande jaunie (le feutrage de mycélium empêche l’eau d’entrer), puis le front lui-même. Les champignons sortent sur l’anneau après les pluies d’automne. Sous la surface : le mycélium en blanc, le front qui mange encore en doré, le sol épuisé en sombre.' });
+        L.push({ type: 'note', text: 'Essayez : une allée de gravier (TRACER) coupe l’anneau en arcs ; un tas de feuilles (NOURRIR) l’accélère et l’attire ; deux anneaux qui se rencontrent s’arrêtent net. Les champignons sont dessinés environ 1,6 fois plus grands que nature.' });
+        return L;
+      },
+    };
+  };
+})();
+
+;
+/* ═════ js/machines/s-myce-reseau.js ═════ */
+/* Fascinations — Le Mycélium · scène 3 : le réseau souterrain (mycorhizes : sucre contre minéraux) */
+(function boot() {
+  if (!window.FK) return setTimeout(boot, 12);
+  const { TAU, clamp, rnd, rint, layer, scale } = window.FK;
+  const M = (window.FK_MYCE = window.FK_MYCE || {});
+  const fr = (x, d = 0) => x.toFixed(d).replace('.', ',');
+  const cfg = { share: false, day: 50, cycle: true };
+  const KIND = {
+    bouleau: { nom: 'Bouleau', h: 0.32, col: [148, 196, 84] },
+    douglas: { nom: 'Douglas', h: 0.4, col: [46, 104, 70] },
+    jeune: { nom: 'Jeune douglas', h: 0.4, col: [56, 118, 78] },
+    hetre: { nom: 'Jeune hêtre', h: 0.3, col: [104, 160, 70] },
+  };
+  function glow(c) {
+    const s = layer(32, 32), g = s.g, gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gr.addColorStop(0, `rgba(${c},1)`); gr.addColorStop(0.25, `rgba(${c},.55)`); gr.addColorStop(1, `rgba(${c},0)`);
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return s.c;
+  }
+
+  M.reseau = function (env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    let quiet = true;
+    const snd = () => !quiet && au && au.on;
+    const V = () => env.view || { x0: 0, x1: W };
+    const V0 = V(), VX = V0.x0, VW = V0.x1 - V0.x0;
+    const GY = Math.round(H * 0.42); // la surface du sol
+    const kS = clamp(Math.min(VW, H) / 700, 0.7, 1.6);
+    const SUG = glow('255,200,90'), MIN = glow('110,220,255'), SHR = glow('255,140,200');
+
+    /* ─ décor : le sol ─ */
+    const soil = layer(W, H);
+    const patches = [];
+    {
+      const g = soil.g, gr = g.createLinearGradient(0, GY, 0, H);
+      gr.addColorStop(0, '#2a1c12'); gr.addColorStop(0.06, '#3b291b'); gr.addColorStop(0.35, '#4a3423'); gr.addColorStop(1, '#5a4430');
+      g.fillStyle = gr; g.fillRect(0, GY, W, H - GY);
+      for (let i = 0; i < (W * (H - GY)) / 40; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.18)' : 'rgba(255,220,180,.05)'; g.fillRect(rnd(W), rnd(H, GY), rnd(2, 1), rnd(2, 1)); }
+      for (let i = 0; i < (W * (H - GY)) / 9000; i++) {
+        const x = rnd(W), y = rnd(H, GY + 20), r = rnd(9, 3) * kS;
+        g.fillStyle = `rgba(${rint(40) + 110},${rint(30) + 96},${rint(30) + 80},.75)`; g.beginPath(); g.ellipse(x, y, r, r * rnd(0.8, 0.5), rnd(TAU), 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.1)'; g.beginPath(); g.ellipse(x - r * 0.3, y - r * 0.3, r * 0.4, r * 0.25, 0, 0, TAU); g.fill();
       }
-    },
-  });
+      // des poches de phosphate et d'azote, plus loin et plus profond que les racines
+      const PP = [[0.04, 0.82], [0.36, 0.9], [0.66, 0.66], [0.97, 0.86], [0.5, 0.56], [0.18, 0.58]];
+      for (const [fx, fy] of PP) {
+        const x = VX + VW * fx + rnd(20, -20), y = GY + (H - GY) * fy, r = 34 * kS;
+        patches.push({ x, y, r, q: 1 });
+        const pg = g.createRadialGradient(x, y, 0, x, y, r * 1.6);
+        pg.addColorStop(0, 'rgba(120,190,210,.22)'); pg.addColorStop(1, 'rgba(120,190,210,0)');
+        g.fillStyle = pg; g.fillRect(x - r * 2, y - r * 2, r * 4, r * 4);
+        for (let k = 0; k < 70; k++) { const a = rnd(TAU), d = Math.sqrt(Math.random()) * r; g.fillStyle = Math.random() < 0.5 ? 'rgba(200,240,250,.8)' : 'rgba(120,200,220,.6)'; g.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.7, rnd(2.5, 1), rnd(2.5, 1)); }
+      }
+      // litière en surface
+      g.fillStyle = '#3a2a1a'; g.fillRect(0, GY - 2, W, 6);
+      for (let i = 0; i < W / 3; i++) { g.fillStyle = ['#7a5a2a', '#a07432', '#5e4a24', '#4f6a2a'][rint(4)]; g.beginPath(); g.ellipse(rnd(W), GY + rnd(3, -2), rnd(5, 2), rnd(2, 1), rnd(TAU), 0, TAU); g.fill(); }
+    }
+
+    /* ─ les arbres ─ */
+    const trees = [];
+    function crownCanvas(kind, hpx, sick) {
+      const w = Math.ceil(hpx * (kind === 'douglas' || kind === 'jeune' ? 0.62 : 0.85)), h = Math.ceil(hpx * 1.02), L = layer(w, h), g = L.g, cx = w / 2;
+      const K = KIND[kind], col = sick ? [168, 150, 70] : K.col;
+      const sh = (c, k) => `rgb(${(c[0] * k) | 0},${(c[1] * k) | 0},${(c[2] * k) | 0})`;
+      if (kind === 'douglas' || kind === 'jeune') {
+        g.fillStyle = '#5a3420'; g.fillRect(cx - hpx * 0.018, h * 0.1, hpx * 0.036, h * 0.9);
+        const tiers = kind === 'douglas' ? 11 : 7;
+        for (let i = 0; i < tiers; i++) {
+          const u = i / (tiers - 1), y = h * (0.04 + 0.78 * u), half = w * (0.08 + 0.42 * u);
+          g.fillStyle = sh(col, 0.7 + 0.3 * Math.sin(i * 1.7) * 0.5 + 0.15);
+          g.beginPath(); g.moveTo(cx, y - h * 0.06);
+          const n = 7;
+          for (let k = 0; k <= n; k++) { const t = k / n, x = cx - half + 2 * half * t; g.lineTo(x, y + h * 0.07 + Math.sin(t * Math.PI) * h * 0.02 + (k % 2 ? h * 0.02 : 0)); }
+          g.closePath(); g.fill();
+        }
+      } else {
+        g.strokeStyle = kind === 'bouleau' ? '#ece8de' : '#7d746a'; g.lineCap = 'round';
+        g.lineWidth = hpx * 0.035; g.beginPath(); g.moveTo(cx, h); g.lineTo(cx, h * 0.3); g.stroke();
+        if (kind === 'bouleau') { g.fillStyle = '#222'; for (let i = 0; i < 12; i++) g.fillRect(cx - hpx * 0.017 + rnd(hpx * 0.01), h * rnd(0.98, 0.35), rnd(hpx * 0.02, hpx * 0.008), 1.5); }
+        for (let i = 0; i < 26; i++) {
+          const a = rnd(TAU), d = Math.sqrt(Math.random()), x = cx + Math.cos(a) * d * w * 0.38, y = h * 0.34 + Math.sin(a) * d * h * 0.28, r = rnd(0.16, 0.09) * hpx;
+          g.fillStyle = sh(col, rnd(1.1, 0.7)); g.globalAlpha = 0.85; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+        }
+        g.globalAlpha = 1;
+        for (let i = 0; i < hpx * 3; i++) { const a = rnd(TAU), d = Math.sqrt(Math.random()), x = cx + Math.cos(a) * d * w * 0.45, y = h * 0.34 + Math.sin(a) * d * h * 0.32; g.fillStyle = sh(col, rnd(1.3, 0.6)); g.fillRect(x, y, 2, 2); }
+      }
+      return L.c;
+    }
+    function growRoots(t) {
+      // racines : quelques pivots qui se ramifient ; chaque extrémité est une pointe colonisée par le champignon
+      t.paths = []; t.segs = [];
+      const sz = t.s, maxD = (H - GY) * (0.2 + 0.28 * sz), spread = VW * (0.06 + 0.11 * sz);
+      const rec = (pts, x, y, a, len, w, depth) => {
+        const n = 5; let px = x, py = y;
+        const P = pts.slice();
+        for (let k = 0; k < n; k++) {
+          a += rnd(0.35, -0.35); a = clamp(a, 0.05, Math.PI - 0.05);
+          const nx = px + Math.cos(a) * (len / n), ny = Math.min(H - 12, py + Math.sin(a) * (len / n));
+          t.segs.push([px, py, nx, ny, w * (1 - (0.5 * k) / n)]);
+          px = nx; py = ny; P.push([px, py]);
+        }
+        if (depth > 0) { const nb = 2; for (let b = 0; b < nb; b++) rec(P, px, py, a + rnd(0.9, -0.9), len * rnd(0.75, 0.55), w * 0.6, depth - 1); }
+        else t.paths.push(P);
+      };
+      const nm = sz > 0.6 ? 4 : 2;
+      for (let i = 0; i < nm; i++) {
+        const a = Math.PI / 2 + ((i + 0.5) / nm - 0.5) * 2.2 + rnd(0.2, -0.2);
+        rec([[t.x, GY]], t.x, GY, a, Math.min(maxD, spread) * rnd(0.6, 0.38), 7 * kS * sz + 1.5, sz > 0.6 ? 2 : 1);
+      }
+    }
+    function mkTree(kind, fx, s) {
+      const K = KIND[kind], hpx = H * K.h * (kind === 'jeune' ? 1 : 1);
+      const t = { kind, nom: K.nom, x: VX + VW * fx, s, hpx, shade: false, fert: 0, vig: 1, P: 0, Pav: 0.5 * s * s, pay: 0, payAv: 0, rec: 0, recAv: 0, shIn: 0, shOut: 0, inAv: 0, outAv: 0, rc: 1, rm: 1, tips: [] };
+      t.crown = crownCanvas(kind, hpx, false); t.sick = crownCanvas(kind, hpx, true);
+      growRoots(t);
+      trees.push(t);
+      return t;
+    }
+    mkTree('bouleau', 0.2, 1); mkTree('douglas', 0.52, 1); mkTree('jeune', 0.78, 0.36);
+    trees[2].under = trees[1]; // le jeune pousse à l'ombre du grand
+
+    /* ─ le réseau d'hyphes : un graphe ─ */
+    let nodes = [], edges = [];
+    const adj = () => { for (const n of nodes) n.e = []; for (const e of edges) if (!e.cut) { nodes[e.a].e.push(e); nodes[e.b].e.push(e); } };
+    function bez(e) {
+      const A = nodes[e.a], B = nodes[e.b], dx = B.x - A.x, dy = B.y - A.y, P = [];
+      const c1x = A.x + dx / 3 + e.ox, c1y = A.y + dy / 3 + e.oy, c2x = A.x + (2 * dx) / 3 - e.ox2, c2y = A.y + (2 * dy) / 3 - e.oy2;
+      for (let k = 0; k <= 10; k++) { const t = k / 10, u = 1 - t; P.push([u * u * u * A.x + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * B.x, u * u * u * A.y + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * B.y]); }
+      e.pts = P; e.len = 0; for (let k = 1; k < P.length; k++) e.len += Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]);
+    }
+    function link(a, b) {
+      if (a === b || edges.some((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a))) return;
+      const A = nodes[a], B = nodes[b], L = Math.hypot(B.x - A.x, B.y - A.y), nx = -(B.y - A.y) / L, ny = (B.x - A.x) / L, o = rnd(0.28, -0.28) * L, o2 = rnd(0.28, -0.28) * L;
+      const e = { a, b, ox: nx * o, oy: ny * o, ox2: nx * o2, oy2: ny * o2, tr: 0, cut: false, grow: 1, re: 0 };
+      bez(e); edges.push(e);
+    }
+    function buildNet() {
+      nodes = []; edges = [];
+      for (const t of trees) { t.tips = []; for (const P of t.paths) { const q = P[P.length - 1]; t.tips.push(nodes.length); nodes.push({ x: q[0], y: q[1], tree: t, path: P }); } }
+      for (const p of patches) { p.node = nodes.length; nodes.push({ x: p.x, y: p.y, patch: p }); }
+      const nH = Math.round(46 * clamp((VW * (H - GY)) / 400000, 0.6, 1.6));
+      for (let k = 0, tries = 0; k < nH && tries < 2000; tries++) {
+        const x = rnd(V0.x1 - 10, VX + 10), y = rnd(H - 14, GY + 30);
+        if (nodes.some((n) => Math.hypot(n.x - x, n.y - y) < 42 * kS)) continue;
+        nodes.push({ x, y }); k++;
+      }
+      const R = Math.max(VW, H) * 0.2;
+      nodes.forEach((n, i) => {
+        const near = nodes.map((m, j) => [j, Math.hypot(m.x - n.x, m.y - n.y)]).filter(([j, d]) => j !== i && d < R && !(n.tree && m_same(n, nodes[j]))).sort((p, q) => p[1] - q[1]);
+        const k = n.patch ? 4 : 3;
+        for (let q = 0; q < Math.min(k, near.length); q++) link(i, near[q][0]);
+      });
+      adj(); dirty = true; fuzz();
+    }
+    const m_same = (n, m) => m.tree && m.tree === n.tree;
+    let dirty = true;
+    const DT = new Map(); // distances au but (chaque arbre, et les poches de minéraux)
+    function dijkstra(src) {
+      const d = new Float64Array(nodes.length).fill(Infinity), done = new Uint8Array(nodes.length);
+      for (const s of src) d[s] = 0;
+      for (;;) {
+        let u = -1, best = Infinity;
+        for (let i = 0; i < nodes.length; i++) if (!done[i] && d[i] < best) { best = d[i]; u = i; }
+        if (u < 0) break;
+        done[u] = 1;
+        for (const e of nodes[u].e) { if (e.grow < 0.6) continue; const v = e.a === u ? e.b : e.a, nd = d[u] + e.len; if (nd < d[v]) d[v] = nd; }
+      }
+      return d;
+    }
+    function routes() {
+      if (!dirty) return;
+      dirty = false; DT.clear();
+      for (const t of trees) DT.set(t, dijkstra(t.tips));
+      DT.set('P', dijkstra(patches.map((p) => p.node)));
+    }
+    // descendre le champ de distance jusqu'au but ; renvoie la liste des arêtes traversées
+    function walk(from, d) {
+      if (!isFinite(d[from])) return null;
+      const out = []; let u = from, guard = 0;
+      while (d[u] > 0 && guard++ < 80) {
+        let be = null, bd = d[u];
+        for (const e of nodes[u].e) { if (e.grow < 0.6) continue; const v = e.a === u ? e.b : e.a; const dv = d[v] + rnd(6, 0); if (dv < bd) { bd = dv; be = e; } }
+        if (!be) return null;
+        out.push([be, be.a === u]); u = be.a === u ? be.b : be.a;
+      }
+      return { edges: out, end: u };
+    }
+
+    /* fines hyphes autour du réseau (calque) */
+    const fz = layer(W, H);
+    function fuzz() {
+      const g = fz.g; g.clearRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(240,232,214,.07)'; g.lineWidth = 0.6; g.beginPath();
+      for (const e of edges) {
+        if (e.cut) continue;
+        for (let k = 0; k < 5; k++) {
+          const P = e.pts, i = rint(P.length - 1), x = P[i][0] + rnd(8, -8), y = P[i][1] + rnd(8, -8);
+          g.moveTo(x, y); let a = rnd(TAU), px = x, py = y;
+          for (let q = 0; q < 4; q++) { a += rnd(0.8, -0.8); px += Math.cos(a) * 7; py += Math.sin(a) * 7; g.lineTo(px, py); }
+        }
+      }
+      g.stroke();
+      // le manteau fongique autour des pointes de racines
+      for (const n of nodes) if (n.tree) { const r = 5 * kS; const gr = g.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 2.2); gr.addColorStop(0, 'rgba(250,244,230,.7)'); gr.addColorStop(1, 'rgba(250,244,230,0)'); g.fillStyle = gr; g.fillRect(n.x - r * 3, n.y - r * 3, r * 6, r * 6); }
+    }
+    buildNet();
+
+    /* ─ les flux ─ */
+    const parts = [];
+    const pathLen = (P) => { let L = 0; for (let k = 1; k < P.length; k++) L += Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]); return L; };
+    function treeUp(t, path) { // de la pointe de racine jusque dans la couronne
+      const P = path.slice().reverse(), top = GY - t.hpx * t.s * rnd(0.85, 0.45);
+      P.push([t.x + rnd(3, -3), GY - 4], [t.x + rnd(6, -6) * t.s, top], [t.x + rnd(0.25, -0.25) * t.hpx * t.s, top + rnd(20, -10) * t.s]);
+      return P;
+    }
+    function netPts(w) { const P = []; for (const [e, fwd] of w.edges) { const Q = fwd ? e.pts : e.pts.slice().reverse(); for (const q of Q) P.push(q); } return P; }
+    function launch(P, kind, edgesUsed, to, amt) { parts.push({ P, L: pathLen(P), s: 0, k: kind, E: edgesUsed, to, amt, v: (kind === 'm' ? 70 : 60) * kS * rnd(1.2, 0.8) }); }
+    function sendMineral(t, amt) {
+      routes();
+      const d = DT.get(t), cand = patches.filter((p) => isFinite(d[p.node]));
+      if (!cand.length) return false;
+      const p = cand[rint(cand.length)], w = walk(p.node, d);
+      if (!w || !nodes[w.end].tree) return false;
+      const P = [[p.x + rnd(10, -10), p.y + rnd(8, -8)]].concat(netPts(w), treeUp(t, nodes[w.end].path));
+      launch(P, 'm', w.edges, t, amt); return true;
+    }
+    function sendSugar(t, amt, toTree) {
+      routes();
+      const tips = t.tips.filter((i) => isFinite((toTree ? DT.get(toTree) : DT.get('P'))[i]));
+      if (!tips.length) return false;
+      const ti = tips[rint(tips.length)], n = nodes[ti];
+      const down = treeUp(t, n.path).reverse();
+      const w = walk(ti, toTree ? DT.get(toTree) : DT.get('P'));
+      if (!w) return false;
+      let P = down.concat(netPts(w));
+      if (toTree) P = P.concat(treeUp(toTree, nodes[w.end].path));
+      launch(P, toTree ? 'x' : 's', w.edges, toTree || null, amt); return true;
+    }
+
+    /* ─ le temps, la lumière ─ */
+    let T = 0.3 * cfg.day, rainT = 0;
+    const sun = () => { const ph = cfg.cycle ? (T / cfg.day) % 1 : 0.35; return { ph, el: Math.sin(ph * TAU) }; };
+    function light(t) {
+      // avec le cycle, ×2,4 au plus fort du jour : en moyenne sur la journée, à peu près autant que sans cycle
+      const el = Math.max(0, sun().el), day = cfg.cycle ? Math.min(1, el * 1.6) * 2.4 : 1;
+      let L = day * (t.shade ? 0.22 : 1);
+      if (t.under) L *= 0.2; // à l'ombre du grand douglas : un cinquième de la lumière
+      return L;
+    }
+    let acc = new Map();
+    function econ(dt) {
+      // photosynthèse, paiement du champignon, minéraux en retour (proportionnels au paiement : le champignon récompense)
+      const raining = rainT > 0;
+      let payTot = 0;
+      for (const t of trees) {
+        const A = t.s * t.s;
+        t.P = light(t) * A * (0.4 + 0.6 * t.vig);
+        // les réserves lissent la journée : le bilan se fait sur une moyenne d'environ un jour
+        const k = 1 - Math.exp(-dt / (cfg.cycle ? cfg.day : 8)); t.Pav += (t.P - t.Pav) * k;
+        t.fert = Math.max(0, t.fert - dt / 45);
+        t.pay = 0.28 * t.Pav * (1 - 0.75 * t.fert);
+        payTot += t.pay;
+      }
+      const Mtot = 1.3 * (raining ? 1.8 : 1);
+      // partage (hypothèse) : des arbres en excédent vers ceux en déficit, à travers le réseau
+      let give = 0, needT = 0;
+      for (const t of trees) {
+        const A = t.s * t.s, resp = 0.25 * A;
+        t.need = Math.max(0, resp + t.pay - t.Pav);
+        t.extra = Math.max(0, t.Pav - resp - t.pay);
+        needT += t.need; give += t.extra;
+      }
+      const sh = cfg.share ? Math.min(give * 0.3, needT * 0.5) : 0; // au plus la moitié du manque
+      for (const t of trees) {
+        const A = t.s * t.s, resp = 0.25 * A;
+        t.rec = payTot > 0 ? (Mtot * t.pay) / payTot : 0;
+        t.shIn = needT > 0 ? (sh * t.need) / needT : 0;
+        t.shOut = give > 0 ? (sh * t.extra) / give : 0;
+        const need = 0.55 * t.Pav + 0.03 * A;
+        t.rc = (t.Pav + t.shIn) / (resp + t.pay + t.shOut + 1e-6);
+        t.rm = (t.rec + 0.5 * t.fert * A) / (need + 1e-6);
+        const target = clamp(Math.min(t.rc, t.rm), 0, 1.15);
+        t.vig = clamp(t.vig + (target - t.vig) * (1 - Math.exp(-dt / 25)), 0.05, 1.15);
+        // les jeunes bien nourris grandissent (lentement)
+        if (t.s < 1 && t.vig > 0.8) t.s = Math.min(1, t.s + dt * 0.0016 * (t.vig - 0.7));
+        // les particules : une par petite quantité
+        const a = acc.get(t) || { s: 0, m: 0, x: 0 };
+        a.s += t.pay * dt * 32; a.m += t.rec * dt * 9; a.x += t.shOut * dt * 160;
+        while (a.s >= 1) { a.s -= 1; sendSugar(t, 1); }
+        while (a.m >= 1) { a.m -= 1; sendMineral(t, 1); }
+        while (a.x >= 1) {
+          a.x -= 1;
+          const tgt = trees.filter((q) => q !== t && q.need > 0);
+          if (tgt.length) { let r = Math.random() * tgt.reduce((s2, q) => s2 + q.need, 0), q = tgt[0]; for (const c of tgt) { r -= c.need; if (r <= 0) { q = c; break; } } sendSugar(t, 1, q); }
+        }
+        acc.set(t, a);
+        const kk = 1 - Math.exp(-dt / 6);
+        t.payAv += (t.pay - t.payAv) * kk; t.recAv += (t.rec - t.recAv) * kk; t.inAv += (t.shIn - t.inAv) * kk; t.outAv += (t.shOut - t.outAv) * kk;
+      }
+    }
+
+    /* ─ dessin ─ */
+    function sky() {
+      const s = sun(), el = s.el, day = clamp(el * 2 + 0.3, 0, 1), dusk = clamp(1 - Math.abs(el) * 4, 0, 1);
+      const top = [Math.round(14 + 60 * day), Math.round(18 + 120 * day), Math.round(40 + 175 * day)];
+      const bot = [Math.round(30 + 160 * day + 80 * dusk), Math.round(30 + 160 * day + 20 * dusk), Math.round(60 + 170 * day - 30 * dusk)];
+      const g = ctx.createLinearGradient(0, 0, 0, GY);
+      g.addColorStop(0, `rgb(${top})`); g.addColorStop(1, `rgb(${bot.map((v) => clamp(v, 0, 255))})`);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, GY);
+      if (day < 0.5) { ctx.fillStyle = `rgba(255,255,240,${((0.5 - day) * 1.6).toFixed(3)})`; for (let i = 0; i < 90; i++) { const x = (i * 97.3) % W, y = (i * 53.7) % (GY * 0.9); ctx.fillRect(x, y, 1.3, 1.3); } }
+      const v = V(), sx = v.x0 + (v.x1 - v.x0) * (((s.ph + 0.75) % 1) * 1.0), sy = GY - Math.max(-0.2, el) * GY * 0.8;
+      if (cfg.cycle && el > -0.15) { const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, 60 * kS); gr.addColorStop(0, 'rgba(255,246,210,1)'); gr.addColorStop(0.2, 'rgba(255,230,160,.8)'); gr.addColorStop(1, 'rgba(255,200,120,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - 60 * kS, sy - 60 * kS, 120 * kS, 120 * kS); }
+      // collines lointaines
+      ctx.fillStyle = `rgba(${Math.round(20 + 40 * day)},${Math.round(34 + 60 * day)},${Math.round(30 + 50 * day)},1)`;
+      ctx.beginPath(); ctx.moveTo(0, GY);
+      for (let x = 0; x <= W; x += 20) ctx.lineTo(x, GY - 30 * kS - Math.sin(x * 0.004) * 18 * kS - Math.sin(x * 0.011 + 1) * 8 * kS);
+      ctx.lineTo(W, GY); ctx.fill();
+      return day;
+    }
+    const TMPL = layer(Math.ceil(H * 0.5), Math.ceil(H * 0.5));
+    function drawTree(t, day) {
+      const h = t.hpx * t.s, w = (t.crown.width / t.crown.height) * h * 1.02, hh = h * 1.02, g = TMPL.g;
+      const tw = Math.min(TMPL.w, Math.ceil(w)), th = Math.min(TMPL.h, Math.ceil(hh));
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, tw + 2, th + 2);
+      g.drawImage(t.sick, 0, 0, tw, th);
+      g.globalAlpha = clamp((t.vig - 0.25) / 0.6, 0, 1); g.drawImage(t.crown, 0, 0, tw, th); g.globalAlpha = 1;
+      // nuit, ombre : on assombrit la silhouette elle-même
+      const dark = (1 - day) * 0.6 + (t.shade ? 0.35 : 0) + (t.under ? 0.2 : 0);
+      if (dark > 0.02) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = `rgba(6,10,22,${Math.min(0.8, dark).toFixed(3)})`; g.fillRect(0, 0, tw, th); g.globalCompositeOperation = 'source-over'; }
+      ctx.drawImage(TMPL.c, 0, 0, tw, th, t.x - tw / 2, GY - th, tw, th);
+      if (t.shade) {
+        const cx = t.x, cy = GY - h * 1.1 - 26 * kS;
+        ctx.fillStyle = 'rgba(214,220,230,.92)';
+        for (const [dx, dy, r] of [[-26, 4, 16], [-8, -6, 20], [14, -2, 18], [30, 6, 13], [0, 8, 16]]) { ctx.beginPath(); ctx.arc(cx + dx * kS, cy + dy * kS, r * kS, 0, TAU); ctx.fill(); }
+      }
+      if (t.fert > 0.02) { ctx.fillStyle = `rgba(230,240,255,${(0.8 * t.fert).toFixed(3)})`; for (let k = 0; k < 14; k++) ctx.fillRect(t.x + ((k * 37) % 50) - 25, GY - 2 + ((k * 13) % 5), 2.5, 2.5); }
+    }
+    const roots = layer(W, H);
+    function paintRoots() {
+      const g = roots.g; g.clearRect(0, 0, W, H); g.lineCap = 'round';
+      for (const t of trees) {
+        for (const [x0, y0, x1, y1, w] of t.segs) { g.strokeStyle = '#6b4a2e'; g.lineWidth = Math.max(1, w * t.s * 1.1); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+        for (const [x0, y0, x1, y1, w] of t.segs) { g.strokeStyle = 'rgba(200,160,110,.35)'; g.lineWidth = Math.max(0.5, w * t.s * 0.35); g.beginPath(); g.moveTo(x0 - 1, y0 - 1); g.lineTo(x1 - 1, y1 - 1); g.stroke(); }
+      }
+    }
+    paintRoots();
+    function drawNet(dt) {
+      // les cordons : plus épais là où le trafic est fort (le champignon renforce ses meilleures routes)
+      ctx.save(); ctx.lineCap = 'round';
+      for (const e of edges) {
+        e.tr *= Math.exp(-dt / 8);
+        if (e.cut) { if ((e.re -= dt) <= 0) { e.cut = false; e.grow = 0; adj(); dirty = true; fuzz(); } continue; }
+        if (e.grow < 1) { const was = e.grow < 0.6; e.grow = Math.min(1, e.grow + dt / 6); if (was && e.grow >= 0.6) dirty = true; }
+        const P = e.pts, n = Math.max(1, Math.round((P.length - 1) * e.grow));
+        ctx.strokeStyle = `rgba(242,234,214,${(0.13 + Math.min(0.55, e.tr * 0.04)).toFixed(3)})`;
+        ctx.lineWidth = (0.6 + Math.min(3.2, Math.sqrt(e.tr) * 0.5)) * kS;
+        ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]); for (let k = 1; k <= n; k++) ctx.lineTo(P[k][0], P[k][1]); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function drawParts(dt) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i];
+        p.s += p.v * dt;
+        if (p.s >= p.L) {
+          parts[i] = parts[parts.length - 1]; parts.pop();
+          for (const [e] of p.E) e.tr += 1;
+          if (p.k === 'm' && snd() && Math.random() < 0.05) au.pluck(scale(trees.indexOf(p.to) * 2 + 7 + rint(3), 220), 1.2, 0.02);
+          continue;
+        }
+        let s = p.s, k = 1;
+        while (k < p.P.length) { const L = Math.hypot(p.P[k][0] - p.P[k - 1][0], p.P[k][1] - p.P[k - 1][1]); if (s <= L) break; s -= L; k++; }
+        if (k >= p.P.length) continue;
+        const A = p.P[k - 1], B = p.P[k], L = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, x = A[0] + ((B[0] - A[0]) * s) / L, y = A[1] + ((B[1] - A[1]) * s) / L;
+        const z = (p.k === 'm' ? 9 : 10) * kS, spr = p.k === 'm' ? MIN : p.k === 'x' ? SHR : SUG;
+        ctx.globalAlpha = Math.min(1, p.s / 20, (p.L - p.s) / 20 + 0.2);
+        ctx.drawImage(spr, x - z / 2, y - z / 2, z, z);
+      }
+      ctx.restore();
+    }
+    function labels() {
+      ctx.save(); ctx.font = '500 10.5px "JetBrains Mono", monospace'; ctx.textAlign = 'center';
+      for (const t of trees) {
+        const y = GY + 16, txt = `${t.nom.toUpperCase()} · VIGUEUR ${Math.round(Math.min(1, t.vig) * 100)} %`, w = ctx.measureText(txt).width;
+        ctx.fillStyle = 'rgba(14,10,6,.6)'; ctx.fillRect(t.x - w / 2 - 6, y - 12, w + 12, 17);
+        ctx.fillStyle = t.vig > 0.6 ? 'rgba(230,240,210,.92)' : 'rgba(240,200,150,.92)'; ctx.fillText(txt, t.x, y);
+      }
+      const v = V(), x0 = v.x0 + 16; let y = H - 18;
+      ctx.textAlign = 'left';
+      const line = (txt, c) => { const w = ctx.measureText(txt).width; ctx.fillStyle = 'rgba(14,10,6,.62)'; ctx.fillRect(x0 - 6, y - 13, w + 12, 18); ctx.fillStyle = c; ctx.fillText(txt, x0, y); y -= 20; };
+      if (cfg.share) line('ROSE : SUCRE PASSÉ D’UN ARBRE À L’AUTRE (HYPOTHÈSE)', 'rgba(255,170,215,.95)');
+      line('BLEU : PHOSPHORE ET AZOTE, DU CHAMPIGNON VERS LES ARBRES', 'rgba(150,230,255,.95)');
+      line('OR : SUCRES, DES ARBRES VERS LE CHAMPIGNON' + (rainT > 0 ? ' · AVERSE' : ''), 'rgba(255,214,130,.95)');
+      ctx.restore();
+    }
+
+    quiet = false;
+    const drones = [];
+    if (au && au.live) drones.push(au.drone(65.4, 'sine', 0.02), au.drone(98, 'sine', 0.008));
+    let lastCut = null;
+    function cutAlong(a, b) {
+      let n = 0;
+      for (const e of edges) {
+        if (e.cut) continue;
+        const P = e.pts;
+        for (let k = 1; k < P.length; k++) {
+          if (segX(a, b, P[k - 1], P[k])) { e.cut = true; e.re = rnd(30, 18); e.tr = 0; n++; break; }
+        }
+      }
+      if (n) { adj(); dirty = true; fuzz(); for (let i = parts.length - 1; i >= 0; i--) if (parts[i].E.some(([e]) => e.cut)) parts.splice(i, 1); if (snd()) au.noise(0.12, 0.04, 2600, 2, 'bandpass'); }
+    }
+    const segX = (a, b, c, d) => { const o = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])); return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b); };
+    const nearestTree = (x) => trees.reduce((b, t) => (Math.abs(t.x - x) < Math.abs(b.x - x) ? t : b), trees[0]);
+    let lastSnd = 0;
+
+    return {
+      frame(tt, dt) {
+        dt = Math.min(dt, 0.1);
+        T += dt; if (rainT > 0) rainT -= dt;
+        econ(dt);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        const day = sky();
+        ctx.drawImage(soil.c, 0, 0);
+        ctx.drawImage(fz.c, 0, 0);
+        drawNet(dt);
+        ctx.drawImage(roots.c, 0, 0);
+        for (const t of trees) drawTree(t, day);
+        drawParts(dt);
+        if (rainT > 0) {
+          ctx.strokeStyle = 'rgba(200,215,240,.4)'; ctx.lineWidth = 1; ctx.beginPath();
+          for (let k = 0; k < W / 6; k++) { const x = rnd(W + 60), y = rnd(GY); ctx.moveTo(x, y); ctx.lineTo(x - 6, y + 18); }
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(20,30,50,.12)'; ctx.fillRect(0, GY, W, H - GY);
+          if (snd() && tt - lastSnd > 0.4) { lastSnd = tt; au.noise(0.6, 0.014, rnd(4000, 2500), 0.6, 'bandpass'); }
+        }
+        labels();
+      },
+      down(p) {
+        const tool = env.tool;
+        if (tool === 'ombrer') { const t = nearestTree(p.x); t.shade = !t.shade; if (snd()) au.note(t.shade ? 330 : 440, 0.3, 'sine', 0.03); return; }
+        if (tool === 'nourrir') { const t = nearestTree(p.x); t.fert = 1; if (snd()) au.noise(0.3, 0.03, 3000, 1, 'bandpass'); return; }
+        if (tool === 'arroser') { rainT = 10; return; }
+        if (tool === 'tracer' || tool === 'gratter') { lastCut = { x: p.x, y: p.y }; return; }
+        if (tool === 'semer') {
+          if (trees.length >= 7) { const i = trees.findIndex((t) => t.s < 1 && t !== trees[2]); if (i >= 0) trees.splice(i, 1); else return; }
+          const fx = clamp((p.x - VX) / VW, 0.03, 0.97);
+          const t = mkTree(Math.random() < 0.5 ? 'hetre' : 'jeune', fx, 0.3);
+          t.vig = 0.7; if (trees[1] && Math.abs(t.x - trees[1].x) < VW * 0.14) t.under = trees[1];
+          buildNet(); paintRoots(); parts.length = 0;
+          if (snd()) au.pluck(scale(rint(5) + 5, 220), 1.6, 0.05);
+        }
+      },
+      move(p) {
+        if (!p.down || !lastCut) return;
+        const a = [lastCut.x, lastCut.y], b = [p.x, p.y];
+        if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 3) return;
+        cutAlong(a, b); lastCut = { x: p.x, y: p.y };
+        ctx.save(); ctx.strokeStyle = 'rgba(255,120,90,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.restore();
+      },
+      up() { lastCut = null; },
+      dispose() { drones.forEach((d) => d.stop()); },
+      _sim(sec) { for (let i = 0; i < sec * 10; i++) { T += 0.1; econ(0.1); parts.length = 0; } return trees.map((t) => `${t.nom} vig ${t.vig.toFixed(2)} rc ${t.rc.toFixed(2)} rm ${t.rm.toFixed(2)} in ${(t.inAv * 100).toFixed(1)}`); },
+      _trees: trees,
+      ui() {
+        const L = [{ type: 'section', label: 'Le réseau souterrain' }];
+        for (const t of trees) L.push({ type: 'bar', label: t.nom + (t.shade ? ' (à l’ombre)' : '') + (t.fert > 0.05 ? ' (engrais)' : ''), color: t.vig > 0.6 ? '#9ad46a' : '#e0a050', value: t.vig / 1.15, txt: `donne ${fr(t.payAv * 100)} · reçoit ${fr(t.recAv * 100)}` + (cfg.share ? ` · partage +${fr(t.inAv * 100)} −${fr(t.outAv * 100)}` : '') });
+        L.push({ type: 'toggle', label: 'Partage du carbone entre arbres (hypothèse débattue)', value: cfg.share, set: (v) => { cfg.share = v; } });
+        L.push({ type: 'toggle', label: 'Le jour et la nuit', value: cfg.cycle, set: (v) => { cfg.cycle = v; } });
+        L.push({ type: 'slider', label: 'Durée d’une journée', min: 20, max: 120, step: 5, value: cfg.day, fmt: (v) => v + ' s', set: (v) => { T *= v / cfg.day; cfg.day = v; } });
+        L.push({ type: 'buttons', items: [{ label: 'Ombrer le jeune douglas', act: () => { const t = trees[2]; if (t) t.shade = !t.shade; } }, { label: 'Réparer le réseau', act: () => { for (const e of edges) if (e.cut) e.re = 0; } }, { label: 'Une averse', act: () => { rainT = 10; } }] });
+        L.push({ type: 'note', text: 'Chaque arbre paie le champignon en sucres (or), à proportion de ce qu’il produit ; le champignon lui rend des minéraux (bleu) à proportion de ce qu’il paie. À l’ombre, un arbre produit moins, paie moins et reçoit moins. Avec de l’engrais (NOURRIR), il paie moins le champignon. Coupez des hyphes (TRACER) : les flux se reroutent, le réseau repousse en une demi-minute. Les « unités » sont arbitraires : seules les proportions comptent.' });
+        if (cfg.share) L.push({ type: 'note', text: 'Partage activé : une part des sucres excédentaires des grands arbres rejoint, par le réseau, ceux qui en manquent (rose). Suzanne Simard l’a mesuré en 1997 avec des isotopes, entre bouleau et douglas ; l’ampleur et le sens écologique de ces transferts en forêt sont aujourd’hui contestés (Karst et al., 2023).' });
+        return L;
+      },
+    };
+  };
 })();
 
 ;

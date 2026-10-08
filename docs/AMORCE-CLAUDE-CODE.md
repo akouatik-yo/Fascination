@@ -119,12 +119,12 @@ Machines refaites (niveau final) :
 - **Bulles** (octobre 2026, WebGL2) : voir §20.
 - **Les Abysses** (ex-Méduses, id `meduses` conservé) : refaite en WebGL2, voir §21.
 - **Fourmilière** : trois scènes, voir §25.
-- **Mycélium** : 4 champignons (neutre, symbiote, craintive, prédatrice), onde électrique, murs, `ui()` complet.
+- **Mycélium** : trois scènes, voir §26.
 - **Blob** : modèle de Jones, 3 espèces, expériences (labyrinthe, réseau ferré de France, cercle d'avoine, duel), éclat néon, `ui()` complet.
 - **Lucioles** : 5 espèces (synchrones, dialogue pyralis, femme fatale *Photuris*, *Pteroptyx* sur l'arbre, vers luisants), outils signal, torche, pose longue, lune et pollution lumineuse.
 - **Murmuration** : boids en 3D, voisinage topologique (7 voisins), étourneaux au marais et bécasseaux sur l'estran, faucon pèlerin, vagues de panique, coucher de soleil puis plongée au dortoir.
 
-Toutes les machines ont été refaites, sauf le **Mycélium** (Vivant), resté dans sa version d'avant les refontes. La catégorie Motifs est entièrement refaite (§24) ; `s-motifs.js` n'existe plus.
+Toutes les machines ont été refaites (le **Mycélium**, dernier de la liste, le 8 octobre, §26). La catégorie Motifs est entièrement refaite (§24) ; `s-motifs.js` n'existe plus.
 
 Points restés en suspens :
 - vérifier le son de toutes les machines refaites ;
@@ -338,4 +338,12 @@ Le curseur de vitesse est remplacé par une molette dont on ne voit que la tranc
   - branche longue en serpentin (environ 1,6 fois la courte ; avec un simple V, elle ne faisait que 1,2 fois la courte, et à ×3 la colonie choisissait au hasard). Mesuré : branche courte choisie 6 fois sur 6.
 - **Style néon** (`keep.style`, style par défaut depuis le 8 octobre) : fond nuit quadrillé ; fourmis en traits lumineux (cyan en quête, or chargées, violet bredouilles ; vert et orange pour Atta et Eciton) ; piste en magenta, odeur du nid en bleu sombre ; pont et cailloux au néon.
 - Temps mesuré sans écran (SwiftShader, rendu logiciel) : 3,4 ms par pas de simulation et environ 46 ms par image pour 900 fourmis réalistes ; la fluidité sur tablette reste à vérifier.
+
+## 26. Le Mycélium (8 octobre 2026) — `s-myce.js` (+ `s-myce-ronds.js`, `s-myce-reseau.js`)
+
+- **Structure** : comme la Fourmilière, `makeMy` garde les réglages (`keep.scene`, `keep.sp`) et reconstruit la scène. Les deux nouvelles scènes s'enregistrent dans `window.FK_MYCE` (`ronds(env)`, `reseau(env)`) ; leurs fichiers sont chargés après `s-myce.js`. Outils communs, interprétés par chaque scène : semer, nourrir, tracer, gratter, ombrer, arroser (les anciens outils par espèce sont remplacés par un choix d'espèce dans le panneau).
+- **Le combat** : l'ancienne machine (Mucor, Laccaria, Penicillium, Fusarium ; onde électrique, pénicilline, lignes de démarcation), conservée. Correction : les colonies de départ sont placées dans la partie visible (`env.view`) et non plus sous les panneaux.
+- **Les ronds de sorcières** : prairie vue du ciel, environ 8 m dans la largeur visible, une année = 8 s (réglable). Modèle de Fisher-KPP sur une grille (maille 4 px) : mycélium F, matière organique S (seuil 0,45 sous lequel F meurt, régénération lente sur quelques décennies), azote N libéré par la digestion (vert sombre), herbe G qui jaunit l'été sous le feutrage selon la sécheresse de l'année. Vitesse du front réglée en cm par an (25 par défaut) : `c = 2·√(D·r·(1−seuil))` avec D = r en cases, croissance saisonnière. Champignons (faux mousseron) sur le front après les pluies d'août à novembre, dessinés 1,6 fois plus grands que nature. Neige certains hivers. Vue « sous la surface » : mycélium blanc, front doré, sol épuisé sombre. Départ : 12,6 ans pré-calculés (cinq spores, une allée de gravier qui coupe les anneaux en arcs), environ 0,7 s.
+- **Le réseau souterrain** : coupe d'une forêt (bouleau, douglas, jeune douglas à l'ombre du grand), racines dont les pointes portent un manteau fongique, réseau d'hyphes (graphe d'environ 50 nœuds plus les pointes et six poches de minéraux), routage par champs de distance (Dijkstra). Économie : photosynthèse moyennée sur une journée ; chaque arbre paie 28 % de sa production au champignon (75 % de moins sous engrais) ; le champignon répartit les minéraux à proportion des paiements (Kiers et al., 2011) ; vigueur = min(bilan carbone, bilan minéral). Mesuré sans écran : grands arbres à 100 %, jeune douglas à l'ombre 45 % ; avec le partage (option éteinte par défaut, plafonné à la moitié du manque) 75 % ; jeune douglas ombré en plus : 10 % ; bouleau ombré : 70 %, et les autres reçoivent plus de minéraux. Les cordons s'épaississent avec le trafic ; une coupe (TRACER) repousse en 18 à 30 s.
+- À vérifier sur tablette : fluidité du combat (environ 70 ms par image en rendu logiciel, comme avant) et le son des trois scènes.
 

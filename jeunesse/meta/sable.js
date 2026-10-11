@@ -36,7 +36,7 @@ FJ.fiche('sable', {
     pierre: { verbe: 'Pose', geste: 'trait', aide: 'Glisse pour poser de la pierre : un mur, un rocher, un goulot.' },
     secouer: { verbe: 'Secoue', geste: 'tap', aide: 'Garde le doigt appuyé pour faire vibrer le sable : les gros grains remontent, les bouchons cèdent.' },
     souffle: { verbe: 'Souffle', geste: 'trait', aide: 'Glisse pour souffler : les grains de surface s’envolent et retombent plus loin.' },
-    gomme: { verbe: 'Efface', geste: 'trait', aide: 'Glisse pour enlever du sable ou de la pierre.' },
+    gomme: { verbe: 'Efface', geste: 'trait', aide: 'Glisse le doigt pour enlever du sable ou de la pierre, et faire de la place pour recommencer.' },
   },
   leviers: {
     vent: { chemin: 'le desert/vent', nom: 'Vent', bouts: ['calme', 'tempête'] },

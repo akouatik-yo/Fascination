@@ -6,7 +6,7 @@ FJ.fiche('lave', {
   scenes: {
     lampe: { nom: 'La lampe à lave', via: 'scenes/lampe a lave', poids: 4, outil: 'chauffer',
       exposes: ['allumee', 'ampoule', 'couleurs', 'vitesse_lampe'],
-      plages: { ampoule: [0.9, 1.6], couleurs: ['classique', 'classique', 'rouge', 'vert', 'rose'], vitesse_lampe: [1, 1.6], allumee: true },
+      plages: { ampoule: [0.9, 1.6], couleurs: ['classique', 'classique', 'rouge', 'vert', 'rose'], allumee: true },
       essaie: 'Garde le doigt sur une goutte de cire en haut avec « Refroidis » : elle retombe.' },
     benard: { nom: 'La casserole', via: 'scenes/cellules de benard', poids: 2, outil: 'remuer', actions: 'benard',
       exposes: ['ecart', 'voir', 'vitesse_benard'],
@@ -19,7 +19,7 @@ FJ.fiche('lave', {
   },
   outils: {
     observer: { verbe: 'Regarde', aide: 'Touche la cire ou le liquide : tu sauras sa température et s’il monte ou descend.' },
-    remuer: { verbe: 'Remue', geste: 'trait', aide: 'Glisse le doigt pour brasser le liquide, comme avec une cuillère.' },
+    remuer: { verbe: 'Remue', geste: 'trait', aide: 'Glisse le doigt pour brasser le liquide, comme avec une cuillère : la cire est emportée par le courant.' },
     chauffer: { verbe: 'Chauffe', geste: 'tap', aide: 'Garde le doigt appuyé pour chauffer à cet endroit : la cire chaude devient légère et monte.' },
     refroidir: { verbe: 'Refroidis', geste: 'tap', aide: 'Garde le doigt appuyé pour refroidir : la cire froide s’alourdit et tombe.' },
   },
@@ -27,13 +27,13 @@ FJ.fiche('lave', {
     allumee: { chemin: 'la lampe/allumee', nom: 'Lampe allumée' },
     ampoule: { chemin: 'la lampe/puissance de l ampoule', nom: 'Ampoule', bouts: ['faible', 'très forte'] },
     couleurs: { chemin: 'la lampe/couleurs', nom: 'Couleurs' },
-    vitesse_lampe: { chemin: 'la lampe/vitesse', nom: 'Vitesse', bouts: ['au ralenti', 'accéléré'] },
+    vitesse_lampe: { chemin: 'la lampe/vitesse', nom: 'Vitesse', bouts: ['au ralenti', 'normale'], min: 0.2, max: 1 },
     ecart: { chemin: 'benard/ecart de temperature', nom: 'Chauffe par en dessous', bouts: ['très douce', 'très forte'] },
     voir: { chemin: 'benard/voir', nom: 'Voir', options: { 0: 'La chaleur', 1: 'Une goutte d’encre' } },
-    vitesse_benard: { chemin: 'benard/vitesse', nom: 'Vitesse', bouts: ['au ralenti', 'accéléré'] },
+    vitesse_benard: { chemin: 'benard/vitesse', nom: 'Vitesse', bouts: ['au ralenti', 'normale'], min: 0.2, max: 1 },
     vue_soleil: { chemin: 'le soleil/vue', nom: 'Vue', options: { 1: 'Gros plan sur les grains', 0: 'Le Soleil entier' } },
     tache: { chemin: 'le soleil/tache solaire', nom: 'Tache solaire' },
-    temps_soleil: { chemin: 'le soleil/vitesse du temps', nom: 'Vitesse du temps', bouts: ['presque réel', 'très accéléré'] },
+    temps_soleil: { chemin: 'le soleil/vitesse du temps', nom: 'Vitesse du temps', bouts: ['lent', 'très accéléré'] },
   },
   exposes: [],
   groupesActions: {
@@ -43,7 +43,7 @@ FJ.fiche('lave', {
   graines: [
     { nom: 'Le Soleil entier, avec une tache solaire', scene: 'soleil', regle: { vue_soleil: 0, tache: true } },
     { nom: 'Les grains du Soleil, chacun grand comme la France', scene: 'soleil', regle: { vue_soleil: 1, tache: false } },
-    { nom: 'Une lampe avec une ampoule très forte', scene: 'lampe', regle: { ampoule: 1.9, vitesse_lampe: 1.3 } },
+    { nom: 'Une lampe avec une ampoule très forte', scene: 'lampe', regle: { ampoule: 1.9 } },
     { nom: 'Une casserole chauffée très fort', scene: 'benard', regle: { ecart: 1, voir: 0 } },
   ],
   recettes: [
@@ -60,11 +60,11 @@ FJ.fiche('lave', {
     vraie: 'L’Anglais Edward Craven Walker invente la lampe à lave en 1963. L’idée lui vient en voyant, dans un pub, un minuteur pour œufs fait de cire dans un liquide.',
   },
   etsi: [
-    { id: 'eteindre', scene: 'lampe', question: 'Et si on éteignait la lampe ?',
-      choix: ['La cire reste en haut', 'La cire retombe et se dépose au fond', 'La cire se mélange au liquide'], bonne: 1,
-      prepare: { scene: 'lampe', regle: { allumee: false, vitesse_lampe: 1.6 } },
-      regarde: 'Regarde la cire pendant quelques secondes.', attente: 12,
-      revele: 'Elle retombe ! Sans ampoule, plus rien ne réchauffe la cire. En refroidissant, elle se resserre et redevient un peu plus lourde que le liquide : elle coule et se dépose au fond. Elle ne se mélange jamais au liquide, comme l’huile et l’eau.' },
+    { id: 'chauffe', scene: 'benard', question: 'Et si on chauffait fort, par en dessous, un liquide tout calme ?',
+      choix: ['Il reste immobile', 'Il se met à tourner en tourbillons', 'Seul le fond bouge'], bonne: 1,
+      prepare: { scene: 'benard', regle: { ecart: 0.9, voir: 1 }, action: 'benard/recommencer au repos', outil: 'observer' },
+      regarde: 'Regarde les lignes d’encre, bien droites au départ.', attente: 10,
+      revele: 'Il se met à tourner ! Le liquide chauffé au fond devient plus léger et monte, le liquide froid du haut descend. Ils s’organisent en tourbillons côte à côte. Mais il y a un seuil : chauffe tout doucement, recommence au repos, et les lignes restent droites. La chaleur passe alors sans aucun mouvement.' },
   ],
   rotation: 'recreer',
 });

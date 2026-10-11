@@ -1,7 +1,7 @@
 /* Le Cristal — fiche jeunesse */
 FJ.fiche('cristal', {
   nom: 'Le Cristal',
-  question: 'Pourquoi un flocon a-t-il toujours six branches ?',
+  question: 'Pourquoi un flocon a-t-il six branches ?',
   outil: 'germe',
   scenes: {
     flocon: { nom: 'Le flocon', via: 'scenes/flocon de neige', poids: 4, outil: 'germe', outils: ['observer', 'germe', 'chaleur', 'froid'],
@@ -59,8 +59,8 @@ FJ.fiche('cristal', {
     { nom: 'Cristal en croix', icone: 'motif', scene: 'surfusion', regle: { branches: 4, sous_zero: 0.85 } },
   ],
   pourquoi: {
-    etincelle: 'Les molécules d’eau s’empilent en hexagones : voilà pourquoi chaque flocon a six branches.',
-    texte: 'Dans un nuage, la vapeur d’eau se dépose sur un minuscule grain de glace. Ses molécules s’empilent en hexagones, d’où les six branches. Les pointes, plus exposées, attrapent plus de vapeur et poussent plus vite : le flocon se ramifie. Ses six branches traversent le même air au même moment, alors elles se ressemblent. Deux flocons, eux, ne suivent jamais le même chemin.\n\nUn liquide peut aussi rester liquide sous son point de gel, s’il n’a rien pour commencer à cristalliser. C’est la **surfusion**. Au moindre germe, tout devient solide d’un coup, en rendant de la chaleur : c’est le secret de la chaufferette.',
+    etincelle: 'Les molécules d’eau s’empilent en hexagones : voilà pourquoi les flocons en étoile ont six branches.',
+    texte: 'Dans un nuage, la vapeur d’eau se dépose sur un minuscule grain de glace. Ses molécules s’empilent en hexagones, d’où les six branches. Les pointes, plus exposées, attrapent plus de vapeur et poussent plus vite : le flocon se ramifie. Ses six branches traversent le même air au même moment, alors elles se ressemblent. Deux flocons, eux, ne suivent jamais exactement le même chemin.\n\nUn liquide peut aussi rester liquide sous son point de gel, s’il n’a rien pour commencer à cristalliser. C’est la **surfusion**. Au moindre germe, tout devient solide d’un coup, en rendant de la chaleur : c’est le secret de la chaufferette.',
     vraie: 'En 1885, Wilson Bentley, un fermier du Vermont, aux États-Unis, réussit la première photo d’un flocon au microscope. Il en photographiera plus de cinq mille au cours de sa vie.',
   },
   etsi: [
@@ -68,7 +68,7 @@ FJ.fiche('cristal', {
       choix: ['Elle refroidit', 'Elle chauffe', 'Sa température ne change pas'], bonne: 1,
       prepare: { scene: 'chaufferette', regle: { auto_chauf: false }, action: 'chaufferette/faire bouillir recharger', outil: 'germe' },
       regarde: 'Touche la pastille de métal, puis regarde la température écrite en bas.', attente: 12,
-      revele: 'Elle chauffe, jusqu’à plus de 50 °C ! Quand on l’a fait bouillir, le liquide a reçu de la chaleur. En devenant solide, il la rend. Le liquide attendait seulement un premier cristal : le clic le fait naître, et tout cristallise de proche en proche.' },
+      revele: 'Elle chauffe, jusqu’à plus de 50 °C ! Quand on l’a fait bouillir, le liquide a reçu de la chaleur. En devenant solide, il la rend. Il ne manquait au liquide qu’un premier cristal : le clic le fait naître, et tout cristallise de proche en proche.' },
   ],
   rotation: 'garder',
 });

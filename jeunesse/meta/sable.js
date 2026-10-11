@@ -34,7 +34,7 @@ FJ.fiche('sable', {
     verser: { verbe: 'Verse', geste: 'trait', aide: 'Glisse le doigt pour verser du sable. Tu choisis lequel dans Bidouiller : quartz, basalte, rose, olivine…' },
     eau: { verbe: 'Mouille', geste: 'trait', aide: 'Glisse pour mouiller le sable : un peu d’eau colle les grains, et le sable tient debout.' },
     pierre: { verbe: 'Pose', geste: 'trait', aide: 'Glisse pour poser de la pierre : un mur, un rocher, un goulot.' },
-    secouer: { verbe: 'Secoue', geste: 'tap', aide: 'Garde le doigt appuyé pour faire vibrer le sable : les gros grains remontent, les bouchons cèdent.' },
+    secouer: { verbe: 'Secoue', geste: 'tap', aide: 'Garde le doigt appuyé pour faire vibrer le sable : les pentes s’affaissent, les bouchons cèdent, les gros grains remontent.' },
     souffle: { verbe: 'Souffle', geste: 'trait', aide: 'Glisse pour souffler : les grains de surface s’envolent et retombent plus loin.' },
     gomme: { verbe: 'Efface', geste: 'trait', aide: 'Glisse le doigt pour enlever du sable ou de la pierre, et faire de la place pour recommencer.' },
   },

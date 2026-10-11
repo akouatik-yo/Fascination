@@ -56,7 +56,7 @@ FJ.fiche('spirales', {
     { nom: 'Un cœur au repos, 60 battements par minute', scene: 'coeur', regle: { rythme: 60 } },
     { nom: 'Un cœur après une course', scene: 'coeur', regle: { rythme: 130 } },
     { nom: 'La réaction de Belousov-Zhabotinsky', scene: 'bz', regle: { seuil: 0.06, fronts: 0.02, centres: true } },
-    { nom: 'Dictyostelium, l’amibe qui vit en groupe', scene: 'amibes', regle: { amibes: 1 } },
+    { nom: 'Dictyostelium, l’amibe qui se rassemble quand elle a faim', scene: 'amibes', regle: { amibes: 1 } },
   ],
   recettes: [
     { nom: 'Boîte vide : à toi !', icone: 'gomme', scene: 'bz', regle: { centres: false, 'reactif/vider la boite': true } },
@@ -68,8 +68,8 @@ FJ.fiche('spirales', {
   ],
   pourquoi: {
     etincelle: 'Une onde qui s’allume puis se repose ne peut pas revenir en arrière : coupée, elle s’enroule en spirale.',
-    texte: 'Ici, chaque point s’allume quand son voisin s’allume, puis il doit se reposer un moment. L’onde avance sans s’affaiblir, et ne peut pas repartir en arrière : derrière elle, tout se repose. Deux ondes qui se croisent s’éteignent. Coupe un front : ses deux bouts s’enroulent et tournent sans fin. C’est un milieu **excitable**.\n\nLa même règle se cache dans une potion chimique, chez des amibes qui se rassemblent, et dans ton cœur : chaque battement est une onde électrique. Si elle s’enroule, le cœur bat trop vite. Si les spirales se brisent en morceaux, il ne pompe plus bien : un défibrillateur rallume tout le muscle d’un coup, et le rythme normal repart.',
-    vraie: 'En 1951, le chimiste soviétique Boris Belousov découvre un mélange qui change de couleur tout seul, en rythme. Les revues refusent son article : pour elles, c’est impossible. Dans les années 1960, Anatol Zhabotinsky reprend ses travaux, et l’on voit des spirales apparaître dans une boîte.',
+    texte: 'Ici, chaque point s’allume quand son voisin s’allume, puis il doit se reposer un moment. L’onde avance sans s’affaiblir, et ne peut pas repartir en arrière : derrière elle, tout se repose. Deux ondes qui se croisent s’éteignent. Coupe un front : ses deux bouts s’enroulent et tournent sans fin. C’est un milieu **excitable**.\n\nLa même règle se cache dans une potion chimique, chez des amibes qui se rassemblent, et dans ton cœur : chaque battement est une onde électrique. Si elle s’enroule, le cœur bat trop vite. Si les spirales se brisent en morceaux, il ne pompe plus bien : un défibrillateur rallume tout le muscle d’un coup, et le rythme normal peut repartir.',
+    vraie: 'En 1951, le chimiste soviétique Boris Belousov découvre un mélange qui change de couleur tout seul, en rythme. Les revues refusent son article : pour elles, c’est impossible. Dans les années 1960, Anatol Zhabotinsky reprend ses travaux. Vers 1970, on voit des cercles puis des spirales apparaître dans une boîte.',
   },
   etsi: [
     { id: 'rencontre', scene: 'bz', question: 'Et si deux ondes se rencontraient ?',

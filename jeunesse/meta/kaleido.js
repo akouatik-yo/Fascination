@@ -43,7 +43,7 @@ FJ.fiche('kaleido', {
     { nom: 'Juste quelques éclats', icone: 'pincee', regle: { objets: 'eclats', nombre: 10, miroirs: 'm4' } },
   ],
   pourquoi: {
-    etincelle: 'Chaque miroir copie ce qu’il voit, et l’autre miroir copie la copie : quelques éclats deviennent une rosace.',
+    etincelle: 'Chaque miroir copie ce qui est devant lui, et l’autre miroir copie la copie : quelques éclats deviennent une rosace.',
     texte: 'Devant un miroir, un objet a un double. Avec deux miroirs en angle, chaque reflet se reflète à son tour dans l’autre miroir, et les copies se rangent en rond. Plus l’angle est petit, plus il y a de copies : à 60°, tu vois 6 images ; à 30°, 12. L’angle doit tomber juste, sinon les reflets ne se raccordent pas. Ce motif qui se répète en tournant est une **symétrie**.\n\nAvec trois miroirs en triangle, les reflets se reflètent sans fin et remplissent tout le cercle. Seuls trois triangles marchent parfaitement. Chaque reflet perd un peu de lumière : les copies lointaines sont plus sombres.',
     vraie: 'En 1816, le physicien écossais David Brewster invente le kaléidoscope en étudiant la lumière. Il fabrique son nom avec trois mots grecs : beau, image, regarder. Le jouet connaît un succès fou, mais des copies se vendent partout, et il n’en tire presque rien.',
   },

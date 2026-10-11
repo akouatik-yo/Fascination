@@ -55,7 +55,7 @@ FJ.fiche('meduses', {
   ],
   pourquoi: {
     etincelle: 'Au fond de la mer, la lumière du soleil n’arrive plus : la seule lumière vient des animaux eux-mêmes.',
-    texte: 'Plus on descend, plus la lumière du soleil faiblit ; vers 1 000 mètres, il n’en reste rien. Pourtant, les profondeurs scintillent : environ trois animaux sur quatre y fabriquent leur propre lumière, grâce à une réaction chimique. C’est la **bioluminescence**. Elle est presque toujours bleue, car le bleu voyage le plus loin dans l’eau.\n\nCette lumière sert à attirer une proie, à trouver un partenaire, à effrayer un attaquant, ou à se cacher : un ventre éclairé efface la silhouette vue d’en dessous. Beaucoup d’animaux des profondeurs ont des yeux très sensibles. Ici, les créatures sont un peu grossies et plus actives qu’en vrai.',
+    texte: 'Plus on descend, plus la lumière du soleil faiblit ; vers 1 000 mètres, il n’en reste rien. Pourtant, les profondeurs scintillent : environ trois animaux sur quatre y fabriquent leur propre lumière, grâce à une réaction chimique. C’est la **bioluminescence**. Elle est le plus souvent bleue, car le bleu voyage le plus loin dans l’eau.\n\nCette lumière sert à attirer une proie, à trouver un partenaire, à effrayer un attaquant, ou à se cacher : un ventre éclairé efface la silhouette vue d’en dessous. Beaucoup d’animaux des profondeurs ont des yeux très sensibles. Ici, les créatures sont un peu grossies et plus actives qu’en vrai.',
     vraie: 'En 2012, au large du Japon, la biologiste Edith Widder installe une fausse méduse lumineuse, l’« e-jelly ». Elle imite la roue de lumière bleue de la méduse couronne. Un calmar géant s’en approche : c’est l’une des toutes premières vidéos de cet animal vivant dans les profondeurs.',
   },
   etsi: [

@@ -59,15 +59,8 @@ FJ.fiche('fourmis', {
   ],
   pourquoi: {
     etincelle: 'Chaque fourmi suit l’odeur laissée par les autres et la renforce : les chemins les plus empruntés sentent de plus en plus fort.',
-    texte: 'Aucune fourmi ne connaît le chemin. Les éclaireuses errent au hasard. Celle qui trouve du sucre rentre au nid en laissant au sol une trace odorante, une **phéromone**. D’autres suivent cette odeur, trouvent le sucre et renforcent la trace en revenant. Plus une piste est suivie, plus elle sent fort, et plus elle attire.\n\nL’odeur s’évapore : une piste qu’on n’entretient plus disparaît. Sur un chemin court, les allers-retours sont plus rapides, donc la trace s’y renforce plus vite. Sans rien mesurer, la colonie finit souvent par choisir le chemin le plus court.',
-    vraie: 'En 1989, des chercheurs de Bruxelles posent un pont à deux branches, une courte et une longue, entre un nid de fourmis d’Argentine et de la nourriture. En quelques minutes, presque toutes passent par la courte. Cette idée a ensuite inspiré des programmes informatiques qui calculent des itinéraires.',
+    texte: 'Aucune fourmi ne connaît le chemin. Les éclaireuses errent au hasard. Celle qui trouve du sucre rentre au nid en laissant au sol une trace odorante, une **phéromone**. D’autres suivent cette odeur, trouvent le sucre et renforcent la trace en revenant. Plus une piste est suivie, plus elle sent fort, et plus elle attire.\n\nL’odeur s’évapore : une piste qu’on n’entretient plus disparaît. Sur un chemin court, les allers-retours sont plus rapides, donc la trace s’y renforce plus vite. Sans que personne ne mesure rien, la colonie finit souvent par emprunter le chemin le plus court.',
+    vraie: 'En 1989, des chercheurs de Bruxelles posent un pont à deux branches, une courte et une longue, entre un nid de fourmis d’Argentine et de la nourriture. En quelques minutes, la grande majorité passe par la courte. Cette idée a ensuite inspiré des programmes informatiques qui calculent des itinéraires.',
   },
-  etsi: [
-    { id: 'pont', scene: 'pont', question: 'Et si les fourmis avaient le choix entre un chemin court et un long ?',
-      choix: ['Elles prennent les deux, moitié-moitié', 'Presque toutes prennent le court', 'Presque toutes prennent le long'], bonne: 1,
-      prepare: { scene: 'pont', regle: { branches: 'inegal', retard: false }, action: 'double pont/recommencer l experience' },
-      regarde: 'Regarde les fourmis et la jauge en haut. Il faut un peu de patience…', attente: 60,
-      revele: 'Presque toutes prennent le court ! Aucune fourmi ne compare les chemins. Mais sur le court, les allers-retours sont plus rapides : la trace d’odeur s’y renforce plus vite, attire plus de fourmis, qui la renforcent encore. Un petit avantage devient une grande différence.' },
-  ],
   rotation: 'garder',
 });

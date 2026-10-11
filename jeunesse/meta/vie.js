@@ -71,7 +71,7 @@ FJ.fiche('vie', {
   pourquoi: {
     etincelle: 'Chaque case regarde seulement ses 8 voisines et suit deux règles : de là naissent des planeurs, des canons et des motifs qui bougent.',
     texte: 'Imagine une grille où chaque case est vivante ou morte. À chaque tour, une case morte entourée d’exactement 3 voisines vivantes naît. Une case vivante survit avec 2 ou 3 voisines ; sinon, elle meurt. C’est tout. Pourtant, de ces deux règles sortent des planeurs qui avancent, des canons qui tirent, des motifs qui s’agitent longtemps avant de se figer. Ce genre de petit monde s’appelle un **automate cellulaire**.\n\nIci, la grille se referme sur elle-même : ce qui sort à droite revient à gauche. Dans Lenia, les cases valent entre 0 et 1, et on croirait voir des bactéries.',
-    vraie: 'En 1970, le mathématicien John Conway invente ce jeu et promet 50 dollars à qui trouvera un motif qui grandit sans fin. La même année, Bill Gosper et son équipe trouvent le canon à planeurs, qui tire un planeur toutes les 30 générations, pour toujours.',
+    vraie: 'En 1970, le mathématicien John Conway invente ce jeu et promet 50 dollars à qui montrera qu’un motif peut, ou non, grandir sans fin. La même année, Bill Gosper et son équipe trouvent le canon à planeurs, qui tire un planeur toutes les 30 générations : sur une grille infinie, il ne s’arrête jamais.',
   },
   etsi: [
     { id: 'diehard', scene: 'conway', question: 'Et si on posait ces 7 cellules, appelées diehard, sur une grille vide ?',

@@ -11,7 +11,7 @@ FJ.fiche('fractal', {
     julia: { nom: 'Les ensembles de Julia', via: 'scenes/julia', poids: 2, outil: 'sculpter', outils: ['observer', 'plonger', 'reculer', 'sculpter'], actions: 'julia',
       exposes: ['longe', 'vitesse_julia', 'couleurs', 'bandes'],
       plages: { longe: true, vitesse_julia: [0.3, 0.8], couleurs: [0, 1, 2, 3, 4], coulent: 0.7 },
-      essaie: 'Glisse lentement le doigt : la forme se tord, se troue, puis éclate en poussière.' },
+      essaie: 'Glisse lentement le doigt : la forme se tord, se troue, ou éclate en poussière.' },
     flammes: { nom: 'Fougères et dragons', via: 'scenes/flammes et fougeres', poids: 2, outil: 'sculpter', outils: ['observer', 'sculpter'],
       exposes: ['figure', 'metamorphose', 'couleurs'],
       plages: { figure: ['fougere', 'sierpinski', 'dragon', 'erable', 'flamme'], metamorphose: 0.5, couleurs: [0, 1, 2, 3, 4] },
@@ -72,7 +72,7 @@ FJ.fiche('fractal', {
   ],
   pourquoi: {
     etincelle: 'Une règle toute simple, répétée des milliers de fois, dessine une forme dont les détails ne finissent jamais.',
-    texte: 'Chaque point de l’écran est un nombre. On part de zéro, on le met au carré, on ajoute le nombre du point, et on recommence encore et encore. Pour certains points, le résultat reste petit : ils forment l’ensemble de Mandelbrot. Pour les autres, il s’envole, et la couleur dit à quelle vitesse.\n\nZoome sur le bord : de nouveaux détails apparaissent sans fin, et parfois une copie de la forme entière. Une forme qui se ressemble à toutes les échelles s’appelle une **fractale**. La nature en est pleine : fougères, chou romanesco, côtes rocheuses, éclairs. Mais dans la nature, les détails s’arrêtent un jour, au plus tard aux atomes.',
+    texte: 'Chaque point de l’écran est un nombre un peu spécial, à deux coordonnées. On part de zéro, on le met au carré, on ajoute le nombre du point, et on recommence encore et encore. Pour certains points, le résultat reste petit : ils forment l’ensemble de Mandelbrot. Pour les autres, il s’envole, et la couleur dit à quelle vitesse.\n\nZoome sur le bord : de nouveaux détails apparaissent sans fin, et parfois une copie de la forme entière. Une forme qui se ressemble à toutes les échelles s’appelle une **fractale**. La nature en est pleine : fougères, chou romanesco, côtes rocheuses, éclairs. Mais dans la nature, les détails s’arrêtent un jour, au plus tard aux atomes.',
     vraie: 'En 1967, Benoît Mandelbrot publie un article au titre étonnant : « Combien mesure la côte de la Grande-Bretagne ? » Sa réponse : ça dépend de ta règle. Plus elle est petite, plus elle suit de recoins, et plus la côte paraît longue. En 1975, il invente le mot « fractale ».',
   },
   rotation: 'recreer',

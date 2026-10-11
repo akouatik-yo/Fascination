@@ -15,7 +15,7 @@ FJ.fiche('mycelium', {
       essaie: 'Mets de l’engrais au pied d’un arbre, puis regarde combien de sucre il donne encore au champignon.' },
   },
   outils: {
-    semer: { verbe: 'Sème', aide: 'Touche pour semer une moisissure, une spore ou un jeune arbre, selon la scène. Touche un réseau dense pour y lancer une onde.' },
+    semer: { verbe: 'Sème', aide: 'Touche pour semer un champignon, une spore ou un jeune arbre, selon la scène. Touche un réseau dense pour y lancer une onde.' },
     nourrir: { verbe: 'Nourris', aide: 'Touche pour poser de la nourriture : une goutte, un tas de feuilles mortes, ou de l’engrais au pied d’un arbre.' },
     tracer: { verbe: 'Trace', geste: 'trait', aide: 'Glisse pour tracer un sillon que les filaments ne traversent pas. Dans la forêt, tu coupes le réseau.' },
     gratter: { verbe: 'Gratte', geste: 'trait', aide: 'Glisse pour gratter le sol : les filaments disparaissent sous ton doigt, et l’herbe aussi dans la prairie.' },

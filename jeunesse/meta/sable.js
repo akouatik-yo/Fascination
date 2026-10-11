@@ -91,7 +91,7 @@ FJ.fiche('sable', {
     { id: 'soleil', scene: 'chateau', question: 'Et si le soleil tapait très fort sur le château de sable ?',
       choix: ['Il durcit et tient mieux', 'Il s’effrite et s’affaisse', 'Rien ne change'], bonne: 1,
       prepare: { scene: 'chateau', regle: { sechage3d: 1 }, action: 'la plage/rebatir', outil: 'observer' },
-      regarde: 'Attends une bonne demi-minute et regarde les tours.', attente: 40,
+      regarde: 'Attends une petite minute et regarde les tours.', attente: 55,
       revele: 'Il s’effrite ! Le château tient grâce à de minuscules ponts d’eau entre les grains. Le soleil les fait sécher : les grains ne sont plus collés, et les tours s’affaissent jusqu’à l’angle de repos du sable sec. Pour les sauver, arrose-les !' },
   ],
   rotation: 'garder',

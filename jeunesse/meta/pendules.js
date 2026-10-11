@@ -6,7 +6,8 @@ FJ.fiche('pendules', {
   scenes: {
     vague: { nom: 'La vague de pendules', via: 'scenes/vague de pendules', poids: 3, outil: 'tourner', outils: ['tourner', 'toucher'], actions: 'vague',
       exposes: ['pendules', 'duree', 'vue'],
-      plages: { vue: ['biais', 'biais', 'dessus'] },
+      // la machine ne replace pas sa caméra si le « point de vue » ne change pas : on passe d'abord par un autre point de vue
+      plages: { 'vague/point de vue': 'face', vue: ['biais', 'biais', 'bout'] },
       essaie: 'Glisse le doigt pour tourner autour des pendules, puis regarde-les d’au-dessus : des serpents apparaissent.' },
     arcs: { nom: 'Les arcs qui rebondissent', via: 'scenes/polyrythmie', poids: 2, outil: 'toucher', outils: ['toucher'], actions: 'arcs',
       exposes: ['arcs', 'arcduree', 'allers', 'trainees'],
@@ -36,20 +37,20 @@ FJ.fiche('pendules', {
   // les curseurs « nombre » et « durée » ne sont pas tirés au hasard : la machine attend des entiers
   partGraines: 0.5,
   graines: [
-    { nom: 'Deux rangées, à la moitié du cycle', scene: 'vague', regle: { vue: 'biais', 'vague/aller a cycle': true } },
-    { nom: 'Trois serpents, au tiers du cycle', scene: 'vague', regle: { vue: 'dessus', 'vague/': true } },
-    { nom: 'Quatre serpents, au quart du cycle', scene: 'vague', regle: { vue: 'dessus', 'vague/+': true } },
-    { nom: '24 pendules, réalignés en 1 minute', scene: 'vague', regle: { pendules: 24, duree: 60, vue: 'biais' } },
-    { nom: 'Vague express : réalignés en 20 secondes', scene: 'vague', regle: { pendules: 15, duree: 20, vue: 'biais' } },
+    { nom: 'Deux rangées, à la moitié du cycle', scene: 'vague', regle: { 'vague/point de vue': 'bout', vue: 'face', 'vague/aller a cycle': true } },
+    { nom: 'Trois serpents, au tiers du cycle', scene: 'vague', regle: { 'vague/point de vue': 'bout', vue: 'dessus', 'vague/': true } },
+    { nom: 'Quatre serpents, au quart du cycle', scene: 'vague', regle: { 'vague/point de vue': 'bout', vue: 'dessus', 'vague/+': true } },
+    { nom: '24 pendules, réalignés en 1 minute', scene: 'vague', regle: { pendules: 24, duree: 60, 'vague/point de vue': 'bout', vue: 'biais' } },
+    { nom: 'Vague express : réalignés en 20 secondes', scene: 'vague', regle: { pendules: 15, duree: 20, 'vague/point de vue': 'bout', vue: 'biais' } },
     { nom: '21 arcs qui se retrouvent au bout de 3 minutes', scene: 'arcs', regle: { arcs: 21, arcduree: 180, allers: 60, trainees: true } },
     { nom: '32 arcs qui se retrouvent au bout de 5 minutes', scene: 'arcs', regle: { arcs: 32, arcduree: 300, allers: 80, trainees: true } },
     { nom: '12 arcs qui se retrouvent au bout de 2 minutes', scene: 'arcs', regle: { arcs: 12, arcduree: 120, allers: 40, trainees: true } },
   ],
   recettes: [
-    { nom: 'Vue d’en haut', icone: 'oeil', scene: 'vague', regle: { vue: 'dessus' } },
+    { nom: 'Vue d’en haut', icone: 'oeil', scene: 'vague', regle: { 'vague/point de vue': 'bout', vue: 'dessus' } },
     { nom: '24 pendules', icone: 'onde', scene: 'vague', regle: { pendules: 24 } },
     { nom: 'Vague express (20 s)', icone: 'lievre', scene: 'vague', regle: { duree: 20 } },
-    { nom: 'Trois serpents', icone: 'spirale', scene: 'vague', regle: { vue: 'dessus', 'vague/': true } },
+    { nom: 'Trois serpents', icone: 'spirale', scene: 'vague', regle: { 'vague/point de vue': 'bout', vue: 'dessus', 'vague/': true } },
     { nom: '32 arcs', icone: 'cible', scene: 'arcs', regle: { arcs: 32 } },
     { nom: 'Arcs pressés', icone: 'lievre', scene: 'arcs', regle: { arcduree: 60, allers: 80 } },
   ],
@@ -61,7 +62,7 @@ FJ.fiche('pendules', {
   etsi: [
     { id: 'moitie', scene: 'vague', question: 'Et si on regardait les pendules à la moitié du cycle ?',
       choix: ['Deux rangées opposées', 'Tous alignés', 'Un désordre complet'], bonne: 0,
-      prepare: { scene: 'vague', regle: { vue: 'biais' }, action: 'vague/aller a cycle' }, regarde: 'Regarde bien les boules…', attente: 4,
+      prepare: { scene: 'vague', regle: { 'vague/point de vue': 'bout', vue: 'face' }, action: 'vague/aller a cycle' }, regarde: 'Regarde bien les boules…', attente: 4,
       revele: 'Deux rangées ! À la moitié du cycle, chaque pendule a fait un demi-aller-retour de plus que son voisin. Quand l’un est à droite, son voisin est à gauche. Au tiers du cycle, on voit trois serpents ; à la fin, tous se réalignent. Chacun garde simplement sa propre **période**.' },
   ],
   rotation: 'recreer',

@@ -33,7 +33,8 @@ FJ.fiche('id', {
       regle: { },                   // facultatif : appliqué quand l'enfant choisit cette scène lui-même
       actions: 'foyer',             // facultatif : un groupe de groupesActions (boutons spectaculaires)
       essaie: 'Souffle doucement sur les braises, puis plus fort.',   // 20 mots max, une action à faire tout de suite
-      amorce: { outil: 'goutte', points: [[0.5, 0.4]], delai: 700 },  // facultatif : un toucher automatique à l'arrivée, si la scène démarre vide
+      amorce: { outil: 'goutte', points: [[0.5, 0.4]], delai: 700 },  // facultatif : un toucher automatique à l'arrivée ou au choix de la scène, si elle démarre vide
+      interne: 'pelage',            // facultatif : l'identifiant de la scène dans la machine, s'il diffère de la clé (machines qui exposent sim.sceneId et changent de scène d'elles-mêmes, comme Turing)
     },
   },
   outils: { id: { verbe: 'Souffle', icone: 'vent', geste: 'trait', aide: '…' } },

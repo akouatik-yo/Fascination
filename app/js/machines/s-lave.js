@@ -330,8 +330,9 @@ void main(){
       const k = dt / 0.4;
       T += k;
       if (cfg.scene !== 'soleil' && R) {
-        const n = Math.min(3, Math.max(1, Math.round(k * 60 * 0.5)));
-        for (let i = 0; i < n; i++) step(Math.min(1.2, k * 30 * cfg.speed) / n * 1.5);
+        // la vitesse se répartit sur des sous-pas (au plus 1,2 chacun) : sur une tablette lente, « Vitesse » au-delà de 100 % agit encore
+        const want = k * 30 * cfg.speed, n = Math.min(3, Math.max(1, Math.ceil(want / 1.2)));
+        for (let i = 0; i < n; i++) step(Math.min(1.2, want / n) * 1.5);
         warm = Math.min(1, warm + k * 0.01);
       }
       if (hum) hum.gain(cfg.scene === 'lampe' && cfg.on ? 0.012 : cfg.scene === 'soleil' ? 0.01 : 0);

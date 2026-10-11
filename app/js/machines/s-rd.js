@@ -261,6 +261,7 @@ void main(){
       move(p) { if (!p.down || !last) return; brush(last.x, last.y, p.x, p.y); last = { x: p.x, y: p.y }; },
       up() { last = null; },
       clear() { setup(); if (keep.scene === 'labo') seed(0); },
+      get sceneId() { return keep.scene; },   // la scène peut changer d'elle-même (l'Atlas emmène au laboratoire) : la version jeunesse suit
       dispose() { K.lose(); },
       ui() {
         const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [

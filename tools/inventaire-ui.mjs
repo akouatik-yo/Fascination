@@ -60,7 +60,8 @@ for (const id of ids) {
       let k = s0 + 1;
       while (k < uiNow.length && uiNow[k].type !== 'section' && uiNow[k].type !== 'buttons' && uiNow[k].type !== 'choice') k++;
       const c = uiNow[k];
-      if (c && c.type === 'buttons') scenes = c.items.map((it) => ({ kind: 'bouton', path: secLab + '/' + norme(it.label), label: it.label }));
+      // les boutons de scènes peuvent tenir sur plusieurs rangées (Turing : Galerie, Atlas puis Pelages, Laboratoire)
+      if (c && c.type === 'buttons') for (let j = k; j < uiNow.length && uiNow[j].type === 'buttons'; j++) scenes.push(...uiNow[j].items.map((it) => ({ kind: 'bouton', path: secLab + '/' + norme(it.label), label: it.label })));
       else if (c && c.type === 'choice') scenes = c.options.map((o) => ({ kind: 'choix', path: secLab + '/' + norme(c.label), valeur: o.id, label: o.label }));
     } else {
       const ch = first.find((c) => c.type === 'choice' && /lieu|paysage|scene/.test(c.path));

@@ -9634,7 +9634,7 @@ void main(){
         for (const [ff, y] of [[0.02, 0], [0.04, 0], [0.06, 0], [0.08, 0]]) { const yy = H - ((ff - 0.008) / 0.077) * H; tag('f ' + fr(ff, 2), v.x0 + 14, yy + 4); void y; }
         tag('← k PLUS PETIT · k PLUS GRAND →  (k SUIT LA FRONTIÈRE OÙ LES MOTIFS EXISTENT)', v.cx - 230, H - 18);
       } else tag(`${keep.scene === 'pelage' ? COATS[keep.coat].label.toUpperCase() : keep.scene === 'galerie' ? PRESETS[keep.cur].label.toUpperCase() : 'LABORATOIRE'} · f = ${fr(f, 4)} · k = ${fr(k, 4)}`, v.x0 + 18, H - 18);
-      if (toast && T - toast.t < 6) { ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = dark ? 'rgba(6,6,12,.55)' : 'rgba(255,255,255,.75)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = dark ? '#fff' : '#2a2238'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 6) { ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = dark ? 'rgba(6,6,12,.55)' : 'rgba(255,255,255,.75)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = dark ? '#fff' : '#2a2238'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
 
     setScene(keep.scene);
@@ -9666,6 +9666,7 @@ void main(){
       move(p) { if (!p.down || !last) return; brush(last.x, last.y, p.x, p.y); last = { x: p.x, y: p.y }; },
       up() { last = null; },
       clear() { setup(); if (keep.scene === 'labo') seed(0); },
+      get sceneId() { return keep.scene; },   // la scène peut changer d'elle-même (l'Atlas emmène au laboratoire) : la version jeunesse suit
       dispose() { K.lose(); },
       ui() {
         const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [
@@ -9779,7 +9780,7 @@ void main(){
   if (uKind == 4){ vec2 ab = uB - uA; float t = clamp(dot(p - uA, ab) / max(dot(ab, ab), 1e-6), 0., 1.); if (length(p - uA - ab * t) < uR) s.x = floor(hash12(p + uSeed) * uNs); o = s; return; }
   vec2 ab = uB - uA; float t = clamp(dot(p - uA, ab) / max(dot(ab, ab), 1e-6), 0., 1.), d = length(p - uA - ab * t);
   bool in_ = uKind == 2 ? true : uKind == 3 ? p.x < uA.x : d < uR;
-  if (in_ && m > .5){ if (uKind == 1) s.xy = vec2(0., 0.); else s.x = 1.; }
+  if (in_ && m > .5){ if (uKind == 1) s.xy = vec2(0., 0.); else s.x = uKind == 2 ? .99 : 1.; }   // choc : u = 1 exactement est un point fixe du schéma, le muscle resterait figé
   o = s;
 }`;
   const FS_SCAR = HEAD + `
@@ -9991,7 +9992,7 @@ void main(){
       } else if (keep.scene === 'bz') ctx.fillText('RÉACTION DE BELOUSOV-ZHABOTINSKY · TOUCHEZ POUR EXCITER, COUPEZ UN FRONT POUR FAIRE UNE SPIRALE', v.x0 + 20, H - 16);
       else if (keep.scene === 'dicty') ctx.fillText(`DICTYOSTELIUM · ${(AW * AW * keep.agents).toLocaleString('fr-FR')} AMIBES QUI SE RELAIENT L’AMPC ET MARCHENT VERS SA SOURCE`, v.x0 + 20, H - 16);
       else ctx.fillText(`AUTOMATE CYCLIQUE À ${keep.ns} ÉTATS · TOUCHEZ POUR SEMER LE DÉSORDRE`, v.x0 + 20, H - 16);
-      if (toast && T - toast.t < 5) { ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, 72); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 5) { ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 72); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
 
     /* ───────── démarrages ───────── */
@@ -10381,7 +10382,7 @@ void main(){
       else { const wp = waterParams(); ctx.fillStyle = ink() ? 'rgba(40,30,60,.8)' : 'rgba(235,230,255,.8)'; ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillText(`SURFACE D’EAU · SYMÉTRIE D’ORDRE ${wp.fold}${wp.fold % 2 ? ' (MOTIF QUASI CRISTALLIN)' : wp.fold > 6 ? ' (QUASI-CRISTAL)' : ''} · ${wp.f} HZ IMPOSÉS, L’EAU RÉPOND À ${Math.round(wp.f / 2)} HZ`, view().x0 + 20, H - 18); }
       hudToast();
     }
-    function hudToast() { if (toast && T - toast.t < 4) { const v = view(); ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = ink() ? '#2a2238' : '#fff'; ctx.fillText(toast.s, v.cx, 72); ctx.textAlign = 'left'; ctx.globalAlpha = 1; } }
+    function hudToast() { if (toast && T - toast.t < 4) { const v = view(); ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = ink() ? '#2a2238' : '#fff'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 72); ctx.textAlign = 'left'; ctx.globalAlpha = 1; } }
     function setScene(id) { keep.scene = id; toast = null; if (id === 'chladni') { modes = modesFor(keep.shape); grainsInit(); } }
 
     if (window.FASC_DEBUG) window.FASC_DEBUG.cym = { keep, setScene, run(n, h) { for (let i = 0; i < n; i++) update(h / 0.4); render(); }, setShape(s) { keep.shape = s; modes = modesFor(s); grainsInit(); }, get modes() { return modes; } };
@@ -10631,7 +10632,7 @@ void main(){
       ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
       ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = ink() ? 'rgba(40,30,60,.75)' : 'rgba(235,230,255,.7)';
       ctx.fillText(`${MIRRORS[keep.mirror].label.toUpperCase()} · ${pieces.length} ${keep.obj === 'perles' ? 'PERLES' : 'OBJETS'} DANS LA CELLULE`, v.x0 + 18, H - 16);
-      if (toast && T - toast.t < 3) { ctx.globalAlpha = Math.min(1, (3 - (T - toast.t)) * 1.5); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 3) { ctx.globalAlpha = Math.min(1, (3 - (T - toast.t)) * 1.5); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
     function update(k) {
       T += k;
@@ -10853,7 +10854,7 @@ void main(){
         const [a, b] = RATIOS[keep.ratio];
         ctx.fillText(`${RATIOS[keep.ratio][2].toUpperCase()} ${a}:${b} · DÉSACCORD ${fr(keep.det * 100, 1)} % · AMORTISSEMENT ${fr(keep.damp, 3)} /S${keep.rotary ? ' · TABLE TOURNANTE' : ''}${done ? ' · TERMINÉ' : ''}`, v.x0 + 18, H - 16);
       } else if (SP) ctx.fillText(`ANNEAU ${SP.R} DENTS · ROUE ${SP.r} DENTS · PGCD ${gcd(SP.R, SP.r)} → ${SP.R / gcd(SP.R, SP.r)} BRANCHES EN ${SP.turns} TOURS${keep.outside ? ' · ROUE À L’EXTÉRIEUR' : ''}`, v.x0 + 18, H - 16);
-      if (toast && T - toast.t < 4) { ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 4) { ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
     function gear(cx, cy, r, teeth, rot, inner) {
       ctx.beginPath();
@@ -11136,7 +11137,7 @@ void main(){ float d = texture(uT, vUv).x; float t = clamp(log(1. + d * uNorm) /
         ctx.fillStyle = c; ctx.fillText('ÉCART ENTRE DEUX TRAJECTOIRES (ÉCHELLE LOG)', x0, y0 - 8);
         ctx.fillText(`${lastL < 0 ? '10' + sup(Math.round(lastL)) : fr(Math.pow(10, lastL), 1)} · T = ${fr(bf.t, 1)}`, x0, y0 + h + 16);
       }
-      if (toast && T - toast.t < 5) { ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.2); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 5) { ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.2); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
     const sup = (n) => String(n).split('').map((ch) => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(ch)]).join('');
     function setScene(id) {
@@ -11388,7 +11389,7 @@ void main(){
     }
     function render() {
       if (keep.scene === 'trans') renderTrans(); else drawScan();
-      if (toast && T - toast.t < 6) { const v = view(); ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = ink() ? 'rgba(255,255,255,.85)' : 'rgba(6,6,12,.7)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = ink() ? '#2a2238' : '#fff'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 6) { const v = view(); ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = ink() ? 'rgba(255,255,255,.85)' : 'rgba(6,6,12,.7)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = ink() ? '#2a2238' : '#fff'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
     function update(k) { T += k; if (keep.scene === 'scan' && keep.slide && !drag) slideX -= k * band * 9; }
     function setScene(id) { keep.scene = id; toast = null; if (id === 'scan') { buildScan(); say('Six images en une : la grille qui glisse n’en laisse voir qu’une à la fois.'); } }
@@ -11596,7 +11597,7 @@ void main(){
       { color: '#9fe0ff', name: 'Flocon de Koch', role: 'périmètre infini, aire finie', desc: 'Chaque côté est remplacé par quatre côtés trois fois plus courts. Le périmètre est multiplié par 4/3 à chaque étape et tend vers l’infini ; l’aire reste finie, 8/5 de celle du triangle de départ.' },
     ],
     about: [
-      'Le mot « fractale » est inventé en 1975 par Benoît Mandelbrot, du latin fractus, brisé. Il voulait nommer ces formes rugueuses à toutes les échelles qu’on avait longtemps traitées de « monstres » : la courbe de Koch (1904), le triangle de Sierpiński (1915), les ensembles que Gaston Julia et Pierre Fatou étudiaient en 1918, sans ordinateur pour les voir. Sa question de 1967 est restée célèbre : combien mesure la côte de la Bretagne ? Plus la règle est petite, plus la côte est longue.',
+      'Le mot « fractale » est inventé en 1975 par Benoît Mandelbrot, du latin fractus, brisé. Il voulait nommer ces formes rugueuses à toutes les échelles qu’on avait longtemps traitées de « monstres » : la courbe de Koch (1904), le triangle de Sierpiński (1915), les ensembles que Gaston Julia et Pierre Fatou étudiaient en 1918, sans ordinateur pour les voir. Sa question de 1967 est restée célèbre : combien mesure la côte de la Grande-Bretagne ? Plus la règle est petite, plus la côte est longue.',
       'L’ensemble de Mandelbrot apparaît pour la première fois sur une imprimante en 1980, au centre de recherche d’IBM. Sa définition tient en une ligne, mais son bord ne finit jamais : chaque zoom révèle des hippocampes, des spirales, des éclairs et des copies miniatures de l’ensemble entier, reliées par des filaments. Adrien Douady, qui l’a étudié avec John Hubbard, disait qu’il y avait là « de quoi occuper les mathématiciens pendant des siècles ».',
       'Plonger profond demande de la précision : à 10⁻⁷, la simple précision des cartes graphiques ne distingue plus deux pixels voisins. La simulation calcule donc une seule orbite de référence en double précision, puis, pour chaque pixel, seulement l’écart à cette orbite, qui tient dans les nombres de la carte graphique. Quand l’écart menace de devenir plus grand que l’orbite elle-même, on rebase. La limite est ici vers 10⁻¹³, soit un grossissement de dix mille milliards : la taille d’un atome agrandi jusqu’à celle de la Terre.',
       'Le son de la plongée est un glissando de Shepard : plusieurs notes à l’octave dont le volume suit une cloche, qui descendent ensemble ; en haut une nouvelle note naît en silence pendant qu’en bas une autre s’éteint. L’oreille entend une chute sans fin, comme le zoom. Jean-Claude Risset l’a rendu célèbre dans les années 1960.',
@@ -14170,8 +14171,9 @@ void main(){
       const k = dt / 0.4;
       T += k;
       if (cfg.scene !== 'soleil' && R) {
-        const n = Math.min(3, Math.max(1, Math.round(k * 60 * 0.5)));
-        for (let i = 0; i < n; i++) step(Math.min(1.2, k * 30 * cfg.speed) / n * 1.5);
+        // la vitesse se répartit sur des sous-pas (au plus 1,2 chacun) : sur une tablette lente, « Vitesse » au-delà de 100 % agit encore
+        const want = k * 30 * cfg.speed, n = Math.min(3, Math.max(1, Math.ceil(want / 1.2)));
+        for (let i = 0; i < n; i++) step(Math.min(1.2, want / n) * 1.5);
         warm = Math.min(1, warm + k * 0.01);
       }
       if (hum) hum.gain(cfg.scene === 'lampe' && cfg.on ? 0.012 : cfg.scene === 'soleil' ? 0.01 : 0);
@@ -15183,7 +15185,7 @@ void main(){
       if (keep.scene === 'spectro') drawSpectro(cc);
       else if (keep.scene === 'liss') drawLiss(cc, lastK);
       else drawTimbre(cc);
-      if (toast && T - toast.t < 5) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 50); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 5) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 50); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = soundHint(cc);
       lastK = 0;
     }
@@ -15652,7 +15654,7 @@ void main(){
       else if (keep.scene === 'mono') drawMono(c);
       else drawAeo(c);
       drawHarmInset(c);
-      if (toast && T - toast.t < 4) { ctx.fillStyle = c.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 4) { ctx.fillStyle = c.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = soundHint(c);
     }
 
@@ -15933,7 +15935,7 @@ void main(){
       const cc = C();
       if (bare()) { ctx.fillStyle = cc.bg0; ctx.fillRect(0, 0, W, H); } else { const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, cc.bg0); g.addColorStop(1, cc.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
       if (keep.scene === 'vague') drawPend(cc); else drawRings(cc);
-      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = null;
       if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = H - 58; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = cc.acc; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = cc.acc; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
     }
@@ -16316,13 +16318,13 @@ void main(){
     function render() {
       const cc = C(); ctx.fillStyle = cc.bg; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = cc.txt; ctx.font = 'italic 500 20px "Space Grotesk", sans-serif';
-      ctx.fillText(SCENES.find((s) => s[0] === keep.scene)[1], view().x0 + 24, 86);
+      ctx.fillText(SCENES.find((s) => s[0] === keep.scene)[1], view().x0 + 24, ((env.view && env.view.y0) || 0) + 86);
       if (keep.scene === 'shepard') drawShepard(cc);
       else if (keep.scene === 'triton') drawTriton(cc);
       else if (keep.scene === 'absente') drawAbsente(cc);
       else if (keep.scene === 'binaural') drawBinaural(cc);
       else drawRisset(cc);
-      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 116); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 116); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = null;
       if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = 64; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
     }
@@ -18672,7 +18674,7 @@ void main(){
           // moyenne des dix dernières secondes
           let su = 0, sd = 0; for (const [t, u, d] of brHist) if (T - t < 10) { su += u; sd += d; }
           const tot = su + sd, pu = tot ? su / tot : 0.5;
-          const bw = Math.min(460, (v.x1 - v.x0) * 0.6), bx = v.x0 + (v.x1 - v.x0) / 2 - bw / 2, by = 70;
+          const bw = Math.min(460, (v.x1 - v.x0) * 0.6), bx = v.x0 + (v.x1 - v.x0) / 2 - bw / 2, by = ((env.view && env.view.y0) || 0) + 70;
           ctx.fillStyle = 'rgba(14,10,6,.62)'; ctx.fillRect(bx - 10, by - 18, bw + 20, 62);
           ctx.fillStyle = 'rgba(255,200,110,.9)'; ctx.fillRect(bx, by, bw * pu, 12);
           ctx.fillStyle = 'rgba(140,180,255,.85)'; ctx.fillRect(bx + bw * pu, by, bw * (1 - pu), 12);
@@ -18691,8 +18693,8 @@ void main(){
         if (toastM && T - toastM.t < 6) {
           const a = Math.min(1, (6 - (T - toastM.t)) * 1.2), cx = (v.x0 + v.x1) / 2;
           ctx.globalAlpha = a; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toastM.m).width;
-          ctx.fillStyle = 'rgba(14,10,6,.7)'; ctx.fillRect(cx - w / 2 - 12, PONT ? 128 : 54, w + 24, 28);
-          ctx.fillStyle = '#fff3e0'; ctx.textAlign = 'center'; ctx.fillText(toastM.m, cx, PONT ? 147 : 73); ctx.globalAlpha = 1;
+          ctx.fillStyle = 'rgba(14,10,6,.7)'; ctx.fillRect(cx - w / 2 - 12, ((env.view && env.view.y0) || 0) + (PONT ? 128 : 54), w + 24, 28);
+          ctx.fillStyle = '#fff3e0'; ctx.textAlign = 'center'; ctx.fillText(toastM.m, cx, ((env.view && env.view.y0) || 0) + (PONT ? 147 : 73)); ctx.globalAlpha = 1;
         }
         ctx.restore();
       }
@@ -20778,7 +20780,7 @@ void main(){
       }
 
       /* expériences */
-      const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0 }; };
+      const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, y0: v.y0 || 0 }; };
       function clearAll() {
         for (const t of T) t.fill(0);
         M.fill(0); FOOD.fill(0); SALT.fill(0); OCC.fill(0); LMASK.fill(0); CH.fill(0);
@@ -20789,7 +20791,7 @@ void main(){
       }
       function expMaze() {
         clearAll(); cfg.cap = 0.4;
-        const v = view(), mar = 26, x0 = v.x0 + mar, x1 = v.x1 - mar, y0 = mar, y1 = H - mar;
+        const v = view(), mar = 26, x0 = v.x0 + mar, x1 = v.x1 - mar, y0 = v.y0 + mar, y1 = H - mar;
         const cs = clamp(Math.min(x1 - x0, y1 - y0) / 6, 55, 110), cols = Math.max(3, Math.floor((x1 - x0) / cs)), rows = Math.max(3, Math.floor((y1 - y0) / cs));
         const ox = x0 + (x1 - x0 - cols * cs) / 2, oy = y0 + (y1 - y0 - rows * cs) / 2;
         const Hw = new Uint8Array((rows + 1) * cols).fill(1), Vw = new Uint8Array(rows * (cols + 1)).fill(1), vis = new Uint8Array(rows * cols);
@@ -21108,8 +21110,8 @@ void main(){
     gosper: { nom: 'Canon de Gosper', rle: '24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o!', why: 'Bill Gosper, 1970 : il tire un planeur toutes les 30 générations, pour toujours. Il a gagné les 50 dollars promis par Conway pour un motif qui grandit sans fin.' },
     pulsar: { nom: 'Pulsar', rle: '2b3o3b3o2b2$o4bobo4bo$o4bobo4bo$o4bobo4bo$2b3o3b3o2b2$2b3o3b3o2b$o4bobo4bo$o4bobo4bo$o4bobo4bo2$2b3o3b3o!', why: 'Un oscillateur de période 3, le plus courant après le clignotant.' },
     penta: { nom: 'Pentadécathlon', rle: '2bo4bo2b$2ob4ob2o$2bo4bo!', why: 'Il revient à sa forme après 15 générations.' },
-    rpento: { nom: 'R-pentomino', rle: 'b2o$2o$bo!', why: 'Cinq cellules qui bouillonnent pendant 1 103 générations avant de se calmer, en lâchant 6 planeurs. Un « mathusalem ».' },
-    gland: { nom: 'Gland', rle: 'bo$3bo$2o2b3o!', why: 'Sept cellules, 5 206 générations d’agitation, 633 cellules à la fin.' },
+    rpento: { nom: 'R-pentomino', rle: 'b2o$2o$bo!', why: 'Cinq cellules qui bouillonnent très longtemps avant de se calmer : 1 103 générations et 6 planeurs sur une grille infinie. Ici la grille se referme sur elle-même (les planeurs reviennent par l’autre bord), le résultat diffère. Un « mathusalem ».' },
+    gland: { nom: 'Gland', rle: 'bo$3bo$2o2b3o!', why: 'Sept cellules : sur une grille infinie, 5 206 générations d’agitation et 633 cellules à la fin. Ici, la grille refermée sur elle-même change l’histoire.' },
     diehard: { nom: 'Diehard', rle: '6bo$2o$bo3b3o!', why: 'Il disparaît entièrement après exactement 130 générations.' },
   };
   function parseRLE(rle) {
@@ -21247,11 +21249,11 @@ void main(){
       { color: '#8a6cff', name: 'Traînée', role: 'mémoire des générations passées', desc: 'Les cellules mortes laissent une lueur qui s’éteint peu à peu : les planeurs dessinent des comètes, les oscillateurs des halos.' },
       { color: '#ff8c26', name: 'Cellule mourante', role: 'Brian’s Brain, Star Wars', desc: 'Dans les règles à plusieurs états, une cellule passe par un ou deux états « fatigués » avant de mourir, ce qui donne une direction au mouvement.' },
       { color: '#ffd23a', name: 'Planeur', role: '5 cellules, vitesse c/4', desc: 'Le premier vaisseau découvert (Richard Guy, 1970). Il est devenu l’emblème des hackers.' },
-      { color: '#79f3b4', name: 'Mathusalem', role: 'petit motif, longue vie', desc: 'R-pentomino, gland, diehard : quelques cellules qui s’agitent des milliers de générations avant de se stabiliser ou de mourir.' },
+      { color: '#79f3b4', name: 'Mathusalem', role: 'petit motif, longue vie', desc: 'R-pentomino, gland, diehard : quelques cellules qui s’agitent des centaines ou des milliers de générations avant de se stabiliser (ou, pour diehard, de disparaître à la génération 130).' },
       { color: '#ff9cf0', name: 'Créature de Lenia', role: 'Orbium · automate continu', desc: 'Une forme ronde qui nage en gardant sa forme, comme un organisme. Bert Chan en a catalogué plus de 400 espèces.' },
     ],
     about: [
-      'John Horton Conway invente le jeu en 1970, à Cambridge, sur un plateau de go, en cherchant la règle la plus simple qui donne des comportements imprévisibles. Martin Gardner le publie en octobre 1970 dans Scientific American ; pendant des années, on estime qu’un quart du temps de calcul des ordinateurs du monde est consacré à faire tourner des grilles de vie.',
+      'John Horton Conway invente le jeu en 1970, à Cambridge, sur un plateau de go, en cherchant la règle la plus simple qui donne des comportements imprévisibles. Martin Gardner le publie en octobre 1970 dans Scientific American ; pendant des années, on raconte (sans preuve solide) qu’une bonne part du temps de calcul des ordinateurs des universités servait en douce à faire tourner des grilles de vie.',
       'Le jeu est « Turing-complet » : avec des canons à planeurs comme signaux, des portes logiques et des mémoires, on peut y construire n’importe quel ordinateur, et même un jeu de la vie qui simule un jeu de la vie (le métapixel OTCA, 2006). Conséquence étrange : il est impossible de prédire en général si un motif finira par mourir, sauf en le laissant tourner.',
       'Les règles cousines se notent B/S : les nombres de voisines qui font naître (B, birth) et survivre (S). Il en existe 2¹⁸, soit 262 144 ; seules quelques-unes ont la juste mesure de chaos de celle de Conway. Les règles à « générations » ajoutent des états de fatigue, comme dans Brian’s Brain.',
       'Lenia (Bert Wang-Chak Chan, 2018) remplace les cases tout-ou-rien par des valeurs continues, le voisinage de 8 cases par un anneau de rayon 13, et la règle par une courbe en cloche. On y trouve des créatures qui se déplacent, tournent, se divisent : de la « vie artificielle » qui ne doit rien à la biologie. Le nom « automate cellulaire » vient de John von Neumann et Stanisław Ulam, dans les années 1940, qui cherchaient une machine capable de se reproduire.',

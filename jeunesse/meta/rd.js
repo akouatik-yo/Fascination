@@ -7,7 +7,7 @@ FJ.fiche('rd', {
     galerie: { nom: 'Le bestiaire', via: 'scenes/galerie', poids: 3, outil: 'semer', exposes: ['motif', 'tout_seul', 'couleurs', 'relief'],
       plages: { motif: ['corail', 'mitose', 'labyrinthe', 'vers', 'trous', 'pulsar'], couleurs: ['auto', 'auto', 'auto', 'corail', 'nacre', 'ambre', 'neon'], relief: [0.7, 1.8], tout_seul: true },
       essaie: 'Gomme un trou au milieu du motif, puis regarde-le se refermer.' },
-    pelages: { nom: 'Les pelages', via: 'scenes/pelages', poids: 3, outil: 'semer', exposes: ['animal'],
+    pelages: { nom: 'Les pelages', via: 'scenes/pelages', interne: 'pelage', poids: 3, outil: 'semer', exposes: ['animal'],
       plages: { animal: ['zebre', 'guepard', 'leopard', 'poisson'] },
       essaie: 'Change d’animal, puis gomme une bande : le pelage repousse autrement.' },
     atlas: { nom: 'La carte des motifs', via: 'scenes/atlas', poids: 1, outil: 'semer', exposes: ['couleurs', 'relief'],

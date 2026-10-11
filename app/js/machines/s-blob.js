@@ -379,7 +379,7 @@
       }
 
       /* expériences */
-      const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0 }; };
+      const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, y0: v.y0 || 0 }; };
       function clearAll() {
         for (const t of T) t.fill(0);
         M.fill(0); FOOD.fill(0); SALT.fill(0); OCC.fill(0); LMASK.fill(0); CH.fill(0);
@@ -390,7 +390,7 @@
       }
       function expMaze() {
         clearAll(); cfg.cap = 0.4;
-        const v = view(), mar = 26, x0 = v.x0 + mar, x1 = v.x1 - mar, y0 = mar, y1 = H - mar;
+        const v = view(), mar = 26, x0 = v.x0 + mar, x1 = v.x1 - mar, y0 = v.y0 + mar, y1 = H - mar;
         const cs = clamp(Math.min(x1 - x0, y1 - y0) / 6, 55, 110), cols = Math.max(3, Math.floor((x1 - x0) / cs)), rows = Math.max(3, Math.floor((y1 - y0) / cs));
         const ox = x0 + (x1 - x0 - cols * cs) / 2, oy = y0 + (y1 - y0 - rows * cs) / 2;
         const Hw = new Uint8Array((rows + 1) * cols).fill(1), Vw = new Uint8Array(rows * (cols + 1)).fill(1), vis = new Uint8Array(rows * cols);

@@ -35,7 +35,7 @@
     id: null, def: null, meta: null, sim: null, env: null, scene: null, outil: null, touche: false, pause: false, vitesse: 1,
     son: false, spectacle: false, tiroir: null, ecran: null, hist: [], hpos: -1, lb: false, ouverture: 0, nom: null,
     vus: new Set(lireJSON('fj-vus', [])), outilsMontres: new Set(), etsiVu: new Set(lireJSON('fj-etsi', [])),
-    prefs: Object.assign({ doux: true, calme: false }, lireJSON('fj-prefs', {})), constructions: 0,
+    prefs: Object.assign({ doux: true, calme: false }, lireJSON('fj-prefs', {})), constructions: 0, doigts: 0,
   };
   let defs = [], audio = null, sac = null, raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null;
   const canvas = $('cv'), app = $('fj');
@@ -193,7 +193,7 @@
     securite();
     if (!outilsVisibles().some((t) => t.id === S.outil)) S.outil = outilDefaut();
     S.touche = true;
-    rendre(); son('scene');
+    rendre(); son('scene'); amorce();
   }
 
   /* ───────── la boucle ───────── */
@@ -274,24 +274,35 @@
   }
   canvas.addEventListener('pointerdown', (e) => {
     if (!S.sim) return;
-    doigt = true; px = null; py = null; S.touche = true;
+    doigt = true; px = null; py = null; S.touche = true; S.doigts++;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
     effacerCarton(); masquerMain();
     const p = pt(e); p.down = true;
     if (S.sim.down) { try { S.sim.down(p); } catch (err) { console.warn(err); } }
   });
   canvas.addEventListener('pointermove', (e) => { if (!S.sim || !S.sim.move) return; const p = pt(e); try { S.sim.move(p); } catch (err) { /* rien */ } });
-  const lacher = (e) => { doigt = false; if (S.sim && S.sim.up) { try { S.sim.up(pt(e)); } catch (err) { /* rien */ } } };
+  const lacher = (e) => { doigt = false; if (S.sim && S.sim.up) { try { S.sim.up(pt(e)); } catch (err) { /* rien */ } } suivreScene(); };
+  // une machine qui change de scène d'elle-même (sim.sceneId) : les pastilles, les gestes et les leviers suivent
+  function suivreScene() {
+    const sim = S.sim; if (!sim || !S.meta.scenes || !('sceneId' in sim)) return;
+    const id = sim.sceneId, sc = S.meta.scenes;
+    const k = Object.keys(sc).find((c) => (sc[c].interne || c) === id);
+    if (!k || k === S.scene) return;
+    S.scene = k; S.nom = null;
+    if (!outilsVisibles().some((t) => t.id === S.outil)) S.outil = outilDefaut();
+    rendre();
+  }
   canvas.addEventListener('pointerup', lacher);
   canvas.addEventListener('pointercancel', lacher);
 
   /* l'amorce : un geste joué tout seul à l'arrivée (une goutte, un éclair) pour arriver en pleine action */
+  // aussi après un changement de scène choisi par l'enfant : elle n'est annulée que s'il pose le doigt sur la machine entre-temps
   function amorce() {
     const a = (S.scene && S.meta.scenes[S.scene] && S.meta.scenes[S.scene].amorce) || S.meta.amorce;
     if (!a || !S.sim) return;
-    const id = S.id, sim = S.sim;
+    const id = S.id, sim = S.sim, scene = S.scene, doigts = S.doigts;
     setTimeout(() => {
-      if (S.id !== id || S.sim !== sim || S.touche) return;
+      if (S.id !== id || S.sim !== sim || S.scene !== scene || S.doigts !== doigts) return;
       const v = S.env.view, outilAvant = S.outil;
       if (a.outil) S.outil = a.outil;
       for (const [fx, fy] of a.points || [[0.5, 0.45]]) {
@@ -614,11 +625,14 @@
   }
   async function preparer(e) {
     const p = e.prepare || {};
-    if (p.scene && p.scene !== S.scene && S.meta.scenes[p.scene]) { pilote.scene(S.meta.scenes[p.scene].via); S.scene = p.scene; await images(2); }
+    // la scène est relancée même si c'est déjà la scène en cours : l'expérience part d'un état propre (l'enfant l'a demandé)
+    const sc = p.scene || (e.scene && e.scene !== S.scene ? e.scene : null);
+    if (sc && S.meta.scenes[sc]) { pilote.scene(S.meta.scenes[sc].via); S.scene = sc; S.nom = null; await images(2); }
     if (p.regle) regler(p.regle);
     if (p.outil) S.outil = p.outil;
     if (p.action) { const r = pilote.get(p.action); if (r && r.it) r.it.act(); }
     S.pause = false; S.touche = true;
+    if (sc && !p.action) amorce();
     rendreHaut(); rendreGestes(); rendreActions(); rendreDroite();
     if (window.innerWidth < 900) fermerTiroir();
   }

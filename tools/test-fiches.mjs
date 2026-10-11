@@ -48,6 +48,7 @@ for (const id of ids) {
     const scenes = Object.keys(M.scenes || {});
     const outils = new Set(T.S.def.tools.map((t) => t.id));
     for (const o of Object.keys(M.outils || {})) if (!outils.has(o)) pb.push(`outils : « ${o} » n'existe pas dans la machine`);
+    if (M.essaie && mots(M.essaie) > 22) pb.push(`« essaie » trop long (${mots(M.essaie)} mots)`);
     if (M.outil && !outils.has(M.outil)) pb.push(`outil par défaut « ${M.outil} » inconnu`);
     // textes
     if (M.question && mots(M.question) > 12) pb.push(`question trop longue (${mots(M.question)} mots > 12)`);

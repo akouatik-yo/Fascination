@@ -598,7 +598,8 @@
     const sc = S.scene && m.scenes[S.scene];
     if (m.question) corps.append(h('p', { class: 'question' }, m.question));
     if (P.etincelle) corps.append(h('p', { class: 'etincelle' }, P.etincelle));
-    if (sc && sc.essaie) corps.append(h('div', { class: 'essaie' }, h('b', null, 'Essaie ça'), h('span', null, sc.essaie)));
+    const ess = (sc && sc.essaie) || S.meta.essaie;   // une machine sans scènes peut avoir son « essaie » à elle
+    if (ess) corps.append(h('div', { class: 'essaie' }, h('b', null, 'Essaie ça'), h('span', null, ess)));
     if (P.texte) corps.append(h('div', { class: 'texte' }, ...String(P.texte).split('\n\n').map((p) => h('p', null, ...texteRiche(p)))));
     const etsi = (m.etsi || []).filter((e) => !e.scene || e.scene === S.scene || !m.scenes[e.scene]);
     if (etsi.length) {

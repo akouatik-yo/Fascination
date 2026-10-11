@@ -14679,9 +14679,9 @@ void main(){
         P.bub.use().f('uRes', cw, ch).i('uN', B.length).v4('uB', A).v4('uB2', A2).v4('uB3', A3).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uT', T);
         K.run(P.bub, null);
       } else if (cfg.scene === 'cadre') {
-        const fw = Math.min(v.w * 0.62, H * 0.62), fh = Math.min(H * 0.78, fw * 1.25);
+        const y0f = (env.view && env.view.y0) || 0, Hf = H - y0f, cyf = y0f + Hf / 2, fw = Math.min(v.w * 0.62, Hf * 0.62), fh = Math.min(Hf * 0.78, fw * 1.25); // sous la barre du haut (version jeunesse)
         const VV = new Float32Array(32); vort.slice(0, 8).forEach((q, i) => VV.set([q.x, q.y, q.s, 0], i * 4));
-        P.frame.use().f('uRes', cw, ch).f('uBox', (v.cx - fw / 2) * s, (H / 2 - fh / 2) * s, fw * s, fh * s).f('uAge', filmAge).f('uSwirl', cfg.swirl).i('uNV', Math.min(8, vort.length)).v4('uV', VV).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uT', T);
+        P.frame.use().f('uRes', cw, ch).f('uBox', (v.cx - fw / 2) * s, (cyf - fh / 2) * s, fw * s, fh * s).f('uAge', filmAge).f('uSwirl', cfg.swirl).i('uNV', Math.min(8, vort.length)).v4('uV', VV).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uT', T);
         K.run(P.frame, null);
       } else {
         const neck = cat.broke ? 0 : 1;
@@ -14691,8 +14691,8 @@ void main(){
       ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
       if (cfg.scene === 'bulles') { ctx.save(); ctx.fillStyle = ink ? 'rgba(40,40,80,.5)' : 'rgba(220,235,255,.7)'; for (const d of drops) { ctx.globalAlpha = clamp(d.life * 3, 0, 1); ctx.fillRect(d.x, d.y, 1.6, 1.6); } ctx.restore(); }
       if (cfg.scene === 'cadre' && !bare) {
-        const fw = Math.min(v.w * 0.62, H * 0.62), fh = Math.min(H * 0.78, fw * 1.25);
-        ctx.save(); ctx.strokeStyle = '#8a8f9a'; ctx.lineWidth = 5; ctx.strokeRect(v.cx - fw / 2 - 3, H / 2 - fh / 2 - 3, fw + 6, fh + 6); ctx.fillStyle = '#6a6f7a'; ctx.fillRect(v.cx - 4, H / 2 + fh / 2 + 3, 8, H * 0.2); ctx.restore();
+        const y0f = (env.view && env.view.y0) || 0, Hf = H - y0f, cyf = y0f + Hf / 2, fw = Math.min(v.w * 0.62, Hf * 0.62), fh = Math.min(Hf * 0.78, fw * 1.25); // sous la barre du haut (version jeunesse)
+        ctx.save(); ctx.strokeStyle = '#8a8f9a'; ctx.lineWidth = 5; ctx.strokeRect(v.cx - fw / 2 - 3, cyf - fh / 2 - 3, fw + 6, fh + 6); ctx.fillStyle = '#6a6f7a'; ctx.fillRect(v.cx - 4, cyf + fh / 2 + 3, 8, H * 0.2); ctx.restore();
       }
       hud(ink);
       drawLabel();
@@ -14766,8 +14766,8 @@ void main(){
         const tool = env.tool;
         if (cfg.scene === 'bulles' && tool === 'souffler') wind.push({ x: p.x, y: p.y, vx: p.dx * 30, vy: p.dy * 30, r: Math.min(view().w, H) * 0.25, t: 0.6 });
         if (cfg.scene === 'cadre' && tool === 'souffler' && vort.length < 8) {
-          const v = view(), fw = Math.min(v.w * 0.62, H * 0.62), fh = Math.min(H * 0.78, fw * 1.25);
-          if (Math.random() < 0.3) vort.push({ x: (p.x - (v.cx - fw / 2)) / fw, y: (p.y - (H / 2 - fh / 2)) / fh, s: clamp(p.dx * 0.05, -2, 2) });
+          const v = view(), y0f = (env.view && env.view.y0) || 0, Hf = H - y0f, cyf = y0f + Hf / 2, fw = Math.min(v.w * 0.62, Hf * 0.62), fh = Math.min(Hf * 0.78, fw * 1.25); // sous la barre du haut (version jeunesse)
+          if (Math.random() < 0.3) vort.push({ x: (p.x - (v.cx - fw / 2)) / fw, y: (p.y - (cyf - fh / 2)) / fh, s: clamp(p.dx * 0.05, -2, 2) });
         }
         if (cfg.scene === 'cate' && tool === 'ecarter') { cfg.sepAuto = false; cfg.sep = clamp(cfg.sep + p.dy * 0.003, 0.1, 0.9); cfg.yaw -= p.dx * 0.006; }
       },
@@ -22083,15 +22083,15 @@ FJ.fiche('feu', {
     { id: 'espace', scene: 'bougie', question: 'Et si on allumait une bougie dans une station spatiale, sans gravité ?',
       choix: ['La flamme sera plus haute', 'Elle sera ronde', 'Elle sera exactement pareille'], bonne: 1,
       prepare: { scene: 'bougie', regle: { gravite: 0 } }, attente: 5,
-      revele: 'Ronde, et bleue ! Sans gravité, l’air chaud ne monte plus et l’air frais n’arrive plus par le bas : la flamme se fait petite et ronde. C’est ce qu’on observe vraiment dans la Station spatiale internationale.' },
+      revele: 'Ronde, et bleue ! Sans gravité, l’air chaud ne monte plus et l’air frais n’arrive plus par le bas : la flamme se fait petite et ronde, et peut même s’étouffer. C’est ce qu’on observe vraiment à bord des stations spatiales.' },
     { id: 'oxygene', scene: 'cheminee', question: 'Et si l’air contenait beaucoup moins d’oxygène ?',
       choix: ['Le feu grandit', 'Le feu faiblit', 'Rien ne change'], bonne: 1,
       prepare: { scene: 'cheminee', regle: { oxygene: 13 } }, attente: 6,
-      revele: 'Le feu faiblit et peut s’éteindre. Sans assez d’**oxygène**, la combustion ne se fait plus. C’est pour ça qu’on étouffe un feu de poêle avec un couvercle.' },
+      revele: 'Le feu faiblit et peut s’éteindre. Sans assez d’**oxygène**, la combustion ne se fait plus. C’est pour ça qu’on étouffe un feu de poêle avec un couvercle. À l’inverse, un air plus riche en oxygène attise le feu.' },
     { id: 'cuivre', scene: 'couleurs', question: 'De quelle couleur devient une flamme quand on y jette du cuivre ?',
       choix: ['Rouge', 'Verte', 'Violette'], bonne: 1,
       prepare: { scene: 'couleurs', regle: { sel: 'cu' }, outil: 'sel' }, regarde: 'Touche une flamme pour y jeter le cuivre !', attente: 7,
-      revele: 'Verte ! Chauffé, chaque métal émet sa propre couleur de lumière : c’est sa signature. Les feux d’artifice utilisent exactement ça : du strontium pour le rouge, du cuivre ou du baryum pour le vert.' },
+      revele: 'Verte ! Chauffé, chaque métal émet sa propre couleur de lumière : c’est sa signature. Les feux d’artifice utilisent exactement ça : du strontium pour le rouge, du baryum pour le vert, du cuivre pour le bleu.' },
   ],
   rotation: 'garder',
 });
@@ -22119,7 +22119,7 @@ FJ.fiche('eau', {
       essaie: 'Cherche les lignes où l’eau ne bouge presque pas : là, une crête rencontre toujours un creux.' },
     doppler: { nom: 'Plus vite que ses vagues', via: 'scenes/cuve a ondes', poids: 1, outil: 'goutte',
       outils: ['observer', 'doigt', 'goutte', 'mur', 'gomme'],
-      regle: { dispositif: 'doppler' }, plages: { dispositif: 'doppler', vsource: [0.3, 1], frequence: [0.4, 0.7] },
+      regle: { dispositif: 'doppler' }, plages: { dispositif: 'doppler', vsource: [0.65, 1], frequence: [0.4, 0.7] },
       exposes: ['vsource', 'frequence', 'profondeur'],
       essaie: 'Monte la vitesse de la source jusqu’au bout : les vagues ne peuvent plus partir devant.' },
   },
@@ -22162,7 +22162,7 @@ FJ.fiche('eau', {
   },
   partGraines: 0.25,
   graines: [
-    { nom: 'Les fentes de Young (1801), rejouées avec de l’eau', scene: 'cuve', regle: { dispositif: 'double', frequence: 0.6 } },
+    { nom: 'Les fentes de Young, rejouées avec de l’eau', scene: 'cuve', regle: { dispositif: 'double', frequence: 0.6 } },
     { nom: 'La mare un jour sans vent', scene: 'mare', regle: { brise: 0, soleil: 1, meteo: false } },
     { nom: 'Un sillage en V, plus rapide que les vagues', scene: 'doppler', regle: { dispositif: 'doppler', vsource: 1 } },
   ],
@@ -22176,7 +22176,7 @@ FJ.fiche('eau', {
   ],
   pourquoi: {
     etincelle: 'Chaque ride est une petite loupe : elle rassemble la lumière du soleil en filets brillants qui dansent au fond.',
-    texte: 'Quand la lumière passe de l’air à l’eau, elle se plie un peu. Une ride bombée agit comme une loupe : elle rassemble les rayons du soleil en une ligne brillante au fond. Un creux, lui, les étale. Comme les rides bougent sans cesse, ces filets de lumière dansent. On les appelle des **caustiques**.\n\nLes rides sont des ondes : quand deux se croisent, elles s’ajoutent ou s’annulent. Les gerris s’en servent pour repérer une proie tombée à l’eau. Et dans la cuve, on rejoue avec de l’eau l’expérience qui a montré, en 1801, que la lumière se comporte aussi comme une onde.',
+    texte: 'Quand la lumière passe de l’air à l’eau, elle se plie un peu. Une ride bombée agit comme une loupe : elle rassemble les rayons du soleil en une ligne brillante au fond. Un creux, lui, les étale. Comme les rides bougent sans cesse, ces filets de lumière dansent. On les appelle des **caustiques**.\n\nLes rides sont des ondes : quand deux se croisent, elles s’ajoutent ou s’annulent. Les gerris s’en servent pour repérer une proie tombée à l’eau. Et dans la cuve, on rejoue avec de l’eau l’expérience qui a montré, au début des années 1800, que la lumière se comporte aussi comme une onde.',
     vraie: 'Les jeunes gerris remuent les pattes moins vite que les plus lentes des rides : en théorie, ils ne pourraient pas avancer en ramant sur elles. Ce « paradoxe de Denny » a été résolu en 2003 par David Hu, Brian Chan et John Bush : en ramant, le gerris lance surtout de petits tourbillons sous la surface.',
   },
   etsi: [
@@ -22274,8 +22274,8 @@ FJ.fiche('fluide', {
   ],
   pourquoi: {
     etincelle: 'Quand l’eau va vite et colle peu, elle ne contourne plus l’obstacle en douceur : elle se déchire en tourbillons.',
-    texte: 'Derrière un rocher, l’eau tourne en tourbillons qui partent un coup à gauche, un coup à droite. Tout dépend de deux choses : la vitesse du liquide et à quel point il est épais. Le miel, lent et collant, glisse en douceur autour de l’obstacle. L’eau, rapide et fluide, se déchire en remous. Les physiciens résument ça par un seul nombre, le **nombre de Reynolds** : plus il est grand, plus ça tourbillonne.\n\nIci, l’eau est simulée à plat. Les équations des liquides sont connues depuis deux siècles, mais personne n’a encore prouvé qu’elles marchent toujours sans accroc : un million de dollars attend qui y parviendra.',
-    vraie: 'En 1883, l’ingénieur anglais Osborne Reynolds fait couler de l’eau dans un tube de verre et y injecte un mince filet d’encre. Quand l’eau coule lentement, le filet reste bien droit. Plus vite, il se brise d’un coup en tourbillons, et l’encre envahit tout le tube.',
+    texte: 'Derrière un rocher, l’eau tourne en tourbillons qui partent un coup à gauche, un coup à droite. Tout dépend de deux choses : la vitesse du liquide et à quel point il est épais. Le miel, lent et collant, glisse en douceur autour de l’obstacle. L’eau, rapide et fluide, se déchire en remous. Les physiciens résument ça par un seul nombre, le **nombre de Reynolds** : plus il est grand, plus ça tourbillonne.\n\nIci, l’eau est simulée à plat. Les équations des liquides sont connues depuis deux siècles, mais personne n’a encore prouvé qu’en trois dimensions, elles marchent toujours sans accroc : un million de dollars attend qui y parviendra.',
+    vraie: 'En 1883, l’ingénieur britannique Osborne Reynolds fait couler de l’eau dans un tube de verre et y injecte un mince filet d’encre. Quand l’eau coule lentement, le filet reste bien droit. Plus vite, il se brise d’un coup en tourbillons, et l’encre envahit tout le tube.',
   },
   etsi: [
     { id: 'taylor', scene: 'taylor', question: 'Et si on tournait la manivelle à l’envers, après avoir tout étalé ?',
@@ -22325,7 +22325,7 @@ FJ.fiche('sable', {
     verser: { verbe: 'Verse', geste: 'trait', aide: 'Glisse le doigt pour verser du sable. Tu choisis lequel dans Bidouiller : quartz, basalte, rose, olivine…' },
     eau: { verbe: 'Mouille', geste: 'trait', aide: 'Glisse pour mouiller le sable : un peu d’eau colle les grains, et le sable tient debout.' },
     pierre: { verbe: 'Pose', geste: 'trait', aide: 'Glisse pour poser de la pierre : un mur, un rocher, un goulot.' },
-    secouer: { verbe: 'Secoue', geste: 'tap', aide: 'Garde le doigt appuyé pour faire vibrer le sable : les gros grains remontent, les bouchons cèdent.' },
+    secouer: { verbe: 'Secoue', geste: 'tap', aide: 'Garde le doigt appuyé pour faire vibrer le sable : les pentes s’affaissent, les bouchons cèdent, les gros grains remontent.' },
     souffle: { verbe: 'Souffle', geste: 'trait', aide: 'Glisse pour souffler : les grains de surface s’envolent et retombent plus loin.' },
     gomme: { verbe: 'Efface', geste: 'trait', aide: 'Glisse le doigt pour enlever du sable ou de la pierre, et faire de la place pour recommencer.' },
   },
@@ -22473,7 +22473,7 @@ FJ.fiche('foudre', {
   ],
   pourquoi: {
     etincelle: 'L’éclair avance par petits bonds, un peu au hasard, plus volontiers là où l’attraction électrique est la plus forte : d’où les zigzags.',
-    texte: 'Dans un nuage d’orage, les grêlons et les cristaux de glace se frottent : le haut et le bas du nuage se chargent d’électricités opposées. Quand la charge devient énorme, un fin canal d’air électrisé descend vers le sol, par bonds d’une cinquantaine de mètres. À chaque bond, il part un peu au hasard, plus souvent là où l’attraction électrique est la plus forte : d’où les zigzags et les branches. Ce canal s’appelle le **traceur**.\n\nQuand il touche le sol, un courant énorme remonte : l’air chauffe à 30 000 °C, brille et éclate. C’est le tonnerre. Ici, le traceur est très ralenti : en vrai, il descend en moins d’un clin d’œil.',
+    texte: 'Dans un nuage d’orage, les grêlons et les cristaux de glace se cognent : le haut et le bas du nuage se chargent d’électricités opposées. Quand la charge devient énorme, un fin canal d’air électrisé descend vers le sol, par bonds d’une cinquantaine de mètres. À chaque bond, il part un peu au hasard, plus souvent là où l’attraction électrique est la plus forte : d’où les zigzags et les branches. Ce canal s’appelle le **traceur**.\n\nQuand il touche le sol, un courant énorme remonte : l’air chauffe à 30 000 °C, brille et éclate. C’est le tonnerre. Ici, le traceur est très ralenti : en vrai, il descend en moins d’un clin d’œil.',
     vraie: 'Le 10 mai 1752, à Marly-la-Ville, près de Paris, un orage passe au-dessus d’une grande tige de fer installée par Thomas-François Dalibard. On en tire des étincelles : la foudre est bien électrique, comme l’avait imaginé Benjamin Franklin. Le paratonnerre est né de cette idée.',
   },
   etsi: [
@@ -22574,7 +22574,7 @@ FJ.fiche('ciel', {
 /* Le Cristal — fiche jeunesse */
 FJ.fiche('cristal', {
   nom: 'Le Cristal',
-  question: 'Pourquoi un flocon a-t-il toujours six branches ?',
+  question: 'Pourquoi un flocon a-t-il six branches ?',
   outil: 'germe',
   scenes: {
     flocon: { nom: 'Le flocon', via: 'scenes/flocon de neige', poids: 4, outil: 'germe', outils: ['observer', 'germe', 'chaleur', 'froid'],
@@ -22632,8 +22632,8 @@ FJ.fiche('cristal', {
     { nom: 'Cristal en croix', icone: 'motif', scene: 'surfusion', regle: { branches: 4, sous_zero: 0.85 } },
   ],
   pourquoi: {
-    etincelle: 'Les molécules d’eau s’empilent en hexagones : voilà pourquoi chaque flocon a six branches.',
-    texte: 'Dans un nuage, la vapeur d’eau se dépose sur un minuscule grain de glace. Ses molécules s’empilent en hexagones, d’où les six branches. Les pointes, plus exposées, attrapent plus de vapeur et poussent plus vite : le flocon se ramifie. Ses six branches traversent le même air au même moment, alors elles se ressemblent. Deux flocons, eux, ne suivent jamais le même chemin.\n\nUn liquide peut aussi rester liquide sous son point de gel, s’il n’a rien pour commencer à cristalliser. C’est la **surfusion**. Au moindre germe, tout devient solide d’un coup, en rendant de la chaleur : c’est le secret de la chaufferette.',
+    etincelle: 'Les molécules d’eau s’empilent en hexagones : voilà pourquoi les flocons en étoile ont six branches.',
+    texte: 'Dans un nuage, la vapeur d’eau se dépose sur un minuscule grain de glace. Ses molécules s’empilent en hexagones, d’où les six branches. Les pointes, plus exposées, attrapent plus de vapeur et poussent plus vite : le flocon se ramifie. Ses six branches traversent le même air au même moment, alors elles se ressemblent. Deux flocons, eux, ne suivent jamais exactement le même chemin.\n\nUn liquide peut aussi rester liquide sous son point de gel, s’il n’a rien pour commencer à cristalliser. C’est la **surfusion**. Au moindre germe, tout devient solide d’un coup, en rendant de la chaleur : c’est le secret de la chaufferette.',
     vraie: 'En 1885, Wilson Bentley, un fermier du Vermont, aux États-Unis, réussit la première photo d’un flocon au microscope. Il en photographiera plus de cinq mille au cours de sa vie.',
   },
   etsi: [
@@ -22641,7 +22641,7 @@ FJ.fiche('cristal', {
       choix: ['Elle refroidit', 'Elle chauffe', 'Sa température ne change pas'], bonne: 1,
       prepare: { scene: 'chaufferette', regle: { auto_chauf: false }, action: 'chaufferette/faire bouillir recharger', outil: 'germe' },
       regarde: 'Touche la pastille de métal, puis regarde la température écrite en bas.', attente: 12,
-      revele: 'Elle chauffe, jusqu’à plus de 50 °C ! Quand on l’a fait bouillir, le liquide a reçu de la chaleur. En devenant solide, il la rend. Le liquide attendait seulement un premier cristal : le clic le fait naître, et tout cristallise de proche en proche.' },
+      revele: 'Elle chauffe, jusqu’à plus de 50 °C ! Quand on l’a fait bouillir, le liquide a reçu de la chaleur. En devenant solide, il la rend. Il ne manquait au liquide qu’un premier cristal : le clic le fait naître, et tout cristallise de proche en proche.' },
   ],
   rotation: 'garder',
 });
@@ -22702,8 +22702,8 @@ FJ.fiche('rd', {
   ],
   pourquoi: {
     etincelle: 'Deux substances qui réagissent et s’étalent à des vitesses différentes suffisent à faire naître des taches et des rayures.',
-    texte: 'Imagine un liquide où l’on verse sans cesse de la nourriture. Un colorant s’y multiplie en la mangeant, mais il s’étale lentement. La nourriture, elle, se répand vite. Autour de chaque tache, elle vient à manquer : aucune autre tache ne peut naître juste à côté. D’un mélange tout lisse sortent ainsi des taches bien espacées. C’est la **réaction-diffusion**.\n\nC’est confirmé pour quelques cas, comme les rayures du poisson-zèbre ou l’espacement des doigts dans l’embryon. Pour le zèbre ou le guépard, c’est une piste sérieuse, pas une preuve. Ici, ce sont des équations simplifiées, pas la vraie chimie d’un animal.',
-    vraie: 'En 1952, Alan Turing, qui avait aidé à casser les codes secrets allemands pendant la guerre, propose cette idée dans un article sur la forme des êtres vivants. En 1995, les Japonais Shigeru Kondo et Rihito Asai voient les rayures d’un poisson-ange se dédoubler quand il grandit, comme le prévoit le modèle.',
+    texte: 'Imagine un liquide où l’on verse sans cesse de la nourriture. Un colorant s’y multiplie en la mangeant, mais il s’étale lentement. La nourriture, elle, se répand vite. Autour de chaque tache, elle vient à manquer : aucune autre tache ne peut naître juste à côté. D’un mélange tout lisse sortent ainsi des taches bien espacées. C’est la **réaction-diffusion**.\n\nC’est confirmé pour quelques cas, comme les rayures du poisson-zèbre, et sans doute l’espacement des doigts dans l’embryon. Pour le zèbre ou le guépard, c’est une piste sérieuse, pas une preuve. Ici, ce sont des équations simplifiées, pas la vraie chimie d’un animal.',
+    vraie: 'En 1952, Alan Turing, qui avait aidé à casser les codes secrets allemands pendant la guerre, propose cette idée dans un article sur la forme des êtres vivants. En 1995, les Japonais Shigeru Kondo et Rihito Asai voient de nouvelles rayures apparaître entre les anciennes quand un poisson-ange grandit, comme le prévoit le modèle.',
   },
   etsi: [
     { id: 'un-point', scene: 'labo', question: 'Et si on semait un seul petit point dans un liquide tout lisse ?',
@@ -22775,7 +22775,7 @@ FJ.fiche('spirales', {
     { nom: 'Un cœur au repos, 60 battements par minute', scene: 'coeur', regle: { rythme: 60 } },
     { nom: 'Un cœur après une course', scene: 'coeur', regle: { rythme: 130 } },
     { nom: 'La réaction de Belousov-Zhabotinsky', scene: 'bz', regle: { seuil: 0.06, fronts: 0.02, centres: true } },
-    { nom: 'Dictyostelium, l’amibe qui vit en groupe', scene: 'amibes', regle: { amibes: 1 } },
+    { nom: 'Dictyostelium, l’amibe qui se rassemble quand elle a faim', scene: 'amibes', regle: { amibes: 1 } },
   ],
   recettes: [
     { nom: 'Boîte vide : à toi !', icone: 'gomme', scene: 'bz', regle: { centres: false, 'reactif/vider la boite': true } },
@@ -22787,8 +22787,8 @@ FJ.fiche('spirales', {
   ],
   pourquoi: {
     etincelle: 'Une onde qui s’allume puis se repose ne peut pas revenir en arrière : coupée, elle s’enroule en spirale.',
-    texte: 'Ici, chaque point s’allume quand son voisin s’allume, puis il doit se reposer un moment. L’onde avance sans s’affaiblir, et ne peut pas repartir en arrière : derrière elle, tout se repose. Deux ondes qui se croisent s’éteignent. Coupe un front : ses deux bouts s’enroulent et tournent sans fin. C’est un milieu **excitable**.\n\nLa même règle se cache dans une potion chimique, chez des amibes qui se rassemblent, et dans ton cœur : chaque battement est une onde électrique. Si elle s’enroule, le cœur bat trop vite. Si les spirales se brisent en morceaux, il ne pompe plus bien : un défibrillateur rallume tout le muscle d’un coup, et le rythme normal repart.',
-    vraie: 'En 1951, le chimiste soviétique Boris Belousov découvre un mélange qui change de couleur tout seul, en rythme. Les revues refusent son article : pour elles, c’est impossible. Dans les années 1960, Anatol Zhabotinsky reprend ses travaux, et l’on voit des spirales apparaître dans une boîte.',
+    texte: 'Ici, chaque point s’allume quand son voisin s’allume, puis il doit se reposer un moment. L’onde avance sans s’affaiblir, et ne peut pas repartir en arrière : derrière elle, tout se repose. Deux ondes qui se croisent s’éteignent. Coupe un front : ses deux bouts s’enroulent et tournent sans fin. C’est un milieu **excitable**.\n\nLa même règle se cache dans une potion chimique, chez des amibes qui se rassemblent, et dans ton cœur : chaque battement est une onde électrique. Si elle s’enroule, le cœur bat trop vite. Si les spirales se brisent en morceaux, il ne pompe plus bien : un défibrillateur rallume tout le muscle d’un coup, et le rythme normal peut repartir.',
+    vraie: 'En 1951, le chimiste soviétique Boris Belousov découvre un mélange qui change de couleur tout seul, en rythme. Les revues refusent son article : pour elles, c’est impossible. Dans les années 1960, Anatol Zhabotinsky reprend ses travaux. Vers 1970, on voit des cercles puis des spirales apparaître dans une boîte.',
   },
   etsi: [
     { id: 'rencontre', scene: 'bz', question: 'Et si deux ondes se rencontraient ?',
@@ -22864,7 +22864,7 @@ FJ.fiche('chladni', {
     { nom: 'Vagues de flammes', icone: 'flamme', scene: 'tube', regle: { 'tube/12 demi ondes': true, puissance: 1.1 } },
   ],
   pourquoi: {
-    etincelle: 'Le sable fuit les endroits qui vibrent et s’arrête sur les lignes où la plaque ne bouge pas.',
+    etincelle: 'Le sable est chassé des endroits qui vibrent et s’arrête sur les lignes où la plaque ne bouge pas.',
     texte: 'Une plaque de métal qui vibre ne bouge pas partout pareil. Certaines zones s’agitent très fort, d’autres restent immobiles. Le sable rebondit sur les zones qui vibrent et glisse peu à peu vers celles qui ne bougent pas. Il dessine ces lignes immobiles : les **lignes nodales**.\n\nUne plaque vibre très fort seulement pour certaines notes, et chacune a son dessin. Plus le son est aigu, plus les lignes sont nombreuses et serrées. Entre ces notes, le sable bouge à peine. Dans l’eau et dans le tube de flammes, le son forme aussi des vagues qui restent sur place. La machine simplifie : une vraie plaque donne des dessins un peu différents.',
     vraie: 'Ernst Chladni montre ses figures de sable à Napoléon, à Paris, vers 1809. L’empereur fait offrir un prix à qui les expliquera. Sophie Germain le remporte en 1816, à sa troisième tentative, avec une théorie encore incomplète.',
   },
@@ -22884,10 +22884,66 @@ FJ.fiche('chladni', {
 
 ;
 /* ═════ meta/kaleido.js ═════ */
-/* Le Kaléidoscope — fiche jeunesse (squelette généré depuis tools/out/ui.json ; à enrichir) */
+/* Le Kaléidoscope — fiche jeunesse */
 FJ.fiche('kaleido', {
-  scenes: {},
-  outils: {"tourner": {"verbe": "Tourner"}, "secouer": {"verbe": "Secouer"}},
+  nom: 'Le Kaléidoscope',
+  question: 'Comment deux miroirs fabriquent-ils une rosace ?',
+  outil: 'tourner',
+  // la machine n'a pas de scènes : une seule, sans pastilles, pour porter « Essaie ça » ; le hasard change les miroirs
+  scenes: {
+    tube: { nom: 'Le kaléidoscope', via: { choix: 'miroirs/disposition', valeur: 'm6' }, outil: 'tourner',
+      essaie: 'Fais tourner le tube du doigt autour du centre : les éclats roulent, et l’image ne revient jamais.' },
+  },
+  outils: {
+    tourner: { verbe: 'Tourne', icone: 'tourner', geste: 'trait', aide: 'Glisse le doigt en rond autour du centre pour tourner le tube : les éclats roulent au fond.' },
+    secouer: { verbe: 'Secoue', icone: 'secouer', geste: 'tap', aide: 'Touche l’image pour secouer le tube : les éclats sautent et un nouveau dessin apparaît.' },
+  },
+  leviers: {
+    miroirs: { chemin: 'miroirs/disposition', nom: 'Les miroirs',
+      options: { m3: '2 miroirs à 60° : 6 images', m4: '2 miroirs à 45° : 8 images', m6: '2 miroirs à 30° : 12 images', m8: '2 miroirs à 22,5° : 16 images',
+        t60: '3 miroirs en triangle égal', t45: '3 miroirs : 90°, 45°, 45°', t30: '3 miroirs : 90°, 60°, 30°' } },
+    objets: { chemin: 'cellule/objets', nom: 'Dans le tube', options: { eclats: 'Éclats de verre', perles: 'Perles', huile: 'Tube à huile' } },
+    couleurs: { chemin: 'cellule/couleurs', nom: 'Couleurs', options: { vitrail: 'Vitrail', ocean: 'Océan', automne: 'Automne', bonbon: 'Bonbons' } },
+    nombre: { chemin: 'cellule/nombre', nom: 'Nombre d’objets', bouts: ['quelques-uns', 'plein'] },
+    perte: { chemin: 'miroirs/perte par reflet', nom: 'Lumière perdue à chaque reflet', bouts: ['miroirs parfaits', 'miroirs ternes'] },
+    loupe: { chemin: 'miroirs/grossissement', nom: 'Loupe', bouts: ['de loin', 'de près'] },
+    auto: { chemin: 'cellule/le tube tourne tout seul', nom: 'Le tube tourne tout seul' },
+  },
+  exposes: ['miroirs', 'objets', 'couleurs', 'nombre'],
+  plages: {
+    miroirs: ['m3', 'm4', 'm6', 'm6', 'm8', 't60', 't45', 't30'], objets: ['eclats', 'eclats', 'perles', 'huile'],
+    couleurs: ['vitrail', 'ocean', 'automne', 'bonbon'], nombre: [25, 70], perte: [0.03, 0.08], loupe: [0.8, 1.5], auto: true,
+  },
+  partGraines: 0.3,
+  graines: [
+    { nom: 'Trois miroirs en triangle : le motif remplit tout', regle: { miroirs: 't60', objets: 'eclats', perte: 0.05, loupe: 1 } },
+    { nom: 'Deux miroirs à 22,5° : une rosace de 16 images', regle: { miroirs: 'm8', objets: 'eclats', loupe: 1.1 } },
+    { nom: 'Miroirs parfaits, qui ne perdent aucune lumière', regle: { miroirs: 't45', perte: 0, loupe: 0.9 } },
+  ],
+  recettes: [
+    { nom: 'Perles d’océan', icone: 'goutte', regle: { objets: 'perles', couleurs: 'ocean', nombre: 50 } },
+    { nom: 'Vitrail', icone: 'motif', regle: { miroirs: 'm6', objets: 'eclats', couleurs: 'vitrail', nombre: 60 } },
+    { nom: 'Tube à huile d’automne', icone: 'feuille', regle: { objets: 'huile', couleurs: 'automne' } },
+    { nom: 'Motif sans fin', icone: 'etincelles', regle: { miroirs: 't30', perte: 0 } },
+    { nom: 'Miroirs ternes', icone: 'ombre', regle: { miroirs: 't60', perte: 0.2 } },
+    { nom: 'Juste quelques éclats', icone: 'pincee', regle: { objets: 'eclats', nombre: 10, miroirs: 'm4' } },
+  ],
+  pourquoi: {
+    etincelle: 'Chaque miroir copie ce qu’il voit, et l’autre miroir copie la copie : quelques éclats deviennent une rosace.',
+    texte: 'Devant un miroir, un objet a un double. Avec deux miroirs en angle, chaque reflet se reflète à son tour dans l’autre miroir, et les copies se rangent en rond. Plus l’angle est petit, plus il y a de copies : à 60°, tu vois 6 images ; à 30°, 12. L’angle doit tomber juste, sinon les reflets ne se raccordent pas. Ce motif qui se répète en tournant est une **symétrie**.\n\nAvec trois miroirs en triangle, les reflets se reflètent sans fin et remplissent tout le cercle. Seuls trois triangles marchent parfaitement. Chaque reflet perd un peu de lumière : les copies lointaines sont plus sombres.',
+    vraie: 'En 1816, le physicien écossais David Brewster invente le kaléidoscope en étudiant la lumière. Il fabrique son nom avec trois mots grecs : beau, image, regarder. Le jouet connaît un succès fou, mais des copies se vendent partout, et il n’en tire presque rien.',
+  },
+  etsi: [
+    { id: 'trois', question: 'Et si on ajoutait un troisième miroir, en triangle ?',
+      choix: ['Une seule rosace, comme avant', 'Un motif qui remplit tout le cercle', 'Plus rien ne se reflète'], bonne: 1,
+      prepare: { scene: 'tube', regle: { miroirs: 't60', perte: 0.05, loupe: 1 } }, attente: 4,
+      revele: 'Le motif remplit tout le cercle ! Avec trois miroirs, chaque reflet se reflète dans les deux autres miroirs, puis encore et encore. Les triangles de reflets se collent les uns aux autres comme des carreaux, jusqu’au bord. Un vrai kaléidoscope à trois miroirs fait exactement ça.' },
+    { id: 'ternes', question: 'Et si chaque miroir perdait beaucoup de lumière à chaque reflet ?',
+      choix: ['Les copies lointaines deviennent sombres', 'Tout devient plus clair', 'Rien ne change'], bonne: 0,
+      prepare: { scene: 'tube', regle: { miroirs: 't60', perte: 0.2, loupe: 1 } }, attente: 4,
+      revele: 'Les copies lointaines s’assombrissent ! Une copie lointaine a été reflétée plusieurs fois. À chaque reflet, le miroir garde un peu de lumière : avec un vrai miroir, environ 5 à 8 %. Ici, on a exagéré la perte : plus une copie a subi de reflets, plus elle est sombre.' },
+  ],
+  rotation: 'recreer',
 });
 
 ;
@@ -22978,7 +23034,7 @@ FJ.fiche('attracteur', {
     lorenz: { nom: 'Le papillon de Lorenz', via: 'scenes/attracteurs', poids: 3, outil: 'perturber',
       regle: { systeme: 'lorenz' }, plages: { systeme: 'lorenz', chauffe: [26, 34], couleurs: ['feu', 'feu', 'glace', 'arcenciel', 'gris'], trainees: [0.65, 0.92], eclat: [0.8, 1.5], rotation: true },
       exposes: ['chauffe', 'couleurs', 'trainees', 'rotation'],
-      essaie: 'Touche l’écran : tous les points repartent du même endroit. Regarde-les se séparer.' },
+      essaie: 'Touche l’écran : tous les points repartent presque du même endroit. Regarde-les se séparer.' },
     autres: { nom: 'D’autres attracteurs', via: 'scenes/attracteurs', poids: 2, outil: 'tourner',
       regle: { systeme: 'aizawa' }, plages: { systeme: ['rossler', 'aizawa', 'thomas', 'halvorsen', 'dadras'], couleurs: ['feu', 'feu', 'glace', 'arcenciel', 'gris'], trainees: [0.65, 0.92], eclat: [0.8, 1.5], rotation: true },
       exposes: ['systeme', 'couleurs', 'trainees', 'eclat'],
@@ -23013,7 +23069,7 @@ FJ.fiche('attracteur', {
   },
   partGraines: 0.25,
   graines: [
-    { nom: 'Le papillon de Lorenz, avec les nombres de 1963', scene: 'lorenz', regle: { systeme: 'lorenz', couleurs: 'feu', trainees: 0.85 } },
+    { nom: 'Le papillon de Lorenz, avec les nombres de 1963', scene: 'lorenz', regle: { systeme: 'lorenz', chauffe: 28, couleurs: 'feu', trainees: 0.85 } },
     { nom: 'L’attracteur de Rössler, l’un des chaos les plus simples', scene: 'autres', regle: { systeme: 'rossler', couleurs: 'glace' } },
     { nom: 'L’attracteur de Thomas, symétrique dans les trois directions', scene: 'autres', regle: { systeme: 'thomas', couleurs: 'arcenciel' } },
     { nom: 'Une dentelle de Peter de Jong', scene: 'plans', regle: { formule: 'dejong' } },
@@ -23142,7 +23198,7 @@ FJ.fiche('fractal', {
     julia: { nom: 'Les ensembles de Julia', via: 'scenes/julia', poids: 2, outil: 'sculpter', outils: ['observer', 'plonger', 'reculer', 'sculpter'], actions: 'julia',
       exposes: ['longe', 'vitesse_julia', 'couleurs', 'bandes'],
       plages: { longe: true, vitesse_julia: [0.3, 0.8], couleurs: [0, 1, 2, 3, 4], coulent: 0.7 },
-      essaie: 'Glisse lentement le doigt : la forme se tord, se troue, puis éclate en poussière.' },
+      essaie: 'Glisse lentement le doigt : la forme se tord, se troue, ou éclate en poussière.' },
     flammes: { nom: 'Fougères et dragons', via: 'scenes/flammes et fougeres', poids: 2, outil: 'sculpter', outils: ['observer', 'sculpter'],
       exposes: ['figure', 'metamorphose', 'couleurs'],
       plages: { figure: ['fougere', 'sierpinski', 'dragon', 'erable', 'flamme'], metamorphose: 0.5, couleurs: [0, 1, 2, 3, 4] },
@@ -23203,7 +23259,7 @@ FJ.fiche('fractal', {
   ],
   pourquoi: {
     etincelle: 'Une règle toute simple, répétée des milliers de fois, dessine une forme dont les détails ne finissent jamais.',
-    texte: 'Chaque point de l’écran est un nombre. On part de zéro, on le met au carré, on ajoute le nombre du point, et on recommence encore et encore. Pour certains points, le résultat reste petit : ils forment l’ensemble de Mandelbrot. Pour les autres, il s’envole, et la couleur dit à quelle vitesse.\n\nZoome sur le bord : de nouveaux détails apparaissent sans fin, et parfois une copie de la forme entière. Une forme qui se ressemble à toutes les échelles s’appelle une **fractale**. La nature en est pleine : fougères, chou romanesco, côtes rocheuses, éclairs. Mais dans la nature, les détails s’arrêtent un jour, au plus tard aux atomes.',
+    texte: 'Chaque point de l’écran est un nombre un peu spécial, à deux coordonnées. On part de zéro, on le met au carré, on ajoute le nombre du point, et on recommence encore et encore. Pour certains points, le résultat reste petit : ils forment l’ensemble de Mandelbrot. Pour les autres, il s’envole, et la couleur dit à quelle vitesse.\n\nZoome sur le bord : de nouveaux détails apparaissent sans fin, et parfois une copie de la forme entière. Une forme qui se ressemble à toutes les échelles s’appelle une **fractale**. La nature en est pleine : fougères, chou romanesco, côtes rocheuses, éclairs. Mais dans la nature, les détails s’arrêtent un jour, au plus tard aux atomes.',
     vraie: 'En 1967, Benoît Mandelbrot publie un article au titre étonnant : « Combien mesure la côte de la Grande-Bretagne ? » Sa réponse : ça dépend de ta règle. Plus elle est petite, plus elle suit de recoins, et plus la côte paraît longue. En 1975, il invente le mot « fractale ».',
   },
   rotation: 'recreer',
@@ -23392,7 +23448,7 @@ FJ.fiche('galaxie', {
     { id: 'queues', scene: 'collision', question: 'Et si deux galaxies se frôlaient : que deviendraient leurs étoiles ?',
       choix: ['Elles se cognent et explosent', 'Elles sont étirées en longues queues', 'Rien ne change'], bonne: 1,
       prepare: { scene: 'collision', regle: { scenario: 'antennes', vitesseC: 1.2 } }, regarde: 'Regarde les deux galaxies se frôler…', attente: 16,
-      revele: 'Elles sont étirées en longues queues ! Les étoiles sont si éloignées les unes des autres qu’elles ne se heurtent presque jamais. Mais la gravité de l’autre galaxie tire plus fort sur le côté le plus proche : c’est une **marée**, comme celle que la Lune fait sur nos océans. Les Antennes, dans le ciel, ont exactement cette forme.' },
+      revele: 'Elles sont étirées en longues queues ! Les étoiles sont si éloignées les unes des autres qu’elles ne se heurtent presque jamais. Mais la gravité de l’autre galaxie tire plus fort sur le côté le plus proche : c’est une **marée**, comme celle que la Lune fait sur nos océans. Les Antennes, dans le ciel, ont cette forme.' },
   ],
   rotation: 'recreer',
 });
@@ -23459,7 +23515,7 @@ FJ.fiche('tunnel', {
   pourquoi: {
     etincelle: 'À très grande vitesse, la lumière des étoiles semble venir de devant : le ciel se resserre devant toi et bleuit.',
     texte: 'Quand tu cours sous la pluie, les gouttes semblent tomber de face. Avec la lumière, c’est pareil : plus le vaisseau va vite, plus les étoiles semblent venir de devant. Le ciel se resserre vers l’avant, bleuit et brille, et l’arrière s’éteint. C’est l’**aberration** de la lumière, calculée avec la relativité d’Einstein. Cette partie-là est de la vraie physique.\n\nLe trou de ver, lui, est une hypothèse : les équations l’autorisent, mais personne n’en a jamais vu, et on ne sait pas comment en garder un ouvert. La porte des étoiles et le tunnel des démos sont de purs effets visuels, inventés pour le cinéma et pour le plaisir.',
-    vraie: 'À la fin des années 1720, l’astronome anglais James Bradley remarque que les étoiles se décalent un tout petit peu au fil de l’année. Il comprend pourquoi : la Terre tourne autour du Soleil, et sa vitesse change la direction d’où semble venir leur lumière. C’est l’effet de la machine, en des milliers de fois plus faible.',
+    vraie: 'À la fin des années 1720, l’astronome anglais James Bradley remarque que les étoiles se décalent un tout petit peu au fil de l’année. Il comprend pourquoi : la Terre tourne autour du Soleil, et sa vitesse change la direction d’où semble venir leur lumière. C’est l’effet de la machine, mais des milliers de fois plus faible.',
   },
   etsi: [
     { id: 'aberration', scene: 'relat', question: 'Et si le vaisseau filait à 99,9 % de la vitesse de la lumière : où verrais-tu les étoiles ?',
@@ -23535,7 +23591,7 @@ FJ.fiche('lave', {
   pourquoi: {
     etincelle: 'Chauffée par en bas, la cire devient plus légère que le liquide et monte ; refroidie en haut, elle redescend.',
     texte: 'L’ampoule chauffe la cire au fond. En chauffant, la cire gonfle un tout petit peu : à volume égal, elle devient plus légère que le liquide, alors elle monte. En haut, loin de l’ampoule, elle refroidit, s’alourdit et redescend. Ce grand manège s’appelle la **convection**.\n\nOn le retrouve partout : dans une casserole d’eau, très lentement dans les roches chaudes sous nos pieds, et à la surface du Soleil. Là-bas, du gaz brûlant monte au centre de grains grands comme la France, puis replonge dans les couloirs sombres, un peu moins chauds. Dans la machine, le Soleil est accéléré.',
-    vraie: 'L’Anglais Edward Craven Walker invente la lampe à lave en 1963. L’idée lui vient en voyant, dans un pub, un minuteur pour œufs fait de cire dans un liquide.',
+    vraie: 'L’Anglais Edward Craven Walker lance la lampe à lave en 1963. On raconte que l’idée lui est venue dans un pub, en voyant un minuteur pour œufs bricolé avec des liquides qui bougeaient en chauffant.',
   },
   etsi: [
     { id: 'chauffe', scene: 'benard', question: 'Et si on chauffait fort, par en dessous, un liquide tout calme ?',
@@ -23673,7 +23729,7 @@ FJ.fiche('viz', {
     { nom: 'Corde très raide', icone: 'corde', scene: 'timbre', regle: { instrument: 'violon', raideur: 0.003 } },
   ],
   pourquoi: {
-    etincelle: 'Un son, c’est de l’air qui vibre : la machine dessine ces vibrations au lieu de te les faire entendre.',
+    etincelle: 'Un son, c’est de l’air qui vibre : la machine dessine ces vibrations pour te les faire voir.',
     texte: 'Un son, c’est de l’air qui vibre, des centaines de fois par seconde. Plus il vibre vite, plus le son est aigu.\n\nDans les figures, un son pur pousse le point de gauche à droite, un autre de haut en bas. Si leurs vitesses sont dans un rapport simple, comme 2 pour 3, la courbe se referme sur elle-même. Une note d’instrument n’est jamais pure : elle empile des vibrations 2, 3, 4 fois plus rapides, ses **harmoniques**. Chaque barre en règle une. Leur dosage donne la forme du son et sa couleur : c’est pour ça qu’une flûte et une trompette ne sonnent pas pareil.',
     vraie: 'En 1857, le physicien français Jules Lissajous colle de petits miroirs sur deux diapasons. Un rayon de lumière rebondit sur l’un, puis sur l’autre, et dessine ces courbes sur un écran. On pouvait ainsi voir si deux diapasons étaient bien accordés.',
   },
@@ -23827,7 +23883,7 @@ FJ.fiche('pendules', {
   ],
   pourquoi: {
     etincelle: 'Chaque pendule a son propre rythme, fixé par sa longueur : en se décalant, ils dessinent des vagues.',
-    texte: 'Un pendule qui ne part pas de trop haut met toujours le même temps pour faire un aller-retour. Ce temps ne dépend que de sa longueur : plus il est long, plus il est lent. Son poids n’y change rien. Ce temps s’appelle la **période**.\n\nIci, chaque pendule est un peu plus court que son voisin. En une minute, le plus long fait 51 allers-retours, le suivant 52, puis 53… Lâchés ensemble, ils se décalent peu à peu : vagues, serpents, deux rangées. Au bout d’une minute, tous se retrouvent alignés. Dans la machine, les pendules sont parfaits : sans frottement, ils ne s’arrêtent jamais.',
+    texte: 'Un pendule qui ne part pas de trop haut met toujours le même temps pour faire un aller-retour. Sur Terre, ce temps ne dépend que de sa longueur : plus il est long, plus il est lent. Son poids n’y change rien. Ce temps s’appelle la **période**.\n\nIci, chaque pendule est un peu plus court que son voisin. En une minute, le plus long fait 51 allers-retours, le suivant 52, puis 53… Lâchés ensemble, ils se décalent peu à peu : vagues, serpents, deux rangées. Au bout d’une minute, tous se retrouvent alignés. Dans la machine, les pendules sont parfaits : sans frottement, ils ne s’arrêtent jamais.',
     vraie: 'On raconte que le jeune Galilée, dans la cathédrale de Pise, a regardé un lustre se balancer en comptant les battements de son pouls. Grands ou petits, les balancements duraient le même temps. C’est peut-être une légende, mais Galilée a vraiment étudié les pendules toute sa vie.',
   },
   etsi: [
@@ -23944,7 +24000,7 @@ FJ.fiche('sonillus', {
 /* Le Monde quantique — fiche jeunesse */
 FJ.fiche('quantique', {
   nom: 'Le Monde quantique',
-  question: 'Une particule peut-elle passer par deux fentes à la fois ?',
+  question: 'Pourquoi des particules lancées une à une dessinent-elles des bandes ?',
   outil: 'observer',
   scenes: {
     fentes: { nom: 'Les deux fentes', via: 'scenes/double fente', poids: 3, outil: 'observer', outils: ['observer'],
@@ -24005,7 +24061,7 @@ FJ.fiche('quantique', {
     { nom: 'Un nuage qui oscille', icone: 'spirale', scene: 'orbitales', regle: { 'orbitale/superposer 1s 2p': true } },
   ],
   pourquoi: {
-    etincelle: 'Tout petit, un électron se propage comme une vague qui passe partout ; mais quand on le détecte, il apparaît en un seul point.',
+    etincelle: 'Tout petit, un électron se propage comme une vague qui s’étale ; mais quand on le détecte, il apparaît en un seul point.',
     texte: 'À l’échelle des atomes, le monde ne marche plus comme le nôtre. Un électron lancé vers deux fentes se propage comme une vague : elle passe par les deux et se superpose à elle-même. Pourtant, sur l’écran, chaque électron arrive en un seul point, au hasard. Point après point, des bandes se dessinent. C’est la **mécanique quantique**.\n\nCette physique n’est pas au programme du collège, et elle étonne même les spécialistes. Elle marche pourtant très bien : sans elle, pas de puces électroniques ni de lasers. Ici, tout est énormément ralenti : un vrai électron traverserait l’écran en un millionième de milliardième de seconde.',
     vraie: 'En 1989, au Japon, Akira Tonomura et son équipe envoient des électrons un par un dans un appareil qui joue le rôle des deux fentes. Au début, les points semblent tomber n’importe où. Après des milliers d’électrons, des bandes apparaissent, exactement comme dans la machine.',
   },
@@ -24038,9 +24094,9 @@ FJ.fiche('meduses', {
   },
   outils: {
     observer: { verbe: 'Regarde', icone: 'loupe', geste: 'tap', aide: 'Touche une créature : tu sauras son nom, à quelle profondeur elle vit et comment elle brille.' },
-    toucher: { verbe: 'Effleure', icone: 'doigt', geste: 'tap', aide: 'Effleure une créature du doigt : dérangée, elle se met à briller pour se défendre.' },
+    toucher: { verbe: 'Effleure', icone: 'doigt', geste: 'tap', aide: 'Effleure une créature du doigt : quand on la dérange, elle s’allume. Cette lumière peut effrayer un attaquant.' },
     lampe: { verbe: 'Éclaire', icone: 'torche', geste: 'tap', aide: 'Garde le doigt posé : la lampe du plongeur montre les vraies couleurs, et la lumière vivante se voit moins.' },
-    courant: { verbe: 'Remue', icone: 'courant', geste: 'trait', aide: 'Glisse le doigt pour pousser l’eau : les tentacules suivent le courant.' },
+    courant: { verbe: 'Remue', icone: 'courant', geste: 'trait', aide: 'Glisse le doigt pour pousser l’eau : les tentacules ondulent et suivent le courant que tu fais.' },
   },
   leviers: {
     creature: { chemin: 'portrait/creature', nom: 'Créature',
@@ -24084,7 +24140,7 @@ FJ.fiche('meduses', {
     { id: 'rouge', scene: 'portraits', question: 'Et si on éclairait la méduse couronne avec une lampe, de quelle couleur serait-elle ?',
       choix: ['Bleue', 'Rouge', 'Transparente'], bonne: 1,
       prepare: { scene: 'portraits', regle: { creature: 'atolla', diaporama: false, lampe: true, lueur: 0.5 } }, attente: 5,
-      revele: 'Rouge sombre ! Dans les profondeurs, la lumière rouge du soleil n’arrive pas : elle est absorbée par l’eau dès les premières dizaines de mètres. Sans lumière rouge, un animal rouge paraît noir. Il devient invisible. Seule une lampe, apportée par un plongeur ou un robot, révèle sa vraie couleur.' },
+      revele: 'Rouge ! La lumière rouge du soleil est absorbée par l’eau dès les premières dizaines de mètres. En profondeur, sans lumière rouge, un animal rouge paraît noir : il est invisible. Seule une lampe révèle sa vraie couleur. Ici, l’eau est un peu éclairée pour qu’on voie les animaux : mets la lueur de l’eau à zéro pour le vrai noir.' },
   ],
   rotation: 'recreer',
 });
@@ -24184,7 +24240,7 @@ FJ.fiche('mycelium', {
       essaie: 'Mets de l’engrais au pied d’un arbre, puis regarde combien de sucre il donne encore au champignon.' },
   },
   outils: {
-    semer: { verbe: 'Sème', aide: 'Touche pour semer une moisissure, une spore ou un jeune arbre, selon la scène. Touche un réseau dense pour y lancer une onde.' },
+    semer: { verbe: 'Sème', aide: 'Touche pour semer un champignon, une spore ou un jeune arbre, selon la scène. Touche un réseau dense pour y lancer une onde.' },
     nourrir: { verbe: 'Nourris', aide: 'Touche pour poser de la nourriture : une goutte, un tas de feuilles mortes, ou de l’engrais au pied d’un arbre.' },
     tracer: { verbe: 'Trace', geste: 'trait', aide: 'Glisse pour tracer un sillon que les filaments ne traversent pas. Dans la forêt, tu coupes le réseau.' },
     gratter: { verbe: 'Gratte', geste: 'trait', aide: 'Glisse pour gratter le sol : les filaments disparaissent sous ton doigt, et l’herbe aussi dans la prairie.' },
@@ -24379,7 +24435,7 @@ FJ.fiche('vie', {
   pourquoi: {
     etincelle: 'Chaque case regarde seulement ses 8 voisines et suit deux règles : de là naissent des planeurs, des canons et des motifs qui bougent.',
     texte: 'Imagine une grille où chaque case est vivante ou morte. À chaque tour, une case morte entourée d’exactement 3 voisines vivantes naît. Une case vivante survit avec 2 ou 3 voisines ; sinon, elle meurt. C’est tout. Pourtant, de ces deux règles sortent des planeurs qui avancent, des canons qui tirent, des motifs qui s’agitent longtemps avant de se figer. Ce genre de petit monde s’appelle un **automate cellulaire**.\n\nIci, la grille se referme sur elle-même : ce qui sort à droite revient à gauche. Dans Lenia, les cases valent entre 0 et 1, et on croirait voir des bactéries.',
-    vraie: 'En 1970, le mathématicien John Conway invente ce jeu et promet 50 dollars à qui trouvera un motif qui grandit sans fin. La même année, Bill Gosper et son équipe trouvent le canon à planeurs, qui tire un planeur toutes les 30 générations, pour toujours.',
+    vraie: 'En 1970, le mathématicien John Conway invente ce jeu et promet 50 dollars à qui montrera qu’un motif peut, ou non, grandir sans fin. La même année, Bill Gosper et son équipe trouvent le canon à planeurs, qui tire un planeur toutes les 30 générations : sur une grille infinie, il ne s’arrête jamais.',
   },
   etsi: [
     { id: 'diehard', scene: 'conway', question: 'Et si on posait ces 7 cellules, appelées diehard, sur une grille vide ?',
@@ -25003,7 +25059,8 @@ window.FJ.VIGNETTES = window.FJ.VIGNETTES || {};
     const sc = S.scene && m.scenes[S.scene];
     if (m.question) corps.append(h('p', { class: 'question' }, m.question));
     if (P.etincelle) corps.append(h('p', { class: 'etincelle' }, P.etincelle));
-    if (sc && sc.essaie) corps.append(h('div', { class: 'essaie' }, h('b', null, 'Essaie ça'), h('span', null, sc.essaie)));
+    const ess = (sc && sc.essaie) || S.meta.essaie;   // une machine sans scènes peut avoir son « essaie » à elle
+    if (ess) corps.append(h('div', { class: 'essaie' }, h('b', null, 'Essaie ça'), h('span', null, ess)));
     if (P.texte) corps.append(h('div', { class: 'texte' }, ...String(P.texte).split('\n\n').map((p) => h('p', null, ...texteRiche(p)))));
     const etsi = (m.etsi || []).filter((e) => !e.scene || e.scene === S.scene || !m.scenes[e.scene]);
     if (etsi.length) {

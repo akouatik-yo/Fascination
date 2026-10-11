@@ -38,6 +38,7 @@ FJ.fiche('id', {
       interne: 'pelage',            // facultatif : l'identifiant de la scène dans la machine, s'il diffère de la clé (machines qui exposent sim.sceneId et changent de scène d'elles-mêmes, comme Turing)
     },
   },
+  essaie: '…',                      // facultatif : l'« Essaie ça » d'une machine sans scènes
   outils: { id: { verbe: 'Souffle', icone: 'vent', geste: 'trait', aide: '…' } },
   // verbe : 1 mot, à l'impératif (Souffle, Arrose, Coupe…) ; icone : facultative (voir jeunesse/js/icones.js) ;
   // geste : 'tap' ou 'trait' (pour la main qui montre le geste) ; aide : 1 phrase d'enfant (15 à 25 mots)

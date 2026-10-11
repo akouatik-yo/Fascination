@@ -14645,9 +14645,9 @@ void main(){
         P.bub.use().f('uRes', cw, ch).i('uN', B.length).v4('uB', A).v4('uB2', A2).v4('uB3', A3).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uT', T);
         K.run(P.bub, null);
       } else if (cfg.scene === 'cadre') {
-        const fw = Math.min(v.w * 0.62, H * 0.62), fh = Math.min(H * 0.78, fw * 1.25);
+        const y0f = (env.view && env.view.y0) || 0, Hf = H - y0f, cyf = y0f + Hf / 2, fw = Math.min(v.w * 0.62, Hf * 0.62), fh = Math.min(Hf * 0.78, fw * 1.25); // sous la barre du haut (version jeunesse)
         const VV = new Float32Array(32); vort.slice(0, 8).forEach((q, i) => VV.set([q.x, q.y, q.s, 0], i * 4));
-        P.frame.use().f('uRes', cw, ch).f('uBox', (v.cx - fw / 2) * s, (H / 2 - fh / 2) * s, fw * s, fh * s).f('uAge', filmAge).f('uSwirl', cfg.swirl).i('uNV', Math.min(8, vort.length)).v4('uV', VV).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uT', T);
+        P.frame.use().f('uRes', cw, ch).f('uBox', (v.cx - fw / 2) * s, (cyf - fh / 2) * s, fw * s, fh * s).f('uAge', filmAge).f('uSwirl', cfg.swirl).i('uNV', Math.min(8, vort.length)).v4('uV', VV).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uT', T);
         K.run(P.frame, null);
       } else {
         const neck = cat.broke ? 0 : 1;
@@ -14657,8 +14657,8 @@ void main(){
       ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
       if (cfg.scene === 'bulles') { ctx.save(); ctx.fillStyle = ink ? 'rgba(40,40,80,.5)' : 'rgba(220,235,255,.7)'; for (const d of drops) { ctx.globalAlpha = clamp(d.life * 3, 0, 1); ctx.fillRect(d.x, d.y, 1.6, 1.6); } ctx.restore(); }
       if (cfg.scene === 'cadre' && !bare) {
-        const fw = Math.min(v.w * 0.62, H * 0.62), fh = Math.min(H * 0.78, fw * 1.25);
-        ctx.save(); ctx.strokeStyle = '#8a8f9a'; ctx.lineWidth = 5; ctx.strokeRect(v.cx - fw / 2 - 3, H / 2 - fh / 2 - 3, fw + 6, fh + 6); ctx.fillStyle = '#6a6f7a'; ctx.fillRect(v.cx - 4, H / 2 + fh / 2 + 3, 8, H * 0.2); ctx.restore();
+        const y0f = (env.view && env.view.y0) || 0, Hf = H - y0f, cyf = y0f + Hf / 2, fw = Math.min(v.w * 0.62, Hf * 0.62), fh = Math.min(Hf * 0.78, fw * 1.25); // sous la barre du haut (version jeunesse)
+        ctx.save(); ctx.strokeStyle = '#8a8f9a'; ctx.lineWidth = 5; ctx.strokeRect(v.cx - fw / 2 - 3, cyf - fh / 2 - 3, fw + 6, fh + 6); ctx.fillStyle = '#6a6f7a'; ctx.fillRect(v.cx - 4, cyf + fh / 2 + 3, 8, H * 0.2); ctx.restore();
       }
       hud(ink);
       drawLabel();
@@ -14732,8 +14732,8 @@ void main(){
         const tool = env.tool;
         if (cfg.scene === 'bulles' && tool === 'souffler') wind.push({ x: p.x, y: p.y, vx: p.dx * 30, vy: p.dy * 30, r: Math.min(view().w, H) * 0.25, t: 0.6 });
         if (cfg.scene === 'cadre' && tool === 'souffler' && vort.length < 8) {
-          const v = view(), fw = Math.min(v.w * 0.62, H * 0.62), fh = Math.min(H * 0.78, fw * 1.25);
-          if (Math.random() < 0.3) vort.push({ x: (p.x - (v.cx - fw / 2)) / fw, y: (p.y - (H / 2 - fh / 2)) / fh, s: clamp(p.dx * 0.05, -2, 2) });
+          const v = view(), y0f = (env.view && env.view.y0) || 0, Hf = H - y0f, cyf = y0f + Hf / 2, fw = Math.min(v.w * 0.62, Hf * 0.62), fh = Math.min(Hf * 0.78, fw * 1.25); // sous la barre du haut (version jeunesse)
+          if (Math.random() < 0.3) vort.push({ x: (p.x - (v.cx - fw / 2)) / fw, y: (p.y - (cyf - fh / 2)) / fh, s: clamp(p.dx * 0.05, -2, 2) });
         }
         if (cfg.scene === 'cate' && tool === 'ecarter') { cfg.sepAuto = false; cfg.sep = clamp(cfg.sep + p.dy * 0.003, 0.1, 0.9); cfg.yaw -= p.dx * 0.006; }
       },

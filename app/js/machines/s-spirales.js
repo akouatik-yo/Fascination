@@ -67,7 +67,7 @@ void main(){
   if (uKind == 4){ vec2 ab = uB - uA; float t = clamp(dot(p - uA, ab) / max(dot(ab, ab), 1e-6), 0., 1.); if (length(p - uA - ab * t) < uR) s.x = floor(hash12(p + uSeed) * uNs); o = s; return; }
   vec2 ab = uB - uA; float t = clamp(dot(p - uA, ab) / max(dot(ab, ab), 1e-6), 0., 1.), d = length(p - uA - ab * t);
   bool in_ = uKind == 2 ? true : uKind == 3 ? p.x < uA.x : d < uR;
-  if (in_ && m > .5){ if (uKind == 1) s.xy = vec2(0., 0.); else s.x = 1.; }
+  if (in_ && m > .5){ if (uKind == 1) s.xy = vec2(0., 0.); else s.x = uKind == 2 ? .99 : 1.; }   // choc : u = 1 exactement est un point fixe du schéma, le muscle resterait figé
   o = s;
 }`;
   const FS_SCAR = HEAD + `

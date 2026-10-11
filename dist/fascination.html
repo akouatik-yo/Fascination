@@ -14830,8 +14830,8 @@ void main(){
 
   function makeSpectre(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const B = bus(au, { rev: 0.25, sec: 3, gain: 0.95 });
-    const c = B ? B.ctx : null;
+    let B = bus(au, { rev: 0.25, sec: 3, gain: 0.95 });
+    let c = B ? B.ctx : null;
     const light = () => env.theme === 'light';
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
     let T = 0, toast = null, hintBox = null;
@@ -14839,7 +14839,10 @@ void main(){
 
     /* ───────── analyseur ───────── */
     let an = null, fbuf = null, mic = null, micAn = null;
-    if (c) { an = c.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.15; an.minDecibels = -105; an.maxDecibels = -25; B.out.connect(an); fbuf = new Float32Array(an.frequencyBinCount); }
+    const brancher = () => { an = c.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.15; an.minDecibels = -105; an.maxDecibels = -25; B.out.connect(an); fbuf = new Float32Array(an.frequencyBinCount); };
+    if (c) brancher();
+    // le son allumé après l'arrivée : la machine le branche sans être recréée
+    else if (au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: 0.25, sec: 3, gain: 0.95 }); c = B ? B.ctx : null; if (c) brancher(); });
     async function startMic() {
       if (!c) return say('Activez d’abord le son.');
       if (mic) return;
@@ -15315,6 +15318,8 @@ void main(){
   function makeHarpe(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
     let B = bus(au, { rev: keep.rev, sec: 3.6, bright: 0.4, gain: 0.9 });
+    // le son allumé après l'arrivée : la machine le branche sans être recréée
+    if (!B && au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: keep.rev, sec: 3.6, bright: 0.4, gain: 0.9 }); if (B && keep.scene === 'eolienne' && aeo && aeo.length) aeoAudioOn(); });
     const light = () => env.theme === 'light', bare = () => env.decor === false;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
     let T = 0, idle = 0, autoT = 0, autoStep = 0, lastPick = null, lastPt = null, drag = null, toast = null;
@@ -15820,8 +15825,10 @@ void main(){
 
   function makePendules(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 });
-    const c = B ? B.ctx : null;
+    let B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 });
+    let c = B ? B.ctx : null;
+    // le son allumé après l'arrivée : la machine le branche sans être recréée
+    if (!B && au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 }); c = B ? B.ctx : null; });
     const light = () => env.theme === 'light', bare = () => env.decor === false;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
     let T = 0, cam = { az: -0.32, el: 0.26 }, flash = [], toast = null;
@@ -16048,8 +16055,10 @@ void main(){
 
   function makeIll(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const B = bus(au, { rev: 0.18, sec: 2.6, gain: 0.9 });
-    const c = B ? B.ctx : null;
+    let B = bus(au, { rev: 0.18, sec: 2.6, gain: 0.9 });
+    let c = B ? B.ctx : null;
+    // le son allumé après l'arrivée : la machine le branche sans être recréée
+    if (!B && au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: 0.18, sec: 2.6, gain: 0.9 }); c = B ? B.ctx : null; });
     const light = () => env.theme === 'light';
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
     let T = 0, toast = null;
@@ -16334,7 +16343,7 @@ void main(){
       else drawRisset(cc);
       if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 116); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = null;
-      if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = 64; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
+      if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = ((env.view && env.view.y0) || 0) + 64; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
     }
     function update(k) {
       T += k;

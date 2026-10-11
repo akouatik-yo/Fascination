@@ -52,8 +52,8 @@
 
   function makeSpectre(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const B = bus(au, { rev: 0.25, sec: 3, gain: 0.95 });
-    const c = B ? B.ctx : null;
+    let B = bus(au, { rev: 0.25, sec: 3, gain: 0.95 });
+    let c = B ? B.ctx : null;
     const light = () => env.theme === 'light';
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
     let T = 0, toast = null, hintBox = null;
@@ -61,7 +61,10 @@
 
     /* ───────── analyseur ───────── */
     let an = null, fbuf = null, mic = null, micAn = null;
-    if (c) { an = c.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.15; an.minDecibels = -105; an.maxDecibels = -25; B.out.connect(an); fbuf = new Float32Array(an.frequencyBinCount); }
+    const brancher = () => { an = c.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.15; an.minDecibels = -105; an.maxDecibels = -25; B.out.connect(an); fbuf = new Float32Array(an.frequencyBinCount); };
+    if (c) brancher();
+    // le son allumé après l'arrivée : la machine le branche sans être recréée
+    else if (au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: 0.25, sec: 3, gain: 0.95 }); c = B ? B.ctx : null; if (c) brancher(); });
     async function startMic() {
       if (!c) return say('Activez d’abord le son.');
       if (mic) return;

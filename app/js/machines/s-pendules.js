@@ -32,8 +32,10 @@
 
   function makePendules(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 });
-    const c = B ? B.ctx : null;
+    let B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 });
+    let c = B ? B.ctx : null;
+    // le son allumé après l'arrivée : la machine le branche sans être recréée
+    if (!B && au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 }); c = B ? B.ctx : null; });
     const light = () => env.theme === 'light', bare = () => env.decor === false;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
     let T = 0, cam = { az: -0.32, el: 0.26 }, flash = [], toast = null;

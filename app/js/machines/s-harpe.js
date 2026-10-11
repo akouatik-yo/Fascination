@@ -48,6 +48,8 @@
   function makeHarpe(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
     let B = bus(au, { rev: keep.rev, sec: 3.6, bright: 0.4, gain: 0.9 });
+    // le son allumé après l'arrivée : la machine le branche sans être recréée
+    if (!B && au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: keep.rev, sec: 3.6, bright: 0.4, gain: 0.9 }); if (B && keep.scene === 'eolienne' && aeo && aeo.length) aeoAudioOn(); });
     const light = () => env.theme === 'light', bare = () => env.decor === false;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
     let T = 0, idle = 0, autoT = 0, autoStep = 0, lastPick = null, lastPt = null, drag = null, toast = null;

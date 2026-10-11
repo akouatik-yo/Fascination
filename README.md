@@ -53,3 +53,19 @@ node tools/smoke.mjs        # parcourt les 26 machines, teste le Feu et les brui
 - Le numéro de version suit le nombre de commits.
 
 Installation : copier l'APK sur l'appareil, l'ouvrir, autoriser l'installation d'applications de cette source. Sur l'appareil, l'application mémorise par machine une résolution réduite si l'animation n'arrive pas à suivre (clé `fasc-dpr` du stockage local).
+
+## Fascinations Labo : la version 10-14 ans (branche `jeunesse`)
+
+Ce sont les mêmes machines, dans une autre application, pensée pour jouer d'abord et comprendre ensuite. Les choix de conception viennent d'un débat entre personas : `docs/jeunesse-debat/`, `docs/JEUNESSE-CONCEPTION.md`.
+
+- **Ouvrir** : `jeunesse/index.html` (fichiers séparés) ou `dist/jeunesse.html` (fichier unique, entièrement hors ligne, polices intégrées).
+- **APK** : `node tools/build-apk.mjs jeunesse` produit `dist/fascinations-labo.apk`. Le paquet `fr.fascinations.labo` s'installe à côté de la version adulte.
+- **Organisation** :
+  - `jeunesse/js/labo.js` : le shell ;
+  - `jeunesse/js/pilote.js` : pilote les réglages des machines par leur chemin, et fait le hasard à graine ;
+  - `jeunesse/meta/<id>.js` : une fiche par machine (scènes, gestes, leviers, recettes, textes, « Et si »), au format décrit dans `docs/JEUNESSE-FICHES.md`.
+- **Tests** :
+  - `node tools/test-fiches.mjs [ids]` : le contrat des fiches ;
+  - `node tools/test-jeunesse.mjs` : aucune réinitialisation involontaire, rotation, historique, hasard, contextes WebGL ;
+  - `node tools/capture-jeunesse.mjs <id> [n]` : une planche de tirages ;
+  - `node tools/vignettes.mjs` : les images de la Carte.

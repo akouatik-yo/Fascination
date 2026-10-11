@@ -1,36 +1,21 @@
-# Fascinations Labo — où en est la refonte jeunesse (branche `jeunesse`)
+# Fascinations Labo — état de la refonte jeunesse (branche `jeunesse`)
 
-## Fait
-- Le débat entre personas et sa synthèse : docs/jeunesse-debat/, docs/JEUNESSE-CONCEPTION.md, docs/JEUNESSE-FICHES.md.
-- Le shell jeunesse : jeunesse/ (index.html, js/labo.js, pilote.js, icones.js, mondes.js, css/labo.css).
-  - Aucune réinitialisation involontaire, rotation, historique, sac, hasard à graine.
-  - Carte en 7 mondes, Carnet, Et si, coin des grands.
-  - Les 8 tests de tools/test-jeunesse.mjs passent.
-- Les fiches terminées (✓ test-fiches) :
-  - feu, boids, lucioles, fourmis, blob, mycelium, vie ;
-  - rd, spirales, cristal, sable, lave, fractal.
-- Les fiches en cours de rédaction (état intermédiaire, à vérifier avec `node tools/test-fiches.mjs <id>`) :
-  - attracteur, fluide, eau, foudre, quantique, galaxie, tunnel ;
-  - chladni, viz, harpe, pendules, harmono.
-- L'APK jeunesse se construit : `node tools/build-apk.mjs jeunesse` → dist/fascinations-labo.apk.
-- Bugs corrigés :
-  - le défibrillateur des Spirales ;
-  - « Grande-Bretagne » dans les Fractales ;
-  - la vitesse de la Lampe à lave ;
-  - le labyrinthe du Blob ;
-  - l'amorce au choix d'une scène ;
-  - les « Et si » qui relancent la scène ;
-  - le suivi de la scène quand Turing la change lui-même (sim.sceneId).
+## Livré (version 0.1.65)
+- **Conception** : le débat entre personas et sa synthèse, dans docs/jeunesse-debat/, docs/JEUNESSE-CONCEPTION.md et docs/JEUNESSE-FICHES.md.
+- **Le shell jeunesse** :
+  - 3 écrans : la Machine, la Carte en 7 mondes et le Carnet, plus le coin des grands ;
+  - les gestes, les pastilles de scènes, et les tiroirs Bidouiller (leviers, recettes, Labo) et Pourquoi (« Et si » avec pari) ;
+  - l'historique ‹ ›, le hasard à graine et le « sac » sans répétition.
+- **Aucune réinitialisation involontaire**, même au changement de son, d'écran ou de tiroir, ou à la rotation. Les 8 tests de tools/test-jeunesse.mjs passent, sur les fichiers séparés comme sur le fichier unique.
+- **Les 32 fiches** sont écrites, relues scientifiquement et conformes à tools/test-fiches.mjs. Le balayage des 32 machines (110 scènes, toutes les recettes) n'a trouvé aucune erreur.
+- **Les vignettes de la Carte** sont générées par tools/vignettes.mjs.
+- **Les livrables** : dist/fascinations-labo.apk, dist/jeunesse.html, et l'artefact https://claude.ai/artifact/5VrpY5djWxHT9VMirjD9La
 
-## Reste à faire
-1. Terminer et vérifier les fiches en cours, puis écrire :
-   - ciel, bulles, meduses, kaleido ;
-   - illusions, sonillus, moire.
-2. Une relecture scientifique de toutes les fiches.
-3. `node tools/vignettes.mjs`, puis `node tools/build.mjs tout`, puis les tests (test-fiches, test-jeunesse).
-4. L'APK jeunesse, l'artefact (dist/jeunesse-artifact.html), et le rapport final.
-
-## Bugs connus encore ouverts
-- Fourmis : le double pont échoue avec de grands pas de temps (tablette lente) ; l'état `keep` est au niveau du module.
-- Murmuration : l'effet de confusion n'est pas modélisé.
-- Spirales : il n'y a pas de réglage anti-flash.
+## Points ouverts (à vérifier sur la tablette)
+- **Fourmis** : avec le double pont, la colonie ne bascule pas toujours vers la branche courte en rendu lent. Le « Et si » correspondant est retiré.
+- **Textes écrits par les machines sur l'image** : ils restent au vouvoiement, comme dans la version adulte.
+- **Illusions** : les boutons « Illusion suivante », « Au hasard » et « Diaporama » du Labo changent de famille sans que les pastilles suivent.
+- **État gardé d'une visite à l'autre** : certaines machines (ciel, sonillus, moire) gardent leur état au niveau du module. Les plages de hasard compensent pour les réglages qui comptent.
+- **Murmuration** : l'effet de confusion du prédateur n'est pas modélisé.
+- **Photo dans l'artefact claude.ai** : le téléchargement n'y est pas permis, mais la photo est bien rangée dans le Carnet. Dans l'APK, elle va dans Images/Fascinations.
+- **Rien n'a été essayé sur un vrai appareil**, et les sons n'ont pas été écoutés.

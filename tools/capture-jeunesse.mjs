@@ -28,7 +28,7 @@ for (let k = 0; k < n; k++) {
   await p.evaluate(() => { const c = document.getElementById('carton'); if (c) c.hidden = true; });
   await p.waitForTimeout(attente);
   const f = path.join(OUT, `${id}-${k}.png`);
-  await p.screenshot({ path: f });
+  await p.screenshot({ path: f, timeout: 180000 });
   shots.push({ f, info });
   console.log(k, JSON.stringify(info));
 }

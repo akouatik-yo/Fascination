@@ -1,5 +1,79 @@
-/* Les Cymatiques — fiche jeunesse (squelette généré depuis tools/out/ui.json ; à enrichir) */
+/* Les Cymatiques — fiche jeunesse */
 FJ.fiche('chladni', {
-  scenes: {"plaque-de-chladni": {"nom": "Plaque de Chladni", "via": "scenes/plaque de chladni"}, "eau": {"nom": "Eau", "via": "scenes/eau"}, "tube-de-rubens": {"nom": "Tube de Rubens", "via": "scenes/tube de rubens"}},
-  outils: {"frequence": {"verbe": "Fréquence"}, "secouer": {"verbe": "Secouer"}},
+  nom: 'Les Cymatiques',
+  question: 'Comment du sable peut-il dessiner un son ?',
+  outil: 'frequence',
+  scenes: {
+    plaque: { nom: 'Le sable qui danse', via: 'scenes/plaque de chladni', poids: 4, outil: 'frequence', outils: ['frequence', 'secouer'], actions: 'plaque',
+      exposes: ['frequence', 'forme', 'balayage', 'sable'],
+      // une fréquence au hasard, puis on saute sur la résonance suivante : le sable a toujours une figure à rejoindre
+      plages: { forme: ['carre', 'rond'], frequence: [0.27, 0.65], 'plaque/resonance+': true, balayage: 0.3 },
+      essaie: 'Glisse lentement le doigt : quand le sable se met à courir, une nouvelle figure arrive.' },
+    eau: { nom: 'Mandalas d’eau', via: 'scenes/eau', poids: 2, outil: 'frequence', outils: ['frequence'],
+      exposes: ['eaufreq', 'symetrie'],
+      plages: { eaufreq: [0.05, 0.95], symetrie: ['0', '0', '4', '5', '6', '8', '10', '12'] },
+      essaie: 'Glisse le doigt vers la droite : les vagues se resserrent et le motif change.' },
+    tube: { nom: 'Le tube de flammes', via: 'scenes/tube de rubens', poids: 2, outil: 'frequence', outils: ['frequence'], actions: 'tube',
+      exposes: ['tubefreq', 'melodie', 'puissance'],
+      plages: { melodie: true, puissance: [0.8, 1.1] },
+      essaie: 'Glisse le doigt et compte les creux entre les flammes quand le son monte.' },
+  },
+  outils: {
+    frequence: { verbe: 'Accorde', icone: 'onde', geste: 'trait', aide: 'Glisse le doigt de gauche à droite : le son devient plus aigu et le dessin change.' },
+    secouer: { verbe: 'Secoue', icone: 'secouer', geste: 'tap', aide: 'Touche la plaque pour éparpiller le sable au hasard, puis regarde-le retrouver ses lignes.' },
+  },
+  leviers: {
+    frequence: { chemin: 'plaque/frequence', nom: 'Hauteur du son', bouts: ['grave', 'aigu'] },
+    forme: { chemin: 'plaque/forme', nom: 'Forme de la plaque', options: { carre: 'Carrée', rond: 'Ronde' } },
+    balayage: { chemin: 'plaque/balayage automatique', nom: 'Le son monte et descend tout seul' },
+    sable: { chemin: 'plaque/sable', nom: 'Sable', bouts: ['une poignée', 'plein'] },
+    eaufreq: { chemin: 'eau/frequence', nom: 'Hauteur du son', bouts: ['grave', 'aigu'] },
+    symetrie: { chemin: 'eau/symetrie', nom: 'Vagues venues de…',
+      options: { 0: 'Selon le son', 4: '4 directions', 5: '5 directions', 6: '6 directions', 7: '7 directions', 8: '8 directions', 10: '10 directions', 12: '12 directions' } },
+    tubefreq: { chemin: 'tube/frequence', nom: 'Hauteur du son', bouts: ['grave', 'aigu'] },
+    melodie: { chemin: 'tube/petite melodie', nom: 'Petite mélodie' },
+    puissance: { chemin: 'tube/volume hauteur des flammes', nom: 'Force du haut-parleur', bouts: ['faible', 'fort'] },
+  },
+  groupesActions: {
+    plaque: [
+      { chemin: 'plaque/resonance', nom: 'Figure d’avant', icone: 'prec' },
+      { chemin: 'plaque/resonance+', nom: 'Figure suivante', icone: 'motif' },
+    ],
+    tube: [
+      { chemin: 'tube/3 demi ondes', nom: '3 creux', icone: 'flamme' },
+      { chemin: 'tube/8 demi ondes', nom: '8 creux', icone: 'flamme' },
+    ],
+  },
+  partGraines: 0.3,
+  graines: [
+    { nom: 'Plaque ronde : un cercle dans le cercle', scene: 'plaque', regle: { forme: 'rond', frequence: 0.461 } },
+    { nom: 'Plaque ronde : quatre diamètres immobiles', scene: 'plaque', regle: { forme: 'rond', frequence: 0.608 } },
+    { nom: 'Eau : des vagues venues de 6 directions', scene: 'eau', regle: { symetrie: '6', eaufreq: 0.45 } },
+    { nom: 'Tube de flammes : 5 creux', scene: 'tube', regle: { 'tube/5 demi ondes': true, puissance: 1 } },
+  ],
+  recettes: [
+    { nom: 'Le son monte tout seul', icone: 'onde', scene: 'plaque', regle: { balayage: true } },
+    { nom: 'Plaque ronde', icone: 'cible', scene: 'plaque', regle: { forme: 'rond', frequence: 0.527 } },
+    { nom: 'Son très aigu', icone: 'etincelles', scene: 'plaque', regle: { frequence: 0.86, 'plaque/resonance+': true } },
+    { nom: 'Vagues venues de 12 directions', icone: 'motif', scene: 'eau', regle: { symetrie: '12', eaufreq: 0.6 } },
+    { nom: 'Des carrés dans l’eau', icone: 'goutte', scene: 'eau', regle: { symetrie: '4', eaufreq: 0.3 } },
+    { nom: 'Vagues de flammes', icone: 'flamme', scene: 'tube', regle: { 'tube/12 demi ondes': true, puissance: 1.1 } },
+  ],
+  pourquoi: {
+    etincelle: 'Le sable fuit les endroits qui vibrent et s’arrête sur les lignes où la plaque ne bouge pas.',
+    texte: 'Une plaque de métal qui vibre ne bouge pas partout pareil. Certaines zones s’agitent très fort, d’autres restent immobiles. Le sable rebondit sur les zones qui vibrent et glisse peu à peu vers celles qui ne bougent pas. Il dessine ces lignes immobiles : les **lignes nodales**.\n\nUne plaque vibre très fort seulement pour certaines notes, et chacune a son dessin. Plus le son est aigu, plus les lignes sont nombreuses et serrées. Entre ces notes, le sable bouge à peine. Dans l’eau et dans le tube de flammes, le son forme aussi des vagues qui restent sur place. La machine simplifie : une vraie plaque donne des dessins un peu différents.',
+    vraie: 'Ernst Chladni montre ses figures de sable à Napoléon, à Paris, vers 1809. L’empereur fait offrir un prix à qui les expliquera. Sophie Germain le remporte en 1816, à sa troisième tentative, avec une théorie encore incomplète.',
+  },
+  etsi: [
+    { id: 'aigu', scene: 'plaque', question: 'Et si la plaque jouait un son très aigu, que deviendrait le dessin ?',
+      choix: ['Plus de lignes, plus serrées', 'Moins de lignes', 'Le même dessin'], bonne: 0,
+      prepare: { scene: 'plaque', regle: { forme: 'carre', frequence: 0.89, 'plaque/resonance+': true } },
+      regarde: 'Regarde le sable courir vers sa nouvelle figure…', attente: 8,
+      revele: 'Plus de lignes, et plus serrées ! Un son aigu fait vibrer la plaque en morceaux plus petits. Chaque morceau s’agite, et entre deux morceaux reste une ligne immobile, une **ligne nodale**. Plus il y a de morceaux, plus il y a de lignes où le sable s’arrête.' },
+    { id: 'creux', scene: 'tube', question: 'Et si le son du tube devenait bien plus aigu, combien de creux entre les flammes ?',
+      choix: ['Plus de creux', 'Moins de creux', 'Le même nombre'], bonne: 0,
+      prepare: { scene: 'tube', action: 'tube/12 demi ondes' }, regarde: 'Compte les creux entre les flammes…', attente: 5,
+      revele: 'Plus de creux, et plus rapprochés : il y en a 12 ! Le son forme dans le tube une vague qui reste sur place, et les flammes la dessinent. Plus le son est aigu, plus cette vague est courte : il en tient davantage dans le tube.' },
+  ],
+  rotation: 'recreer',
 });

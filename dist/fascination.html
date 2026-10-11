@@ -316,7 +316,7 @@ aside.bruits .c-sec .v { font-family: var(--mono); font-size: 9.5px; letter-spac
   const scale = (i, root) => (root || 110) * Math.pow(2, PENTA[((i % PENTA.length) + PENTA.length) % PENTA.length] / 12);
 
   class SoundKit {
-    constructor() { this.ctx = null; this.on = false; this.analyser = null; this._noise = null; }
+    constructor() { this.ctx = null; this.on = false; this.analyser = null; this._noise = null; this._wait = []; this._live = []; }
     ensure() {
       if (!this.ctx && !this.on) return null;
       if (!this.ctx) {
@@ -335,8 +335,15 @@ aside.bruits .c-sec .v { font-family: var(--mono); font-size: 9.5px; letter-spac
       }
       if (this.ctx.state === 'suspended') this.ctx.resume();
       this.master.gain.setTargetAtTime(this.on ? 0.55 : 0.0001, this.ctx.currentTime, 0.08);
+      // les nappes demandées pendant que le son était coupé démarrent maintenant
+      if (this._wait.length) { const w = this._wait; this._wait = []; for (const h of w) if (!h.dead) h.real = this._drone(h.f, h.type, h.g); }
+      if (this.on && this._live.length) { const l = this._live; this._live = []; for (const fn of l) { try { fn(); } catch (e) { console.warn(e); } } }
       return this.ctx;
     }
+    // ambiance d'une machine : tout de suite si le son est là, sinon au moment où on l'allumera
+    whenLive(fn) { if (this.on && this.ctx) fn(); else this._live.push(fn); }
+    // la machine change : ce qui attendait le son pour elle est oublié
+    clearWaiting() { for (const h of this._wait) h.dead = true; this._wait = []; this._live = []; }
     setOn(v) {
       this.on = !!v;
       if (v) this.ensure();
@@ -393,9 +400,21 @@ aside.bruits .c-sec .v { font-family: var(--mono); font-size: 9.5px; letter-spac
       s.connect(bq); bq.connect(v); v.connect(this.master);
       s.start(t); s.stop(t + dur + 0.05);
     }
+    // une nappe : si le son est encore coupé (pas de contexte audio), elle attend et démarrera quand on l'allumera,
+    // sans qu'il faille reconstruire la machine
     drone(f, type = 'sine', g = 0.1) {
-      const c = this.ensure();
-      if (!c) return { set() {}, gain() {}, cut() {}, stop() {} };
+      if (this.ensure()) return this._drone(f, type, g);
+      const h = { f, type, g, real: null, dead: false };
+      this._wait.push(h);
+      return {
+        set: (nf) => { h.f = nf; if (h.real) h.real.set(nf); },
+        gain: (ng) => { h.g = ng; if (h.real) h.real.gain(ng); },
+        cut: (nc) => { if (h.real) h.real.cut(nc); },
+        stop: () => { h.dead = true; if (h.real) h.real.stop(); },
+      };
+    }
+    _drone(f, type, g) {
+      const c = this.ctx;
       const o = c.createOscillator(), v = c.createGain(), lp = c.createBiquadFilter();
       lp.type = 'lowpass'; lp.frequency.value = 1800;
       o.type = type; o.frequency.value = f;
@@ -1102,7 +1121,7 @@ float fbm(vec2 p){ float a = .5, s = 0.; for (int i = 0; i < 3; i++){ s += a * v
       let syncC = 0, rPt = 0, statT = 0, cricT = 1, frogT = 6, lastC = 0, lastP = 0;
       quiet = false;
       const drones = [];
-      if (au && au.live) drones.push(au.drone(65.4, 'sine', 0.012), au.drone(98, 'sine', 0.005));
+      if (au) drones.push(au.drone(65.4, 'sine', 0.012), au.drone(98, 'sine', 0.005));
 
       return {
         frame(tt, dt) {
@@ -1750,7 +1769,7 @@ float fbm(vec2 p){ float a = .5, s = 0.; for (int i = 0; i < 3; i++){ s += a * v
       quiet = false;
       let impT = 4, windT = 0.5, chatT = 0.3, waveT = 3, alarmFrac = 0, polar = 0, statT = 0;
       const drones = [];
-      if (au && au.live) drones.push(au.drone(73.4, 'sine', 0.008));
+      if (au) drones.push(au.drone(73.4, 'sine', 0.008));
 
       return {
         frame(tt, dt) {
@@ -2812,7 +2831,7 @@ void main(){
       const NP = R.Q.side * R.Q.side;
       burst = { x, y, p: Math.min(0.5, (n * (cfg.sparks ? 1 : 0)) / NP), s: speed * kS };
     }
-    if (snd()) {
+    if (au) au.whenLive(() => {
       const c = au.ensure();
       if (c) {
         const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true;
@@ -2822,7 +2841,7 @@ void main(){
         s.connect(lp); lp.connect(lp2); lp2.connect(gg); gg.connect(au.master); s.start();
         roar = { s, lp, gg };
       }
-    }
+    });
     function feed() {
       if (E.length >= 16) return;
       lastAdd = VT;
@@ -3824,7 +3843,7 @@ void main(){
 
     /* ───────── sons ───────── */
     let amb = null, lastPlink = 0, plinkN = 0;
-    if (snd()) {
+    if (au) au.whenLive(() => {
       const c = au.ensure();
       if (c) {
         const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true;
@@ -3833,7 +3852,7 @@ void main(){
         s.connect(hp); hp.connect(gg); gg.connect(au.master); s.start();
         amb = { s, hp, gg };
       }
-    }
+    });
     function plink(r) {
       if (!snd()) return;
       if (VT - lastPlink < 0.03) { if (++plinkN > 3) return; } else plinkN = 0;
@@ -4889,7 +4908,7 @@ void main(){
 
     /* ───────── sons : chant éolien et eau qui coule ───────── */
     let aeol = null, water = null;
-    if (snd()) {
+    if (au) au.whenLive(() => {
       aeol = au.drone(220, 'sine', 0);
       const c = au.ensure();
       if (c) {
@@ -4899,7 +4918,7 @@ void main(){
         s.connect(f); f.connect(gg); gg.connect(au.master); s.start();
         water = { s, f, gg };
       }
-    }
+    });
     const U = () => (15 + cfg.speed * 85) * (R.GVH / 100); // vitesse d'entrée, en cellules par seconde
     const nu = () => cfg.visc * cfg.visc * 6; // viscosité explicite, en cellules² par seconde
     function reynolds(o) { const D = (o.size / W) * R.GVW, nuEff = nu() + 0.06 * U(); return (U() * D) / nuEff; }
@@ -5637,7 +5656,7 @@ void main(){
 
     /* ───────── un pas ───────── */
     let shd = null, hiss = null, boom = null;
-    if (snd()) {
+    if (au) au.whenLive(() => {
       const c = au.ensure();
       if (c) {
         const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true;
@@ -5645,7 +5664,7 @@ void main(){
         const g = c.createGain(); g.gain.value = 0.0001; s.connect(f); f.connect(g); g.connect(au.master); s.start();
         hiss = { s, g }; boom = au.drone(90, 'sawtooth', 0);
       }
-    }
+    });
     function step(dt) {
       VT += dt;
       if (cfg.orbit) cfg.az = (cfg.az + dt * 0.006) % 1;
@@ -6285,7 +6304,7 @@ void main(){
 
       /* ───────── sons : sable qui coule, dune qui chante ───────── */
       let hiss = null, boom = null;
-      if (snd()) {
+      if (au) au.whenLive(() => {
         const c = au.ensure();
         if (c) {
           const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true;
@@ -6295,7 +6314,7 @@ void main(){
           hiss = { s, gg };
           boom = au.drone(88, 'sawtooth', 0);
         }
-      }
+      });
 
       /* ───────── le vivant : fourmilions et fourmis ───────── */
       let VT = 0, antT = 2;
@@ -7168,7 +7187,7 @@ void main(){
       rainS = { s, gg };
       hum = au.drone(100, 'sawtooth', 0); hum.cut(380);
     }
-    startAmb();
+    if (au) au.whenLive(startAmb);
 
     /* ───────── paysage (sombre et éclairé) ───────── */
     function seeded(s) { return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
@@ -8258,7 +8277,7 @@ void main(){ vec4 a = texture(uA, vUv); if (a.a > 1.5){ o = vec4(0., 0., 0., 1.)
     const trees = Array.from({ length: Math.round(W / 70) }, () => [rnd(W), rnd(1.2, 0.6)]);
     const drag = dragSun(env, 'el', -18, 60);
     const drones = [];
-    if (au && au.live) drones.push(au.drone(110, 'sine', 0.012), au.drone(164.8, 'sine', 0.007));
+    if (au) drones.push(au.drone(110, 'sine', 0.012), au.drone(164.8, 'sine', 0.007));
 
     function cam() {
       const v = env.view || { x0: 0, x1: W };
@@ -8392,7 +8411,7 @@ void main(){
     let T = 0, dirty = true;
     const drag = dragSun(env, 'rbEl', 0, 50);
     const drones = [];
-    if (au && au.live) drones.push(au.drone(82.4, 'sine', 0.01));
+    if (au) drones.push(au.drone(82.4, 'sine', 0.01));
     let lastRain = 0;
     function ensureGL() {
       if (K) return;
@@ -8564,7 +8583,7 @@ void main(){
     let nT = 0, C = null, s = null, key = '';
     const drag = dragSun(env, 'hEl', 0, 60);
     const drones = [];
-    if (au && au.live) drones.push(au.drone(146.8, 'sine', 0.008), au.drone(220, 'sine', 0.004));
+    if (au) drones.push(au.drone(146.8, 'sine', 0.008), au.drone(220, 'sine', 0.004));
     // huit couleurs : indice de la glace et couleur affichée (soleil × sensibilité de l'œil)
     const BANDS = [];
     { let sum = [0, 0, 0];
@@ -13211,7 +13230,7 @@ void main(){
 
     /* ───────── son ───────── */
     let drone = null;
-    if (snd()) { drone = au.drone(55, 'sine', 0); }
+    if (au) drone = au.drone(55, 'sine', 0);
 
     /* ───────── scènes et boucle ───────── */
     function setScene(id) {
@@ -13648,11 +13667,11 @@ void main(){
 
     /* ───────── son ───────── */
     let drone = null, wind = null;
-    if (snd()) {
+    if (au) au.whenLive(() => {
       drone = au.drone(55, 'sawtooth', 0); drone.cut(300);
       const c = au.ensure();
       if (c) { const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = 0.7; const g = c.createGain(); g.gain.value = 0.0001; s.connect(f); f.connect(g); g.connect(au.master); s.start(); wind = { s, f, g }; }
-    }
+    });
 
     /* ───────── boucle ───────── */
     function update(dt) {
@@ -17319,7 +17338,7 @@ void main(){
 
     /* ───────── son ───────── */
     let drone = null;
-    if (snd()) drone = au.drone(48, 'sine', 0);
+    if (au) drone = au.drone(48, 'sine', 0);
 
     /* ───────── boucle ───────── */
     function update(dt) {
@@ -18704,7 +18723,7 @@ void main(){
       if (DEC) toast('Les éclaireuses sortent. Aucune ne sait où est le sucre.');
       if (PONT) toast(keep.bridge === 'egal' ? 'Deux branches égales : laquelle la colonie choisira-t-elle ?' : 'Une branche courte, une longue. Aucune fourmi ne peut les comparer.');
       const drones = [];
-      if (au && au.live) drones.push(au.drone(73.4, 'sine', 0.018), au.drone(110, 'triangle', 0.005));
+      if (au) drones.push(au.drone(73.4, 'sine', 0.018), au.drone(110, 'triangle', 0.005));
 
       return {
         frame(t, dt) {
@@ -19392,7 +19411,7 @@ void main(){
     let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);
     quiet = false;
     const drones = [];
-    if (au && au.live) drones.push(au.drone(49, 'sine', 0.03), au.drone(73.4, 'sine', 0.014), au.drone(146.8, 'triangle', 0.004));
+    if (au) drones.push(au.drone(49, 'sine', 0.03), au.drone(73.4, 'sine', 0.014), au.drone(146.8, 'triangle', 0.004));
 
     return {
       frame(tt, dt) {
@@ -19766,7 +19785,7 @@ void main(){
     }
     quiet = false;
     const drones = [];
-    if (au && au.live) drones.push(au.drone(98, 'sine', 0.012), au.drone(147, 'sine', 0.006));
+    if (au) drones.push(au.drone(98, 'sine', 0.012), au.drone(147, 'sine', 0.006));
 
     function hud() {
       const v = V(), x0 = v.x0 + 16;
@@ -20304,7 +20323,7 @@ void main(){
 
     quiet = false;
     const drones = [];
-    if (au && au.live) drones.push(au.drone(65.4, 'sine', 0.02), au.drone(98, 'sine', 0.008));
+    if (au) drones.push(au.drone(65.4, 'sine', 0.02), au.drone(98, 'sine', 0.008));
     let lastCut = null;
     function cutAlong(a, b) {
       let n = 0;
@@ -20890,7 +20909,7 @@ void main(){
       quiet = false;
       let VT = 0, acc = 0, remT = 0, litT = 0, litDirty = false, dronT = 0, lastEat = 0;
       const drones = [];
-      if (au && au.live) drones.push(au.drone(55, 'sine', 0.03), au.drone(82.4, 'sine', 0.012));
+      if (au) drones.push(au.drone(55, 'sine', 0.03), au.drone(82.4, 'sine', 0.012));
 
       function cut(x, y) {
         const r = 12 * kS, gx = x / CS, gy = y / CS, R = r / CS;
@@ -22029,6 +22048,7 @@ void main(){
   }
   function disposeSim() {
     if (sim && sim.dispose) { try { sim.dispose(); } catch (e) { /* rien */ } }
+    if (audio && audio.clearWaiting) audio.clearWaiting();
     sim = null;
   }
   function build() {
@@ -22138,8 +22158,7 @@ void main(){
     S.sound = !S.sound;
     audio.setOn(S.sound);
     renderChrome();
-    // les bourdons des expériences sont recréés avec le son
-    disposeSim(); build();
+    // les nappes sonores des machines attendent le son : rien à reconstruire, la machine continue
   }
   /* thème : choix du visiteur, sinon celui de l'hôte (artefact claude.ai), sinon celui du système */
   const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;

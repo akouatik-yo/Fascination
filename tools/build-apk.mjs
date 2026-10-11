@@ -14,8 +14,10 @@ import os from 'node:os';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const AND = path.join(ROOT, 'android');
 const CACHE = path.join(os.homedir(), '.cache', 'fascinations-apk');
-const OUT = path.join(ROOT, 'dist', 'fascinations.apk');
-const W = path.join(os.tmpdir(), 'fascinations-apk-build');
+// node tools/build-apk.mjs jeunesse : Fascinations Labo (autre identifiant : les deux applications s'installent côte à côte)
+const JEUNE = process.argv[2] === 'jeunesse';
+const OUT = path.join(ROOT, 'dist', JEUNE ? 'fascinations-labo.apk' : 'fascinations.apk');
+const W = path.join(os.tmpdir(), JEUNE ? 'fascinations-labo-apk-build' : 'fascinations-apk-build');
 const M = 'https://repo1.maven.org/maven2';
 const TOOLS = {
   apktool: `${M}/org/apktool/apktool-cli/3.0.3/apktool-cli-3.0.3.jar`,
@@ -41,11 +43,16 @@ if (!fs.existsSync(AAPT2)) { run('unzip', ['-o', '-q', jar.apktool, 'prebuilt/li
 
 /* 2. l'application web, en un seul fichier, avec les polices en local */
 log('assemblage de l’application web');
-run('node', [path.join(ROOT, 'tools/build.mjs')]);
+run('node', [path.join(ROOT, 'tools/build.mjs'), JEUNE ? 'jeunesse' : 'adulte']);
 fs.rmSync(W, { recursive: true, force: true });
 const ASSETS = path.join(W, 'assets');
 fs.mkdirSync(ASSETS, { recursive: true });
-let html = fs.readFileSync(path.join(ROOT, 'dist/fascination.html'), 'utf8');
+let html = fs.readFileSync(path.join(ROOT, JEUNE ? 'dist/jeunesse.html' : 'dist/fascination.html'), 'utf8');
+if (JEUNE) {
+  // la version jeunesse embarque déjà ses polices (Atkinson Hyperlegible)
+  html = html.replace('</head>', '<script>window.FASC_APK = true;</script>\n</head>');
+  fs.writeFileSync(path.join(ASSETS, 'index.html'), html);
+} else {
 const FF = [['Space Grotesk', 'space-grotesk', [400, 500, 700]], ['JetBrains Mono', 'jetbrains-mono', [400, 500]]];
 let css = '';
 for (const [fam, base, ws] of FF) for (const w of ws) {
@@ -59,19 +66,31 @@ html = html.replace(/<link[^>]+fonts\.(googleapis|gstatic)\.com[^>]*>\s*/g, '');
 if (html.length === before) console.warn('  (aucun lien Google Fonts trouvé : vérifier les polices)');
 html = html.replace('</head>', `<style>\n${css}</style>\n<script>window.FASC_APK = true;</script>\n</head>`);
 fs.writeFileSync(path.join(ASSETS, 'index.html'), html);
+}
 
 /* 3. ressources et manifeste */
 log('ressources (aapt2)');
 const FLAT = path.join(W, 'res.zip');
-run(AAPT2, ['compile', '--dir', path.join(AND, 'res'), '-o', FLAT]);
+run(AAPT2, ['compile', '--dir', path.join(AND, JEUNE ? 'res-jeunesse' : 'res'), '-o', FLAT]);
 const UNSIGNED = path.join(W, 'base.apk');
-run(AAPT2, ['link', '-o', UNSIGNED, '-I', FRAMEWORK, '--manifest', path.join(AND, 'AndroidManifest.xml'), '-A', ASSETS, '--min-sdk-version', '24', '--target-sdk-version', '34', '--version-code', String(versionCode()), '--version-name', versionName(), FLAT]);
+let MANIF = path.join(AND, 'AndroidManifest.xml');
+if (JEUNE) {
+  MANIF = path.join(W, 'AndroidManifest.xml');
+  fs.writeFileSync(MANIF, fs.readFileSync(path.join(AND, 'AndroidManifest.xml'), 'utf8')
+    .replace('package="fr.fascinations.app"', 'package="fr.fascinations.labo"')
+    .replace('android:name=".MainActivity"', 'android:name="fr.fascinations.app.MainActivity"')
+    .replace('android:label="Fascinations"', 'android:label="Fascinations Labo"'));
+}
+run(AAPT2, ['link', '-o', UNSIGNED, '-I', FRAMEWORK, '--manifest', MANIF, '-A', ASSETS, '--min-sdk-version', '24', '--target-sdk-version', '34', '--version-code', String(versionCode()), '--version-name', versionName(), FLAT]);
 
 /* 4. le code : javac → dx */
 log('compilation Java et dx');
 const CLS = path.join(W, 'classes'); fs.mkdirSync(CLS);
 const srcs = listJava(path.join(AND, 'src'));
-run('javac', ['-nowarn', '--release', '8', '-cp', jar.android, '-d', CLS, ...srcs]);
+// l'annotation @JavascriptInterface (API 17) manque à l'android.jar de l'API 16 : une copie sert à compiler, sans entrer dans l'APK
+const STUB = path.join(W, 'stub'); fs.mkdirSync(STUB);
+run('javac', ['-nowarn', '--release', '8', '-d', STUB, ...listJava(path.join(AND, 'stubs'))]);
+run('javac', ['-nowarn', '--release', '8', '-cp', jar.android + ':' + STUB, '-d', CLS, ...srcs]);
 const DEX = path.join(W, 'dex'); fs.mkdirSync(DEX);
 run('java', ['-cp', jar.dx, 'com.android.dx.command.Main', '--dex', '--min-sdk-version=24', '--output=' + path.join(DEX, 'classes.dex'), CLS]);
 run('zip', ['-q', '-j', UNSIGNED, path.join(DEX, 'classes.dex')]);

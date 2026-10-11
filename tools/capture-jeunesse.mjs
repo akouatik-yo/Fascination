@@ -20,10 +20,11 @@ await p.waitForTimeout(2500);
 const shots = [];
 for (let k = 0; k < n; k++) {
   const info = await p.evaluate(async ({ id, k, sc }) => {
-    const T = window.FJ_TEST;
-    await T.ouvrir(id, { seed: 7000 + k * 13 });
-    if (sc) await T.changerScene(sc);
-    const S = T.S; return { scene: S.scene, nom: S.nom, regle: window.FJ.tirage(S.meta, 7000 + k * 13).regle };
+    const T = window.FJ_TEST, M = window.FJ.META[id];
+    // une scène imposée : on tire au hasard dans cette scène seulement (ses plages et ses graines), comme le ferait l'application
+    if (sc && M) window.FJ.META[id] = Object.assign({}, M, { scenes: { [sc]: M.scenes[sc] }, graines: (M.graines || []).filter((g) => g.scene === sc) });
+    try { await T.ouvrir(id, { seed: 7000 + k * 13 }); } finally { if (M) window.FJ.META[id] = M; }
+    const S = T.S; return { scene: S.scene, nom: S.nom, regle: window.FJ.tirage(sc && M ? Object.assign({}, M, { scenes: { [sc]: M.scenes[sc] }, graines: (M.graines || []).filter((g) => g.scene === sc) }) : M, 7000 + k * 13).regle };
   }, { id, k, sc: sceneArg });
   await p.evaluate(() => { const c = document.getElementById('carton'); if (c) c.hidden = true; });
   await p.waitForTimeout(attente);

@@ -62,7 +62,7 @@ FJ.fiche('harmono', {
   etsi: [
     { id: 'frottement', scene: 'harmono', question: 'Et si les pendules ne frottaient presque plus ?',
       choix: ['Le dessin reste grand plus longtemps', 'Le dessin rapetisse plus vite', 'Rien ne change'], bonne: 0,
-      prepare: { scene: 'harmono', regle: { frottement: 0.004, 'pendules/nouveau dessin avec ces reglages': true } }, regarde: 'Regarde la plume repasser sur le bord…', attente: 9,
+      prepare: { scene: 'harmono', regle: { frottement: 0.004, 'pendules/nouveau dessin avec ces reglages': true } }, regarde: 'Regarde la plume repasser sur le bord…', attente: 15,
       revele: 'Le dessin reste grand bien plus longtemps. Ce sont les frottements qui font perdre leur élan aux pendules : leurs balancements rapetissent, et la plume s’enroule vers le centre. C’est l’**amortissement**. Presque sans frottement, la plume repasse longtemps sur les mêmes grandes boucles.' },
     { id: 'branches', scene: 'spiro', question: 'Anneau de 96 dents, roue de 24 dents : combien de branches aura le dessin ?',
       choix: ['4', '6', '8'], bonne: 0,

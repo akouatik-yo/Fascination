@@ -339,7 +339,7 @@ void main(){
       'À la surface d’une mare, deux forces ramènent l’eau à plat : la pesanteur pour les vagues, la tension superficielle pour les petites rides. Les ondes les plus lentes avancent à 23 cm/s, pour une longueur d’onde de 1,7 cm : en dessous, ce sont des ondes capillaires, au-dessus des ondes de gravité. Ici, la simulation résout l’équation d’onde ; la profondeur règle la vitesse, comme dans une cuve à ondes.',
       'Les caustiques sont calculées rayon par rayon : la lumière du soleil traverse la surface, se plie selon l’indice de l’eau (1,33) et frappe le fond. Là où les rayons se resserrent, le fond s’illumine. Les pattes des gerris creusent de petites fossettes qui agissent comme des lentilles divergentes : au fond, chaque patte projette une ombre ronde cerclée de lumière.',
       'Comment les jeunes gerris avancent-ils, alors que leurs pattes vont moins vite que les ondes les plus lentes ? Ce « paradoxe de Denny » (1993) a été résolu en 2003 par David Hu, Brian Chan et John Bush : en ramant, le gerris lance surtout de petits tourbillons sous la surface. Ses pattes portent jusqu’à quinze fois son poids grâce à des milliers de poils striés.',
-      'En 1801, Thomas Young fait passer la lumière par deux fentes et observe des franges : la lumière se comporte comme une onde. La cuve à ondes rend l’expérience visible. Deux sources font naître des lignes calmes (nœuds) et des lignes agitées (ventres), des hyperboles ; une fente étroite fait s’épanouir l’onde, une plaque immergée la ralentit et la dévie, comme un prisme.',
+      'Au début des années 1800, Thomas Young fait passer la lumière par deux fentes et observe des franges : la lumière se comporte comme une onde. La cuve à ondes rend l’expérience visible. Deux sources font naître des lignes calmes (nœuds) et des lignes agitées (ventres), des hyperboles ; une fente étroite fait s’épanouir l’onde, une plaque immergée la ralentit et la dévie, comme un prisme.',
       'Quand on tape près d’une carpe, elle fuit en quelques millisecondes en se pliant en C : c’est le « départ en C », commandé par deux neurones géants, les cellules de Mauthner. Et le « plic » de la pluie vient d’une bulle d’air qui vibre à une fréquence d’environ 3,3 divisé par son rayon (Minnaert, 1933).',
     ],
     tools: [
@@ -1014,7 +1014,7 @@ void main(){
           L.push({ type: 'note', text: {
             deux: 'Deux sources en phase. Les lignes calmes (nœuds) dessinent des hyperboles : là, une crête rencontre toujours un creux.',
             fente: 'Une onde plane traverse une fente. Plus la fente est étroite devant la longueur d’onde, plus l’onde s’épanouit : c’est la diffraction.',
-            double: 'L’expérience de Thomas Young (1801), avec de l’eau : derrière deux fentes, des franges alternent.',
+            double: 'L’expérience de Thomas Young (début des années 1800), avec de l’eau : derrière deux fentes, des franges alternent.',
             refraction: 'Une plaque immergée rend l’eau moins profonde : l’onde y ralentit et change de direction, comme la lumière dans du verre.',
             lentille: 'Une zone peu profonde en forme de lentille ralentit le centre de l’onde : le front se courbe et converge vers un foyer.',
             doppler: 'La source se déplace : les crêtes se resserrent devant, s’espacent derrière. Plus vite que les ondes, elle trace un sillage en V, comme un bateau.',

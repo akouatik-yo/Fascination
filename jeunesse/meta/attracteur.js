@@ -8,7 +8,7 @@ FJ.fiche('attracteur', {
     lorenz: { nom: 'Le papillon de Lorenz', via: 'scenes/attracteurs', poids: 3, outil: 'perturber',
       regle: { systeme: 'lorenz' }, plages: { systeme: 'lorenz', chauffe: [26, 34], couleurs: ['feu', 'feu', 'glace', 'arcenciel', 'gris'], trainees: [0.65, 0.92], eclat: [0.8, 1.5], rotation: true },
       exposes: ['chauffe', 'couleurs', 'trainees', 'rotation'],
-      essaie: 'Touche l’écran : tous les points repartent du même endroit. Regarde-les se séparer.' },
+      essaie: 'Touche l’écran : tous les points repartent presque du même endroit. Regarde-les se séparer.' },
     autres: { nom: 'D’autres attracteurs', via: 'scenes/attracteurs', poids: 2, outil: 'tourner',
       regle: { systeme: 'aizawa' }, plages: { systeme: ['rossler', 'aizawa', 'thomas', 'halvorsen', 'dadras'], couleurs: ['feu', 'feu', 'glace', 'arcenciel', 'gris'], trainees: [0.65, 0.92], eclat: [0.8, 1.5], rotation: true },
       exposes: ['systeme', 'couleurs', 'trainees', 'eclat'],
@@ -43,7 +43,7 @@ FJ.fiche('attracteur', {
   },
   partGraines: 0.25,
   graines: [
-    { nom: 'Le papillon de Lorenz, avec les nombres de 1963', scene: 'lorenz', regle: { systeme: 'lorenz', couleurs: 'feu', trainees: 0.85 } },
+    { nom: 'Le papillon de Lorenz, avec les nombres de 1963', scene: 'lorenz', regle: { systeme: 'lorenz', chauffe: 28, couleurs: 'feu', trainees: 0.85 } },
     { nom: 'L’attracteur de Rössler, l’un des chaos les plus simples', scene: 'autres', regle: { systeme: 'rossler', couleurs: 'glace' } },
     { nom: 'L’attracteur de Thomas, symétrique dans les trois directions', scene: 'autres', regle: { systeme: 'thomas', couleurs: 'arcenciel' } },
     { nom: 'Une dentelle de Peter de Jong', scene: 'plans', regle: { formule: 'dejong' } },

@@ -1,7 +1,7 @@
 /* Le Monde quantique — fiche jeunesse */
 FJ.fiche('quantique', {
   nom: 'Le Monde quantique',
-  question: 'Une particule peut-elle passer par deux fentes à la fois ?',
+  question: 'Pourquoi des particules lancées une à une dessinent-elles des bandes ?',
   outil: 'observer',
   scenes: {
     fentes: { nom: 'Les deux fentes', via: 'scenes/double fente', poids: 3, outil: 'observer', outils: ['observer'],
@@ -62,7 +62,7 @@ FJ.fiche('quantique', {
     { nom: 'Un nuage qui oscille', icone: 'spirale', scene: 'orbitales', regle: { 'orbitale/superposer 1s 2p': true } },
   ],
   pourquoi: {
-    etincelle: 'Tout petit, un électron se propage comme une vague qui passe partout ; mais quand on le détecte, il apparaît en un seul point.',
+    etincelle: 'Tout petit, un électron se propage comme une vague qui s’étale ; mais quand on le détecte, il apparaît en un seul point.',
     texte: 'À l’échelle des atomes, le monde ne marche plus comme le nôtre. Un électron lancé vers deux fentes se propage comme une vague : elle passe par les deux et se superpose à elle-même. Pourtant, sur l’écran, chaque électron arrive en un seul point, au hasard. Point après point, des bandes se dessinent. C’est la **mécanique quantique**.\n\nCette physique n’est pas au programme du collège, et elle étonne même les spécialistes. Elle marche pourtant très bien : sans elle, pas de puces électroniques ni de lasers. Ici, tout est énormément ralenti : un vrai électron traverserait l’écran en un millionième de milliardième de seconde.',
     vraie: 'En 1989, au Japon, Akira Tonomura et son équipe envoient des électrons un par un dans un appareil qui joue le rôle des deux fentes. Au début, les points semblent tomber n’importe où. Après des milliers d’électrons, des bandes apparaissent, exactement comme dans la machine.',
   },

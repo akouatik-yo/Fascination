@@ -78,8 +78,8 @@ FJ.fiche('fluide', {
   ],
   pourquoi: {
     etincelle: 'Quand l’eau va vite et colle peu, elle ne contourne plus l’obstacle en douceur : elle se déchire en tourbillons.',
-    texte: 'Derrière un rocher, l’eau tourne en tourbillons qui partent un coup à gauche, un coup à droite. Tout dépend de deux choses : la vitesse du liquide et à quel point il est épais. Le miel, lent et collant, glisse en douceur autour de l’obstacle. L’eau, rapide et fluide, se déchire en remous. Les physiciens résument ça par un seul nombre, le **nombre de Reynolds** : plus il est grand, plus ça tourbillonne.\n\nIci, l’eau est simulée à plat. Les équations des liquides sont connues depuis deux siècles, mais personne n’a encore prouvé qu’elles marchent toujours sans accroc : un million de dollars attend qui y parviendra.',
-    vraie: 'En 1883, l’ingénieur anglais Osborne Reynolds fait couler de l’eau dans un tube de verre et y injecte un mince filet d’encre. Quand l’eau coule lentement, le filet reste bien droit. Plus vite, il se brise d’un coup en tourbillons, et l’encre envahit tout le tube.',
+    texte: 'Derrière un rocher, l’eau tourne en tourbillons qui partent un coup à gauche, un coup à droite. Tout dépend de deux choses : la vitesse du liquide et à quel point il est épais. Le miel, lent et collant, glisse en douceur autour de l’obstacle. L’eau, rapide et fluide, se déchire en remous. Les physiciens résument ça par un seul nombre, le **nombre de Reynolds** : plus il est grand, plus ça tourbillonne.\n\nIci, l’eau est simulée à plat. Les équations des liquides sont connues depuis deux siècles, mais personne n’a encore prouvé qu’en trois dimensions, elles marchent toujours sans accroc : un million de dollars attend qui y parviendra.',
+    vraie: 'En 1883, l’ingénieur britannique Osborne Reynolds fait couler de l’eau dans un tube de verre et y injecte un mince filet d’encre. Quand l’eau coule lentement, le filet reste bien droit. Plus vite, il se brise d’un coup en tourbillons, et l’encre envahit tout le tube.',
   },
   etsi: [
     { id: 'taylor', scene: 'taylor', question: 'Et si on tournait la manivelle à l’envers, après avoir tout étalé ?',

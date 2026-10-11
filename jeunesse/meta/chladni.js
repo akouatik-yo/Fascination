@@ -60,7 +60,7 @@ FJ.fiche('chladni', {
     { nom: 'Vagues de flammes', icone: 'flamme', scene: 'tube', regle: { 'tube/12 demi ondes': true, puissance: 1.1 } },
   ],
   pourquoi: {
-    etincelle: 'Le sable fuit les endroits qui vibrent et s’arrête sur les lignes où la plaque ne bouge pas.',
+    etincelle: 'Le sable est chassé des endroits qui vibrent et s’arrête sur les lignes où la plaque ne bouge pas.',
     texte: 'Une plaque de métal qui vibre ne bouge pas partout pareil. Certaines zones s’agitent très fort, d’autres restent immobiles. Le sable rebondit sur les zones qui vibrent et glisse peu à peu vers celles qui ne bougent pas. Il dessine ces lignes immobiles : les **lignes nodales**.\n\nUne plaque vibre très fort seulement pour certaines notes, et chacune a son dessin. Plus le son est aigu, plus les lignes sont nombreuses et serrées. Entre ces notes, le sable bouge à peine. Dans l’eau et dans le tube de flammes, le son forme aussi des vagues qui restent sur place. La machine simplifie : une vraie plaque donne des dessins un peu différents.',
     vraie: 'Ernst Chladni montre ses figures de sable à Napoléon, à Paris, vers 1809. L’empereur fait offrir un prix à qui les expliquera. Sophie Germain le remporte en 1816, à sa troisième tentative, avec une théorie encore incomplète.',
   },

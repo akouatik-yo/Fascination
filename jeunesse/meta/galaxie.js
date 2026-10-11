@@ -77,7 +77,7 @@ FJ.fiche('galaxie', {
     { id: 'queues', scene: 'collision', question: 'Et si deux galaxies se frôlaient : que deviendraient leurs étoiles ?',
       choix: ['Elles se cognent et explosent', 'Elles sont étirées en longues queues', 'Rien ne change'], bonne: 1,
       prepare: { scene: 'collision', regle: { scenario: 'antennes', vitesseC: 1.2 } }, regarde: 'Regarde les deux galaxies se frôler…', attente: 16,
-      revele: 'Elles sont étirées en longues queues ! Les étoiles sont si éloignées les unes des autres qu’elles ne se heurtent presque jamais. Mais la gravité de l’autre galaxie tire plus fort sur le côté le plus proche : c’est une **marée**, comme celle que la Lune fait sur nos océans. Les Antennes, dans le ciel, ont exactement cette forme.' },
+      revele: 'Elles sont étirées en longues queues ! Les étoiles sont si éloignées les unes des autres qu’elles ne se heurtent presque jamais. Mais la gravité de l’autre galaxie tire plus fort sur le côté le plus proche : c’est une **marée**, comme celle que la Lune fait sur nos océans. Les Antennes, dans le ciel, ont cette forme.' },
   ],
   rotation: 'recreer',
 });

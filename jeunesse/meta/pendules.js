@@ -56,7 +56,7 @@ FJ.fiche('pendules', {
   ],
   pourquoi: {
     etincelle: 'Chaque pendule a son propre rythme, fixé par sa longueur : en se décalant, ils dessinent des vagues.',
-    texte: 'Un pendule qui ne part pas de trop haut met toujours le même temps pour faire un aller-retour. Ce temps ne dépend que de sa longueur : plus il est long, plus il est lent. Son poids n’y change rien. Ce temps s’appelle la **période**.\n\nIci, chaque pendule est un peu plus court que son voisin. En une minute, le plus long fait 51 allers-retours, le suivant 52, puis 53… Lâchés ensemble, ils se décalent peu à peu : vagues, serpents, deux rangées. Au bout d’une minute, tous se retrouvent alignés. Dans la machine, les pendules sont parfaits : sans frottement, ils ne s’arrêtent jamais.',
+    texte: 'Un pendule qui ne part pas de trop haut met toujours le même temps pour faire un aller-retour. Sur Terre, ce temps ne dépend que de sa longueur : plus il est long, plus il est lent. Son poids n’y change rien. Ce temps s’appelle la **période**.\n\nIci, chaque pendule est un peu plus court que son voisin. En une minute, le plus long fait 51 allers-retours, le suivant 52, puis 53… Lâchés ensemble, ils se décalent peu à peu : vagues, serpents, deux rangées. Au bout d’une minute, tous se retrouvent alignés. Dans la machine, les pendules sont parfaits : sans frottement, ils ne s’arrêtent jamais.',
     vraie: 'On raconte que le jeune Galilée, dans la cathédrale de Pise, a regardé un lustre se balancer en comptant les battements de son pouls. Grands ou petits, les balancements duraient le même temps. C’est peut-être une légende, mais Galilée a vraiment étudié les pendules toute sa vie.',
   },
   etsi: [

@@ -6,7 +6,7 @@ FJ.fiche('tunnel', {
   scenes: {
     relat: { nom: 'Presque à la vitesse de la lumière', via: 'scenes/vers la vitesse de la lumiere', poids: 3, outil: 'accelerer',
       exposes: ['lorentz', 'auto', 'aberration', 'doppler'],
-      plages: { lorentz: [0.7, 1.7], auto: false, vision: [1.4, 2.2], aberration: true, doppler: true },
+      plages: { lorentz: [0.7, 1.1], auto: false, vision: [1.4, 2.2], aberration: true, doppler: true },
       essaie: 'Garde le doigt appuyé pour accélérer : regarde les étoiles se resserrer devant toi.' },
     worm: { nom: 'Le trou de ver', via: 'scenes/trou de ver', poids: 2, outil: 'piloter',
       exposes: ['position', 'wauto', 'wvitesse'],
@@ -58,7 +58,7 @@ FJ.fiche('tunnel', {
   pourquoi: {
     etincelle: 'À très grande vitesse, la lumière des étoiles semble venir de devant : le ciel se resserre devant toi et bleuit.',
     texte: 'Quand tu cours sous la pluie, les gouttes semblent tomber de face. Avec la lumière, c’est pareil : plus le vaisseau va vite, plus les étoiles semblent venir de devant. Le ciel se resserre vers l’avant, bleuit et brille, et l’arrière s’éteint. C’est l’**aberration** de la lumière, calculée avec la relativité d’Einstein. Cette partie-là est de la vraie physique.\n\nLe trou de ver, lui, est une hypothèse : les équations l’autorisent, mais personne n’en a jamais vu, et on ne sait pas comment en garder un ouvert. La porte des étoiles et le tunnel des démos sont de purs effets visuels, inventés pour le cinéma et pour le plaisir.',
-    vraie: 'À la fin des années 1720, l’astronome anglais James Bradley remarque que les étoiles se décalent un tout petit peu au fil de l’année. Il comprend pourquoi : la Terre tourne autour du Soleil, et sa vitesse change la direction d’où semble venir leur lumière. C’est l’effet de la machine, en des milliers de fois plus faible.',
+    vraie: 'À la fin des années 1720, l’astronome anglais James Bradley remarque que les étoiles se décalent un tout petit peu au fil de l’année. Il comprend pourquoi : la Terre tourne autour du Soleil, et sa vitesse change la direction d’où semble venir leur lumière. C’est l’effet de la machine, mais des milliers de fois plus faible.',
   },
   etsi: [
     { id: 'aberration', scene: 'relat', question: 'Et si le vaisseau filait à 99,9 % de la vitesse de la lumière : où verrais-tu les étoiles ?',

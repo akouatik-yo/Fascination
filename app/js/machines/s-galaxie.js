@@ -399,7 +399,7 @@ void main(){
 
     /* ───────── son ───────── */
     let drone = null;
-    if (snd()) { drone = au.drone(55, 'sine', 0); }
+    if (au) drone = au.drone(55, 'sine', 0);
 
     /* ───────── scènes et boucle ───────── */
     function setScene(id) {

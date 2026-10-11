@@ -248,7 +248,7 @@ void main(){ vec4 a = texture(uA, vUv); if (a.a > 1.5){ o = vec4(0., 0., 0., 1.)
     const trees = Array.from({ length: Math.round(W / 70) }, () => [rnd(W), rnd(1.2, 0.6)]);
     const drag = dragSun(env, 'el', -18, 60);
     const drones = [];
-    if (au && au.live) drones.push(au.drone(110, 'sine', 0.012), au.drone(164.8, 'sine', 0.007));
+    if (au) drones.push(au.drone(110, 'sine', 0.012), au.drone(164.8, 'sine', 0.007));
 
     function cam() {
       const v = env.view || { x0: 0, x1: W };
@@ -382,7 +382,7 @@ void main(){
     let T = 0, dirty = true;
     const drag = dragSun(env, 'rbEl', 0, 50);
     const drones = [];
-    if (au && au.live) drones.push(au.drone(82.4, 'sine', 0.01));
+    if (au) drones.push(au.drone(82.4, 'sine', 0.01));
     let lastRain = 0;
     function ensureGL() {
       if (K) return;
@@ -554,7 +554,7 @@ void main(){
     let nT = 0, C = null, s = null, key = '';
     const drag = dragSun(env, 'hEl', 0, 60);
     const drones = [];
-    if (au && au.live) drones.push(au.drone(146.8, 'sine', 0.008), au.drone(220, 'sine', 0.004));
+    if (au) drones.push(au.drone(146.8, 'sine', 0.008), au.drone(220, 'sine', 0.004));
     // huit couleurs : indice de la glace et couleur affichée (soleil × sensibilité de l'œil)
     const BANDS = [];
     { let sum = [0, 0, 0];

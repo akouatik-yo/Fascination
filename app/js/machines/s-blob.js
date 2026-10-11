@@ -502,7 +502,7 @@
       quiet = false;
       let VT = 0, acc = 0, remT = 0, litT = 0, litDirty = false, dronT = 0, lastEat = 0;
       const drones = [];
-      if (au && au.live) drones.push(au.drone(55, 'sine', 0.03), au.drone(82.4, 'sine', 0.012));
+      if (au) drones.push(au.drone(55, 'sine', 0.03), au.drone(82.4, 'sine', 0.012));
 
       function cut(x, y) {
         const r = 12 * kS, gx = x / CS, gy = y / CS, R = r / CS;

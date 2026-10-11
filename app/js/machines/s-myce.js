@@ -579,7 +579,7 @@
     let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);
     quiet = false;
     const drones = [];
-    if (au && au.live) drones.push(au.drone(49, 'sine', 0.03), au.drone(73.4, 'sine', 0.014), au.drone(146.8, 'triangle', 0.004));
+    if (au) drones.push(au.drone(49, 'sine', 0.03), au.drone(73.4, 'sine', 0.014), au.drone(146.8, 'triangle', 0.004));
 
     return {
       frame(tt, dt) {

@@ -469,7 +469,7 @@ void main(){
 
     /* ───────── son ───────── */
     let drone = null;
-    if (snd()) drone = au.drone(48, 'sine', 0);
+    if (au) drone = au.drone(48, 'sine', 0);
 
     /* ───────── boucle ───────── */
     function update(dt) {

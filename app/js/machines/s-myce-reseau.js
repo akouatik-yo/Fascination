@@ -396,7 +396,7 @@
 
     quiet = false;
     const drones = [];
-    if (au && au.live) drones.push(au.drone(65.4, 'sine', 0.02), au.drone(98, 'sine', 0.008));
+    if (au) drones.push(au.drone(65.4, 'sine', 0.02), au.drone(98, 'sine', 0.008));
     let lastCut = null;
     function cutAlong(a, b) {
       let n = 0;

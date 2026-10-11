@@ -92,7 +92,7 @@
   const scale = (i, root) => (root || 110) * Math.pow(2, PENTA[((i % PENTA.length) + PENTA.length) % PENTA.length] / 12);
 
   class SoundKit {
-    constructor() { this.ctx = null; this.on = false; this.analyser = null; this._noise = null; }
+    constructor() { this.ctx = null; this.on = false; this.analyser = null; this._noise = null; this._wait = []; this._live = []; }
     ensure() {
       if (!this.ctx && !this.on) return null;
       if (!this.ctx) {
@@ -111,8 +111,15 @@
       }
       if (this.ctx.state === 'suspended') this.ctx.resume();
       this.master.gain.setTargetAtTime(this.on ? 0.55 : 0.0001, this.ctx.currentTime, 0.08);
+      // les nappes demandées pendant que le son était coupé démarrent maintenant
+      if (this._wait.length) { const w = this._wait; this._wait = []; for (const h of w) if (!h.dead) h.real = this._drone(h.f, h.type, h.g); }
+      if (this.on && this._live.length) { const l = this._live; this._live = []; for (const fn of l) { try { fn(); } catch (e) { console.warn(e); } } }
       return this.ctx;
     }
+    // ambiance d'une machine : tout de suite si le son est là, sinon au moment où on l'allumera
+    whenLive(fn) { if (this.on && this.ctx) fn(); else this._live.push(fn); }
+    // la machine change : ce qui attendait le son pour elle est oublié
+    clearWaiting() { for (const h of this._wait) h.dead = true; this._wait = []; this._live = []; }
     setOn(v) {
       this.on = !!v;
       if (v) this.ensure();
@@ -169,9 +176,21 @@
       s.connect(bq); bq.connect(v); v.connect(this.master);
       s.start(t); s.stop(t + dur + 0.05);
     }
+    // une nappe : si le son est encore coupé (pas de contexte audio), elle attend et démarrera quand on l'allumera,
+    // sans qu'il faille reconstruire la machine
     drone(f, type = 'sine', g = 0.1) {
-      const c = this.ensure();
-      if (!c) return { set() {}, gain() {}, cut() {}, stop() {} };
+      if (this.ensure()) return this._drone(f, type, g);
+      const h = { f, type, g, real: null, dead: false };
+      this._wait.push(h);
+      return {
+        set: (nf) => { h.f = nf; if (h.real) h.real.set(nf); },
+        gain: (ng) => { h.g = ng; if (h.real) h.real.gain(ng); },
+        cut: (nc) => { if (h.real) h.real.cut(nc); },
+        stop: () => { h.dead = true; if (h.real) h.real.stop(); },
+      };
+    }
+    _drone(f, type, g) {
+      const c = this.ctx;
       const o = c.createOscillator(), v = c.createGain(), lp = c.createBiquadFilter();
       lp.type = 'lowpass'; lp.frequency.value = 1800;
       o.type = type; o.frequency.value = f;

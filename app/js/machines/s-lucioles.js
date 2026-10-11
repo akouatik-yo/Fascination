@@ -443,7 +443,7 @@
       let syncC = 0, rPt = 0, statT = 0, cricT = 1, frogT = 6, lastC = 0, lastP = 0;
       quiet = false;
       const drones = [];
-      if (au && au.live) drones.push(au.drone(65.4, 'sine', 0.012), au.drone(98, 'sine', 0.005));
+      if (au) drones.push(au.drone(65.4, 'sine', 0.012), au.drone(98, 'sine', 0.005));
 
       return {
         frame(tt, dt) {

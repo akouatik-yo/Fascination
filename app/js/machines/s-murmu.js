@@ -431,7 +431,7 @@
       quiet = false;
       let impT = 4, windT = 0.5, chatT = 0.3, waveT = 3, alarmFrac = 0, polar = 0, statT = 0;
       const drones = [];
-      if (au && au.live) drones.push(au.drone(73.4, 'sine', 0.008));
+      if (au) drones.push(au.drone(73.4, 'sine', 0.008));
 
       return {
         frame(tt, dt) {

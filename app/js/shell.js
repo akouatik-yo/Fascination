@@ -133,6 +133,7 @@
   }
   function disposeSim() {
     if (sim && sim.dispose) { try { sim.dispose(); } catch (e) { /* rien */ } }
+    if (audio && audio.clearWaiting) audio.clearWaiting();
     sim = null;
   }
   function build() {
@@ -242,8 +243,7 @@
     S.sound = !S.sound;
     audio.setOn(S.sound);
     renderChrome();
-    // les bourdons des expériences sont recréés avec le son
-    disposeSim(); build();
+    // les nappes sonores des machines attendent le son : rien à reconstruire, la machine continue
   }
   /* thème : choix du visiteur, sinon celui de l'hôte (artefact claude.ai), sinon celui du système */
   const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;

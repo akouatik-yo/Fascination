@@ -232,7 +232,7 @@
     }
     quiet = false;
     const drones = [];
-    if (au && au.live) drones.push(au.drone(98, 'sine', 0.012), au.drone(147, 'sine', 0.006));
+    if (au) drones.push(au.drone(98, 'sine', 0.012), au.drone(147, 'sine', 0.006));
 
     function hud() {
       const v = V(), x0 = v.x0 + 16;

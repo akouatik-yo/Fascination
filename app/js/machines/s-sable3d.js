@@ -414,7 +414,7 @@ void main(){
 
     /* ───────── un pas ───────── */
     let shd = null, hiss = null, boom = null;
-    if (snd()) {
+    if (au) au.whenLive(() => {
       const c = au.ensure();
       if (c) {
         const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true;
@@ -422,7 +422,7 @@ void main(){
         const g = c.createGain(); g.gain.value = 0.0001; s.connect(f); f.connect(g); g.connect(au.master); s.start();
         hiss = { s, g }; boom = au.drone(90, 'sawtooth', 0);
       }
-    }
+    });
     function step(dt) {
       VT += dt;
       if (cfg.orbit) cfg.az = (cfg.az + dt * 0.006) % 1;

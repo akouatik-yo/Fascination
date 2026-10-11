@@ -556,7 +556,7 @@ void main(){
 
     /* ───────── sons : chant éolien et eau qui coule ───────── */
     let aeol = null, water = null;
-    if (snd()) {
+    if (au) au.whenLive(() => {
       aeol = au.drone(220, 'sine', 0);
       const c = au.ensure();
       if (c) {
@@ -566,7 +566,7 @@ void main(){
         s.connect(f); f.connect(gg); gg.connect(au.master); s.start();
         water = { s, f, gg };
       }
-    }
+    });
     const U = () => (15 + cfg.speed * 85) * (R.GVH / 100); // vitesse d'entrée, en cellules par seconde
     const nu = () => cfg.visc * cfg.visc * 6; // viscosité explicite, en cellules² par seconde
     function reynolds(o) { const D = (o.size / W) * R.GVW, nuEff = nu() + 0.06 * U(); return (U() * D) / nuEff; }

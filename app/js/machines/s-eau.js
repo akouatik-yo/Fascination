@@ -534,7 +534,7 @@ void main(){
 
     /* ───────── sons ───────── */
     let amb = null, lastPlink = 0, plinkN = 0;
-    if (snd()) {
+    if (au) au.whenLive(() => {
       const c = au.ensure();
       if (c) {
         const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true;
@@ -543,7 +543,7 @@ void main(){
         s.connect(hp); hp.connect(gg); gg.connect(au.master); s.start();
         amb = { s, hp, gg };
       }
-    }
+    });
     function plink(r) {
       if (!snd()) return;
       if (VT - lastPlink < 0.03) { if (++plinkN > 3) return; } else plinkN = 0;

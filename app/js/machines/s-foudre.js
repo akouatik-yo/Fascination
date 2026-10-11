@@ -483,7 +483,7 @@ void main(){
       rainS = { s, gg };
       hum = au.drone(100, 'sawtooth', 0); hum.cut(380);
     }
-    startAmb();
+    if (au) au.whenLive(startAmb);
 
     /* ───────── paysage (sombre et éclairé) ───────── */
     function seeded(s) { return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }

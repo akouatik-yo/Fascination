@@ -910,7 +910,7 @@ void main(){
       const NP = R.Q.side * R.Q.side;
       burst = { x, y, p: Math.min(0.5, (n * (cfg.sparks ? 1 : 0)) / NP), s: speed * kS };
     }
-    if (snd()) {
+    if (au) au.whenLive(() => {
       const c = au.ensure();
       if (c) {
         const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true;
@@ -920,7 +920,7 @@ void main(){
         s.connect(lp); lp.connect(lp2); lp2.connect(gg); gg.connect(au.master); s.start();
         roar = { s, lp, gg };
       }
-    }
+    });
     function feed() {
       if (E.length >= 16) return;
       lastAdd = VT;

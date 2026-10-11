@@ -414,7 +414,7 @@
 
       /* ───────── sons : sable qui coule, dune qui chante ───────── */
       let hiss = null, boom = null;
-      if (snd()) {
+      if (au) au.whenLive(() => {
         const c = au.ensure();
         if (c) {
           const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true;
@@ -424,7 +424,7 @@
           hiss = { s, gg };
           boom = au.drone(88, 'sawtooth', 0);
         }
-      }
+      });
 
       /* ───────── le vivant : fourmilions et fourmis ───────── */
       let VT = 0, antT = 2;

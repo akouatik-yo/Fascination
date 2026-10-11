@@ -261,11 +261,11 @@ void main(){
 
     /* ───────── son ───────── */
     let drone = null, wind = null;
-    if (snd()) {
+    if (au) au.whenLive(() => {
       drone = au.drone(55, 'sawtooth', 0); drone.cut(300);
       const c = au.ensure();
       if (c) { const s = c.createBufferSource(); s.buffer = au.noiseBuf(); s.loop = true; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = 0.7; const g = c.createGain(); g.gain.value = 0.0001; s.connect(f); f.connect(g); g.connect(au.master); s.start(); wind = { s, f, g }; }
-    }
+    });
 
     /* ───────── boucle ───────── */
     function update(dt) {

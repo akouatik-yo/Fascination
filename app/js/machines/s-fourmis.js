@@ -907,7 +907,7 @@
       if (DEC) toast('Les éclaireuses sortent. Aucune ne sait où est le sucre.');
       if (PONT) toast(keep.bridge === 'egal' ? 'Deux branches égales : laquelle la colonie choisira-t-elle ?' : 'Une branche courte, une longue. Aucune fourmi ne peut les comparer.');
       const drones = [];
-      if (au && au.live) drones.push(au.drone(73.4, 'sine', 0.018), au.drone(110, 'triangle', 0.005));
+      if (au) drones.push(au.drone(73.4, 'sine', 0.018), au.drone(110, 'triangle', 0.005));
 
       return {
         frame(t, dt) {

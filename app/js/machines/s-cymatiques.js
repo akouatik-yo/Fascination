@@ -285,7 +285,7 @@ void main(){
       else { const wp = waterParams(); ctx.fillStyle = ink() ? 'rgba(40,30,60,.8)' : 'rgba(235,230,255,.8)'; ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillText(`SURFACE D’EAU · SYMÉTRIE D’ORDRE ${wp.fold}${wp.fold % 2 ? ' (MOTIF QUASI CRISTALLIN)' : wp.fold > 6 ? ' (QUASI-CRISTAL)' : ''} · ${wp.f} HZ IMPOSÉS, L’EAU RÉPOND À ${Math.round(wp.f / 2)} HZ`, view().x0 + 20, H - 18); }
       hudToast();
     }
-    function hudToast() { if (toast && T - toast.t < 4) { const v = view(); ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = ink() ? '#2a2238' : '#fff'; ctx.fillText(toast.s, v.cx, 72); ctx.textAlign = 'left'; ctx.globalAlpha = 1; } }
+    function hudToast() { if (toast && T - toast.t < 4) { const v = view(); ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = ink() ? '#2a2238' : '#fff'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 72); ctx.textAlign = 'left'; ctx.globalAlpha = 1; } }
     function setScene(id) { keep.scene = id; toast = null; if (id === 'chladni') { modes = modesFor(keep.shape); grainsInit(); } }
 
     if (window.FASC_DEBUG) window.FASC_DEBUG.cym = { keep, setScene, run(n, h) { for (let i = 0; i < n; i++) update(h / 0.4); render(); }, setShape(s) { keep.shape = s; modes = modesFor(s); grainsInit(); }, get modes() { return modes; } };

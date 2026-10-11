@@ -171,7 +171,7 @@
         const [a, b] = RATIOS[keep.ratio];
         ctx.fillText(`${RATIOS[keep.ratio][2].toUpperCase()} ${a}:${b} · DÉSACCORD ${fr(keep.det * 100, 1)} % · AMORTISSEMENT ${fr(keep.damp, 3)} /S${keep.rotary ? ' · TABLE TOURNANTE' : ''}${done ? ' · TERMINÉ' : ''}`, v.x0 + 18, H - 16);
       } else if (SP) ctx.fillText(`ANNEAU ${SP.R} DENTS · ROUE ${SP.r} DENTS · PGCD ${gcd(SP.R, SP.r)} → ${SP.R / gcd(SP.R, SP.r)} BRANCHES EN ${SP.turns} TOURS${keep.outside ? ' · ROUE À L’EXTÉRIEUR' : ''}`, v.x0 + 18, H - 16);
-      if (toast && T - toast.t < 4) { ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 4) { ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
     function gear(cx, cy, r, teeth, rot, inner) {
       ctx.beginPath();

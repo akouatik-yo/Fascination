@@ -185,7 +185,7 @@ void main(){
       ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
       ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.fillStyle = ink() ? 'rgba(40,30,60,.75)' : 'rgba(235,230,255,.7)';
       ctx.fillText(`${MIRRORS[keep.mirror].label.toUpperCase()} · ${pieces.length} ${keep.obj === 'perles' ? 'PERLES' : 'OBJETS'} DANS LA CELLULE`, v.x0 + 18, H - 16);
-      if (toast && T - toast.t < 3) { ctx.globalAlpha = Math.min(1, (3 - (T - toast.t)) * 1.5); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 3) { ctx.globalAlpha = Math.min(1, (3 - (T - toast.t)) * 1.5); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
     function update(k) {
       T += k;

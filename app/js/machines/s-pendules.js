@@ -155,7 +155,7 @@
       const cc = C();
       if (bare()) { ctx.fillStyle = cc.bg0; ctx.fillRect(0, 0, W, H); } else { const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, cc.bg0); g.addColorStop(1, cc.bg1); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
       if (keep.scene === 'vague') drawPend(cc); else drawRings(cc);
-      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = null;
       if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = H - 58; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = cc.acc; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = cc.acc; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
     }

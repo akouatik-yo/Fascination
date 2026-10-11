@@ -415,7 +415,7 @@
       if (keep.scene === 'spectro') drawSpectro(cc);
       else if (keep.scene === 'liss') drawLiss(cc, lastK);
       else drawTimbre(cc);
-      if (toast && T - toast.t < 5) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 50); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 5) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 50); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = soundHint(cc);
       lastK = 0;
     }

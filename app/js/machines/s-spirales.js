@@ -279,7 +279,7 @@ void main(){
       } else if (keep.scene === 'bz') ctx.fillText('RÉACTION DE BELOUSOV-ZHABOTINSKY · TOUCHEZ POUR EXCITER, COUPEZ UN FRONT POUR FAIRE UNE SPIRALE', v.x0 + 20, H - 16);
       else if (keep.scene === 'dicty') ctx.fillText(`DICTYOSTELIUM · ${(AW * AW * keep.agents).toLocaleString('fr-FR')} AMIBES QUI SE RELAIENT L’AMPC ET MARCHENT VERS SA SOURCE`, v.x0 + 20, H - 16);
       else ctx.fillText(`AUTOMATE CYCLIQUE À ${keep.ns} ÉTATS · TOUCHEZ POUR SEMER LE DÉSORDRE`, v.x0 + 20, H - 16);
-      if (toast && T - toast.t < 5) { ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, 72); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 5) { ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 72); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
 
     /* ───────── démarrages ───────── */

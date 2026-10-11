@@ -864,7 +864,7 @@
           // moyenne des dix dernières secondes
           let su = 0, sd = 0; for (const [t, u, d] of brHist) if (T - t < 10) { su += u; sd += d; }
           const tot = su + sd, pu = tot ? su / tot : 0.5;
-          const bw = Math.min(460, (v.x1 - v.x0) * 0.6), bx = v.x0 + (v.x1 - v.x0) / 2 - bw / 2, by = 70;
+          const bw = Math.min(460, (v.x1 - v.x0) * 0.6), bx = v.x0 + (v.x1 - v.x0) / 2 - bw / 2, by = ((env.view && env.view.y0) || 0) + 70;
           ctx.fillStyle = 'rgba(14,10,6,.62)'; ctx.fillRect(bx - 10, by - 18, bw + 20, 62);
           ctx.fillStyle = 'rgba(255,200,110,.9)'; ctx.fillRect(bx, by, bw * pu, 12);
           ctx.fillStyle = 'rgba(140,180,255,.85)'; ctx.fillRect(bx + bw * pu, by, bw * (1 - pu), 12);
@@ -883,8 +883,8 @@
         if (toastM && T - toastM.t < 6) {
           const a = Math.min(1, (6 - (T - toastM.t)) * 1.2), cx = (v.x0 + v.x1) / 2;
           ctx.globalAlpha = a; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toastM.m).width;
-          ctx.fillStyle = 'rgba(14,10,6,.7)'; ctx.fillRect(cx - w / 2 - 12, PONT ? 128 : 54, w + 24, 28);
-          ctx.fillStyle = '#fff3e0'; ctx.textAlign = 'center'; ctx.fillText(toastM.m, cx, PONT ? 147 : 73); ctx.globalAlpha = 1;
+          ctx.fillStyle = 'rgba(14,10,6,.7)'; ctx.fillRect(cx - w / 2 - 12, ((env.view && env.view.y0) || 0) + (PONT ? 128 : 54), w + 24, 28);
+          ctx.fillStyle = '#fff3e0'; ctx.textAlign = 'center'; ctx.fillText(toastM.m, cx, ((env.view && env.view.y0) || 0) + (PONT ? 147 : 73)); ctx.globalAlpha = 1;
         }
         ctx.restore();
       }

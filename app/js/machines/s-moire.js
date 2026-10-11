@@ -187,7 +187,7 @@ void main(){
     }
     function render() {
       if (keep.scene === 'trans') renderTrans(); else drawScan();
-      if (toast && T - toast.t < 6) { const v = view(); ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = ink() ? 'rgba(255,255,255,.85)' : 'rgba(6,6,12,.7)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = ink() ? '#2a2238' : '#fff'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 6) { const v = view(); ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = ink() ? 'rgba(255,255,255,.85)' : 'rgba(6,6,12,.7)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = ink() ? '#2a2238' : '#fff'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
     function update(k) { T += k; if (keep.scene === 'scan' && keep.slide && !drag) slideX -= k * band * 9; }
     function setScene(id) { keep.scene = id; toast = null; if (id === 'scan') { buildScan(); say('Six images en une : la grille qui glisse n’en laisse voir qu’une à la fois.'); } }

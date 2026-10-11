@@ -229,7 +229,7 @@ void main(){
         for (const [ff, y] of [[0.02, 0], [0.04, 0], [0.06, 0], [0.08, 0]]) { const yy = H - ((ff - 0.008) / 0.077) * H; tag('f ' + fr(ff, 2), v.x0 + 14, yy + 4); void y; }
         tag('← k PLUS PETIT · k PLUS GRAND →  (k SUIT LA FRONTIÈRE OÙ LES MOTIFS EXISTENT)', v.cx - 230, H - 18);
       } else tag(`${keep.scene === 'pelage' ? COATS[keep.coat].label.toUpperCase() : keep.scene === 'galerie' ? PRESETS[keep.cur].label.toUpperCase() : 'LABORATOIRE'} · f = ${fr(f, 4)} · k = ${fr(k, 4)}`, v.x0 + 18, H - 18);
-      if (toast && T - toast.t < 6) { ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = dark ? 'rgba(6,6,12,.55)' : 'rgba(255,255,255,.75)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = dark ? '#fff' : '#2a2238'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 6) { ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = dark ? 'rgba(6,6,12,.55)' : 'rgba(255,255,255,.75)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = dark ? '#fff' : '#2a2238'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
 
     setScene(keep.scene);

@@ -235,7 +235,7 @@ void main(){ float d = texture(uT, vUv).x; float t = clamp(log(1. + d * uNorm) /
         ctx.fillStyle = c; ctx.fillText('ÉCART ENTRE DEUX TRAJECTOIRES (ÉCHELLE LOG)', x0, y0 - 8);
         ctx.fillText(`${lastL < 0 ? '10' + sup(Math.round(lastL)) : fr(Math.pow(10, lastL), 1)} · T = ${fr(bf.t, 1)}`, x0, y0 + h + 16);
       }
-      if (toast && T - toast.t < 5) { ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.2); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 5) { ctx.globalAlpha = Math.min(1, (5 - (T - toast.t)) * 1.2); ctx.textAlign = 'center'; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
     const sup = (n) => String(n).split('').map((ch) => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(ch)]).join('');
     function setScene(id) {

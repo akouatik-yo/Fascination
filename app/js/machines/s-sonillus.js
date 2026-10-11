@@ -308,13 +308,13 @@
     function render() {
       const cc = C(); ctx.fillStyle = cc.bg; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = cc.txt; ctx.font = 'italic 500 20px "Space Grotesk", sans-serif';
-      ctx.fillText(SCENES.find((s) => s[0] === keep.scene)[1], view().x0 + 24, 86);
+      ctx.fillText(SCENES.find((s) => s[0] === keep.scene)[1], view().x0 + 24, ((env.view && env.view.y0) || 0) + 86);
       if (keep.scene === 'shepard') drawShepard(cc);
       else if (keep.scene === 'triton') drawTriton(cc);
       else if (keep.scene === 'absente') drawAbsente(cc);
       else if (keep.scene === 'binaural') drawBinaural(cc);
       else drawRisset(cc);
-      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, 116); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 116); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = null;
       if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = 64; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
     }

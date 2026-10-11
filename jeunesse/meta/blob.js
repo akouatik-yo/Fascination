@@ -9,7 +9,7 @@ FJ.fiche('blob', {
     cercle: { nom: 'Le cercle d’avoine', via: 'experiences celebres/cercle d avoine', poids: 2, outil: 'couper', outils: ['physarum', 'avoine', 'sel', 'lumiere', 'couper'],
       essaie: 'Quand le réseau est formé, coupe un tube avec ton doigt et regarde-le se reconnecter.' },
     labyrinthe: { nom: 'Le labyrinthe', via: 'experiences celebres/labyrinthe', poids: 2, outil: 'lumiere', outils: ['physarum', 'avoine', 'sel', 'lumiere', 'couper'],
-      essaie: 'Regarde le blob explorer les couloirs de sel jusqu’à l’avoine. Pose une lampe pour lui barrer la route.' },
+      essaie: 'Regarde le blob explorer le labyrinthe aux murs de sel jusqu’à l’avoine. Pose une lampe pour lui barrer la route.' },
     duel: { nom: 'Duel à trois', via: 'experiences celebres/duel a trois', poids: 2, outil: 'sel', outils: ['physarum', 'avoine', 'sel', 'lumiere', 'couper'],
       essaie: 'Trace un mur de sel entre deux blobs, ou pose de l’avoine entre eux.' },
   },

@@ -223,7 +223,7 @@
     function binOff() { if (!binNodes) return; const t = now(); binNodes.g.gain.setTargetAtTime(0, t, 0.05); binNodes.a.stop(t + 0.4); binNodes.b.stop(t + 0.4); const m = binNodes.g; setTimeout(() => { try { m.disconnect(); } catch (e) { /* rien */ } }, 600); binNodes = null; }
     function drawBinaural(cc) {
       const v = view(), cx = v.cx, cy = H * 0.5, R = Math.min(v.w, H) * 0.13;
-      const beat = 0.5 + 0.5 * Math.cos(TAU * keep.bd * T), bin = keep.bin === 'binaural';
+      const beat = 0.5 + 0.5 * Math.cos(TAU * (env.doux ? Math.min(keep.bd, 3) : keep.bd) * T), bin = keep.bin === 'binaural';   // env.doux (version jeunesse) : la lueur ne pulse jamais plus de 3 fois par seconde
       // la tête
       ctx.strokeStyle = light() ? 'rgba(40,30,60,.55)' : 'rgba(235,228,255,.5)'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.ellipse(cx, cy, R * 0.82, R, 0, 0, TAU); ctx.stroke();

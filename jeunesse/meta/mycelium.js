@@ -4,9 +4,9 @@ FJ.fiche('mycelium', {
   question: 'Comment un champignon tisse-t-il un réseau sous le sol ?',
   outil: 'semer',
   scenes: {
-    combat: { nom: 'Le combat des moisissures', via: 'scenes/le combat', poids: 3, outil: 'semer', outils: ['semer', 'nourrir', 'tracer', 'gratter'], actions: 'combat',
+    combat: { nom: 'Le combat des champignons', via: 'scenes/le combat', poids: 3, outil: 'semer', outils: ['semer', 'nourrir', 'tracer', 'gratter'], actions: 'combat',
       exposes: ['richesse', 'ramif', 'espece', 'penicilline'], plages: { richesse: [1.1, 1.8], ramif: [1.1, 1.8], halo: true },
-      essaie: 'Choisis une moisissure dans Bidouiller, sème-la près des autres, et regarde qui gagne le terrain.' },
+      essaie: 'Choisis un champignon dans Bidouiller, sème-le près des autres, et regarde qui gagne le terrain.' },
     ronds: { nom: 'Les ronds de sorcières', via: 'scenes/les ronds de sorcieres', poids: 2, outil: 'semer', outils: ['semer', 'nourrir', 'tracer', 'gratter', 'arroser'], actions: 'ronds',
       exposes: ['annee', 'front', 'vent', 'dessous'], plages: { annee: [5, 10], front: [18, 40], vent: true },
       essaie: 'Sème deux spores pas trop loin l’une de l’autre, puis regarde ce qui se passe quand les ronds se touchent.' },
@@ -25,7 +25,7 @@ FJ.fiche('mycelium', {
   leviers: {
     richesse: { chemin: 'substrat/richesse du substrat', nom: 'Nourriture dans le sol', bouts: ['sol pauvre', 'sol très riche'] },
     ramif: { chemin: 'substrat/ramification', nom: 'Branches des filaments', bouts: ['peu', 'buissonnantes'] },
-    espece: { chemin: 'le combat/espece semee outil semer', nom: 'Moisissure à semer',
+    espece: { chemin: 'le combat/espece semee outil semer', nom: 'Champignon à semer',
       options: { 0: 'Mucor (blanche)', 1: 'Laccaria (orange)', 2: 'Penicillium (bleue)', 3: 'Fusarium (rose)' } },
     penicilline: { chemin: 'affichage/reveler la penicilline', nom: 'Montrer la pénicilline' },
     halo: { chemin: 'affichage/halo lumineux', nom: 'Halo lumineux' },
@@ -55,7 +55,7 @@ FJ.fiche('mycelium', {
   },
   partGraines: 0.25,
   graines: [
-    { nom: 'Quatre moisissures se disputent le terrain', scene: 'combat', regle: { richesse: 1.2, ramif: 1.2 } },
+    { nom: 'Quatre champignons se disputent le terrain', scene: 'combat', regle: { richesse: 1.2, ramif: 1.2 } },
     { nom: 'Des ronds de sorcières dans une prairie', scene: 'ronds', regle: { annee: 6, front: 30, vent: true } },
     { nom: 'Douglas et bouleaux reliés par un champignon', scene: 'reseau', regle: { jour: true, journee: 50, partage: false } },
   ],

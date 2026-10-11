@@ -346,7 +346,7 @@ void main(){
       const n = s.forme === 'carre' ? 4 : 3;
       const pts = Array.from({ length: n }, (_, i) => { const a = -Math.PI / 2 + (i / n) * TAU + (n === 4 ? Math.PI / 4 : 0); return [v.cx + Math.cos(a) * R, H / 2 + 0.05 * m + Math.sin(a) * R]; });
       pts.forEach(([x, y], i) => {
-        const toC = Math.atan2(H / 2 + 0.05 * m - y, v.cx - x) + rot, half = Math.PI / n;
+        const toC = Math.atan2(H / 2 + 0.05 * m - y, v.cx - x) + rot, half = (Math.PI * (n - 2)) / (2 * n); // l’entaille épouse l’angle du polygone : 60° pour le triangle, 90° pour le carré
         ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, r, toC + half, toC - half + TAU); ctx.closePath(); ctx.fill();
       });
       if (n === 3) { // triangle inversé dessiné par trois angles
@@ -516,7 +516,7 @@ void main(){
     D.benham = (s) => {
       const v = view(); bg('#9a9a9a');
       const R = Math.min(v.w, H) * 0.38;
-      if (s.on) s.a = (s.a || 0) + s.sens * s.tps * TAU * dtP;
+      if (s.on) s.a = (s.a || 0) + s.sens * (env.doux ? Math.min(s.tps, 3) : s.tps) * TAU * dtP;   // env.doux : au plus 3 alternances noir-blanc par seconde (photosensibilité)
       ctx.save(); ctx.translate(v.cx, H / 2); ctx.rotate(s.a || 0);
       disc(0, 0, R, '#fff');
       ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, Math.PI, TAU); ctx.closePath(); ctx.fill();

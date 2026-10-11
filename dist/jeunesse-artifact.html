@@ -12538,7 +12538,7 @@ void main(){
       const n = s.forme === 'carre' ? 4 : 3;
       const pts = Array.from({ length: n }, (_, i) => { const a = -Math.PI / 2 + (i / n) * TAU + (n === 4 ? Math.PI / 4 : 0); return [v.cx + Math.cos(a) * R, H / 2 + 0.05 * m + Math.sin(a) * R]; });
       pts.forEach(([x, y], i) => {
-        const toC = Math.atan2(H / 2 + 0.05 * m - y, v.cx - x) + rot, half = Math.PI / n;
+        const toC = Math.atan2(H / 2 + 0.05 * m - y, v.cx - x) + rot, half = (Math.PI * (n - 2)) / (2 * n); // l’entaille épouse l’angle du polygone : 60° pour le triangle, 90° pour le carré
         ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, r, toC + half, toC - half + TAU); ctx.closePath(); ctx.fill();
       });
       if (n === 3) { // triangle inversé dessiné par trois angles
@@ -12708,7 +12708,7 @@ void main(){
     D.benham = (s) => {
       const v = view(); bg('#9a9a9a');
       const R = Math.min(v.w, H) * 0.38;
-      if (s.on) s.a = (s.a || 0) + s.sens * s.tps * TAU * dtP;
+      if (s.on) s.a = (s.a || 0) + s.sens * (env.doux ? Math.min(s.tps, 3) : s.tps) * TAU * dtP;   // env.doux : au plus 3 alternances noir-blanc par seconde (photosensibilité)
       ctx.save(); ctx.translate(v.cx, H / 2); ctx.rotate(s.a || 0);
       disc(0, 0, R, '#fff');
       ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, Math.PI, TAU); ctx.closePath(); ctx.fill();
@@ -16276,7 +16276,7 @@ void main(){
     function binOff() { if (!binNodes) return; const t = now(); binNodes.g.gain.setTargetAtTime(0, t, 0.05); binNodes.a.stop(t + 0.4); binNodes.b.stop(t + 0.4); const m = binNodes.g; setTimeout(() => { try { m.disconnect(); } catch (e) { /* rien */ } }, 600); binNodes = null; }
     function drawBinaural(cc) {
       const v = view(), cx = v.cx, cy = H * 0.5, R = Math.min(v.w, H) * 0.13;
-      const beat = 0.5 + 0.5 * Math.cos(TAU * keep.bd * T), bin = keep.bin === 'binaural';
+      const beat = 0.5 + 0.5 * Math.cos(TAU * (env.doux ? Math.min(keep.bd, 3) : keep.bd) * T), bin = keep.bin === 'binaural';   // env.doux (version jeunesse) : la lueur ne pulse jamais plus de 3 fois par seconde
       // la tête
       ctx.strokeStyle = light() ? 'rgba(40,30,60,.55)' : 'rgba(235,228,255,.5)'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.ellipse(cx, cy, R * 0.82, R, 0, 0, TAU); ctx.stroke();
@@ -21918,8 +21918,8 @@ FJ.fiche('lucioles', {
   ],
   pourquoi: {
     etincelle: 'Chaque luciole avance un peu son horloge quand elle voit une voisine briller : de proche en proche, toutes finissent par clignoter ensemble.',
-    texte: 'Chaque luciole mâle a une sorte d’horloge interne qui déclenche ses flashs. Quand il voit une voisine s’allumer, son horloge avance un peu. Personne ne donne le signal : de proche en proche, les flashs se rapprochent, puis toute la vallée clignote d’un même pas. C’est la **synchronisation**.\n\nChaque espèce a son propre code lumineux pour trouver un partenaire. Pourquoi certaines s’accordent-elles ainsi ? Peut-être pour que les femelles reconnaissent mieux leur espèce, mais ce n’est pas certain. La lumière des villes brouille ces messages : c’est l’une des causes du déclin des lucioles.',
-    vraie: 'Pendant longtemps, des spécialistes ont pensé qu’aucune luciole d’Amérique ne clignotait en rythme. Au début des années 1990, Lynn Faust, qui voyait ce spectacle chaque été près de son chalet des Great Smoky Mountains, leur a écrit. Des biologistes sont venus voir : elle avait raison.',
+    texte: 'Chaque luciole mâle a une sorte d’horloge interne qui déclenche ses flashs. Quand elle voit une voisine s’allumer, son horloge avance un peu. Personne ne donne le signal : de proche en proche, les flashs se rapprochent, puis toute la vallée clignote d’un même pas. C’est la **synchronisation**.\n\nChaque espèce a son propre code lumineux pour trouver un partenaire. Pourquoi certaines s’accordent-elles ainsi ? Peut-être pour que les femelles reconnaissent mieux leur espèce, mais ce n’est pas certain. La lumière des villes brouille ces messages : c’est l’une des causes du déclin des lucioles.',
+    vraie: 'Pendant longtemps, des spécialistes ont pensé qu’aucune luciole d’Amérique du Nord ne clignotait en rythme. Au début des années 1990, Lynn Faust, qui voyait ce spectacle chaque été près de son chalet des Great Smoky Mountains, leur a écrit. Des biologistes sont venus voir : elle avait raison.',
   },
   etsi: [
     { id: 'aveugles', scene: 'mangrove', question: 'Et si les lucioles de l’arbre ne voyaient plus les flashs de leurs voisines ?',
@@ -21950,7 +21950,7 @@ FJ.fiche('boids', {
   outils: {
     guider: { verbe: 'Guide', geste: 'trait', aide: 'Glisse le doigt dans le ciel : la nuée suit ton doigt, puis reprend peu à peu sa propre route.' },
     effrayer: { verbe: 'Effraie', aide: 'Touche la nuée, comme si tu tapais dans tes mains : les oiseaux touchés virent, et leurs voisins aussi.' },
-    faucon: { verbe: 'Attaque', aide: 'Touche la nuée : le faucon pèlerin pique vers l’oiseau le plus proche. Regarde la panique se propager.' },
+    faucon: { verbe: 'Attaque', aide: 'Touche la nuée : le faucon pèlerin pique vers un oiseau proche de ton doigt. Regarde la panique se propager.' },
     nuee: { verbe: 'Lâche', geste: 'trait', aide: 'Touche ou glisse dans le ciel pour lâcher de nouveaux oiseaux : ils rejoignent vite la nuée.' },
   },
   leviers: {
@@ -21996,8 +21996,8 @@ FJ.fiche('boids', {
   ],
   pourquoi: {
     etincelle: 'Personne : chaque oiseau imite seulement ses 6 ou 7 voisins, et de proche en proche, des milliers d’oiseaux bougent ensemble.',
-    texte: 'Chaque étourneau suit trois règles simples : ne pas heurter ses voisins, voler dans le même sens qu’eux, rester près d’eux. Et il ne regarde que 6 ou 7 voisins, jamais toute la nuée. Quand l’un vire, ses voisins virent aussi, puis les voisins des voisins. Une forme d’ensemble naît sans chef ni plan : c’est l’**auto-organisation**.\n\nVoler en nuée protège : l’oiseau isolé est une proie facile, alors qu’au cœur de la nuée le faucon a du mal à en viser un seul. Les scientifiques cherchent encore pourquoi les étourneaux dansent si longtemps avant de se poser.',
-    vraie: 'En 2008, l’équipe du physicien italien Giorgio Parisi filme des nuées d’étourneaux au-dessus de Rome avec plusieurs caméras à la fois, pour suivre chaque oiseau en 3D. Résultat : chacun suit ses 6 ou 7 voisins les plus proches, qu’ils soient près ou loin. Parisi a reçu le prix Nobel de physique en 2021.',
+    texte: 'Dans la machine, chaque oiseau suit trois règles simples : ne pas heurter ses voisins, voler dans le même sens qu’eux, rester près d’eux. Comme un vrai étourneau, il ne regarde que 6 ou 7 voisins, jamais toute la nuée. Quand l’un vire, ses voisins virent aussi, puis les voisins des voisins. Une forme d’ensemble naît sans chef ni plan : c’est l’**auto-organisation**.\n\nDans la nature, voler en nuée protège : l’oiseau isolé est une proie facile, alors qu’au cœur de la nuée le faucon a du mal à en viser un seul. Les scientifiques cherchent encore pourquoi les étourneaux dansent si longtemps avant de se poser.',
+    vraie: 'Au milieu des années 2000, l’équipe du physicien italien Giorgio Parisi filme des nuées d’étourneaux au-dessus de Rome avec plusieurs caméras à la fois, pour suivre chaque oiseau en 3D. Résultat, publié en 2008 : chacun suit ses 6 ou 7 voisins les plus proches, qu’ils soient près ou loin. Parisi a reçu le prix Nobel de physique en 2021, pour ses travaux sur les systèmes complexes.',
   },
   etsi: [
     { id: 'dortoir', scene: 'marais', question: 'Et si la nuit tombait : où les étourneaux passeraient-ils la nuit ?',
@@ -23038,10 +23038,85 @@ FJ.fiche('attracteur', {
 
 ;
 /* ═════ meta/moire.js ═════ */
-/* Le Moiré — fiche jeunesse (squelette généré depuis tools/out/ui.json ; à enrichir) */
+/* Le Moiré — fiche jeunesse
+   Photosensibilité : rien ne clignote. Les franges dérivent lentement (dérive lente) ; dans l'ombro-cinéma, la grille
+   glisse à vitesse modérée. La machine n'a pas de réglage anti-flash. */
 FJ.fiche('moire', {
-  scenes: {"transparents": {"nom": "Transparents", "via": "scenes/transparents"}, "ombro-cinema": {"nom": "Ombro-cinéma", "via": "scenes/ombro cinema"}},
-  outils: {"glisser": {"verbe": "Glisser"}, "tourner": {"verbe": "Tourner"}},
+  nom: 'Le Moiré',
+  question: 'D’où viennent ces grandes bandes que personne n’a dessinées ?',
+  outil: 'glisser',
+  scenes: {
+    transparents: { nom: 'Deux films transparents', via: 'scenes/transparents', poids: 3, outil: 'glisser', actions: 'films',
+      exposes: ['experience', 'angle', 'pas', 'encre'],
+      plages: { experience: ['lignes', 'lignes', 'cercles', 'fresnel', 'rayons', 'grilles', 'trame', 'spirale', 'soie'], encre: [0.3, 0.5], derive: true },
+      essaie: 'Glisse doucement le film du dessus : les grandes bandes bougent bien plus vite que ton doigt.' },
+    ombro: { nom: 'Le dessin animé à fentes', via: 'scenes/ombro cinema', poids: 1.5, outil: 'glisser', outils: ['glisser'],
+      noms: { glisser: { aide: 'Fais glisser la grille : chaque fente montre un autre morceau de dessin, et l’animal se met à bouger.' } },
+      exposes: ['animation', 'images', 'glisse'],
+      plages: { animation: ['oiseau', 'coureur', 'balle', 'fleur', 'cheval'], images: 6, glisse: true },
+      regle: { images: 6 },
+      essaie: 'Arrête la grille dans Bidouiller, puis fais-la glisser lentement avec le doigt.' },
+  },
+  outils: {
+    glisser: { verbe: 'Glisse', icone: 'main', geste: 'trait', aide: 'Fais glisser le film du dessus : les grandes bandes se déplacent bien plus vite que ton doigt.' },
+    tourner: { verbe: 'Tourne', icone: 'tourner', geste: 'trait', aide: 'Fais tourner le film du dessus autour du centre, tout doucement : les bandes changent de taille et de direction.' },
+  },
+  leviers: {
+    experience: { chemin: 'transparents/experience', nom: 'Les deux films',
+      options: { lignes: 'Deux films de lignes', cercles: 'Cercles décalés', fresnel: 'Cibles serrées', rayons: 'Deux étoiles de rayons', grilles: 'Deux grillages',
+        trame: 'Points d’imprimerie', spirale: 'Spirale sur lignes', soie: 'Soie moirée' } },
+    angle: { chemin: 'transparents/angle', nom: 'Film du dessus tourné', bouts: ['vers la gauche', 'vers la droite'], min: -0.25, max: 0.25 },
+    pas: { chemin: 'transparents/pas des traits', nom: 'Écart entre les traits', bouts: ['serrés', 'espacés'] },
+    encre: { chemin: 'transparents/epaisseur de l encre', nom: 'Épaisseur des traits', bouts: ['fins', 'épais'] },
+    taille: { chemin: 'transparents/echelle du dessus', nom: 'Taille du film du dessus', bouts: ['un peu plus petit', 'un peu plus grand'] },
+    derive: { chemin: 'transparents/derive lente', nom: 'Le film bouge tout seul' },
+    dessous: { chemin: 'transparents/film du dessous', nom: 'Film du dessous',
+      options: { lignes: 'Lignes', cercles: 'Cercles', rayons: 'Rayons', grille: 'Grillage', points: 'Points', fresnel: 'Cible serrée', spirale: 'Spirale', soie: 'Soie' } },
+    dessus: { chemin: 'transparents/film du dessus', nom: 'Film du dessus',
+      options: { lignes: 'Lignes', cercles: 'Cercles', rayons: 'Rayons', grille: 'Grillage', points: 'Points', fresnel: 'Cible serrée', spirale: 'Spirale', soie: 'Soie' } },
+    equerre: { chemin: 'transparents/remettre d equerre', nom: 'Bien droit, l’un sur l’autre', icone: 'cible' },
+    animation: { chemin: 'ombro cinema/animation', nom: 'Le dessin',
+      options: { oiseau: 'Oiseau', coureur: 'Coureur', balle: 'Balle qui rebondit', fleur: 'Fleur qui tourne', cheval: 'Cheval au galop' } },
+    images: { chemin: 'ombro cinema/images entrelacees', nom: 'Images cachées dans le dessin', bouts: ['3', '10'] },
+    glisse: { chemin: 'ombro cinema/la grille glisse toute seule', nom: 'La grille glisse toute seule' },
+  },
+  exposes: ['experience', 'angle', 'pas', 'encre'],
+  groupesActions: {
+    films: [{ chemin: 'transparents/remettre d equerre', nom: 'Bien droit !', icone: 'cible' }],
+  },
+  partGraines: 0.3,
+  graines: [
+    { nom: 'La soie moirée', scene: 'transparents', regle: { experience: 'soie', derive: true } },
+    { nom: 'Deux trames de points d’imprimerie', scene: 'transparents', regle: { experience: 'trame', derive: true } },
+    { nom: 'Deux familles de cercles décalés', scene: 'transparents', regle: { experience: 'cercles', derive: true } },
+    { nom: 'Un cheval au galop en ombro-cinéma', scene: 'ombro', regle: { animation: 'cheval', images: 6, glisse: true } },
+  ],
+  recettes: [
+    { nom: 'Bandes géantes', icone: 'onde', scene: 'transparents', regle: { experience: 'lignes', derive: false, angle: 0.015 } },
+    { nom: 'Bandes serrées', icone: 'motif', scene: 'transparents', regle: { experience: 'lignes', derive: false, angle: 0.22 } },
+    { nom: 'Traits épais', icone: 'pinceau', scene: 'transparents', regle: { encre: 0.75 } },
+    { nom: 'Spirale sur grillage', icone: 'spirale', scene: 'transparents', regle: { dessous: 'grille', dessus: 'spirale', derive: true } },
+    { nom: 'Le coureur', icone: 'marche', scene: 'ombro', regle: { animation: 'coureur', glisse: true } },
+    { nom: 'La grille à la main', icone: 'main', scene: 'ombro', outil: 'glisser', regle: { glisse: false } },
+  ],
+  pourquoi: {
+    etincelle: 'Superpose deux motifs presque pareils : de grandes bandes apparaissent, alors qu’elles ne sont dessinées sur aucun des deux.',
+    texte: 'Pose deux films couverts de traits l’un sur l’autre. Là où les traits tombent les uns sur les autres, la lumière passe entre eux. Là où ils sont décalés, ils bouchent tout. Ces zones claires et sombres forment de larges bandes : c’est le **moiré**.\n\nTourne le film du dessus d’un tout petit angle : les bandes deviennent énormes, et elles bougent bien plus vite que ton doigt. On s’en sert pour repérer de minuscules déformations, et sur les billets contre les faussaires. Tu en vois aussi en photographiant un écran : la grille de ses pixels se superpose à celle de l’appareil photo.',
+    vraie: 'Le mot vient d’un tissu, la moire : une soie aux reflets ondulés. Pour la fabriquer, on plie l’étoffe en deux et on l’écrase entre de lourds rouleaux. Les fils des deux couches, superposés, dessinent des vagues.',
+  },
+  etsi: [
+    { id: 'equerre', scene: 'transparents', question: 'Et si on posait les deux films bien droits, exactement l’un sur l’autre ?',
+      choix: ['Les grandes bandes disparaissent', 'Les bandes deviennent plus nombreuses', 'Rien ne change'], bonne: 0,
+      prepare: { scene: 'transparents', regle: { experience: 'lignes', derive: false }, action: 'transparents/remettre d equerre' },
+      regarde: 'Regarde les grandes bandes…', attente: 4,
+      revele: 'Elles disparaissent ! Chaque trait du dessus tombe pile sur un trait du dessous : la lumière passe partout pareil. Tourne maintenant le film d’un tout petit peu : les bandes reviennent, très larges. Plus l’angle est petit, plus elles sont larges.' },
+    { id: 'angle', scene: 'transparents', question: 'Et si on tournait le film du dessus de 12 degrés au lieu de 3 ? Les bandes…',
+      choix: ['S’élargissent', 'Se resserrent', 'Disparaissent'], bonne: 1,
+      prepare: { scene: 'transparents', regle: { experience: 'lignes', derive: false, angle: 0.209 } },
+      regarde: 'Regarde les bandes, et le nombre écrit en bas : une bande revient tous les combien de traits ?', attente: 6,
+      revele: 'Elles se resserrent ! À 3 degrés, une bande revient environ tous les 19 traits. À 12 degrés, tous les 5 traits seulement. Plus l’angle entre les films est grand, plus les bandes sont fines et nombreuses.' },
+  ],
+  rotation: 'recreer',
 });
 
 ;
@@ -23475,7 +23550,7 @@ FJ.fiche('bulles', {
     bulles: { nom: 'Bulles de savon', via: 'scenes/bulles de savon', poids: 4, outil: 'souffler', outils: ['observer', 'souffler', 'eclater'], actions: 'bulles',
       exposes: ['vie', 'vent', 'auto'],
       plages: { vie: [0.7, 2.2], vent: [0.2, 1.1], auto: true },
-      essaie: 'Touche le vide pour souffler une bulle, puis regarde son sommet : il devient noir avant d’éclater.' },
+      essaie: 'Souffle une bulle et suis-la : ses couleurs changent à mesure que son film s’amincit.' },
     cadre: { nom: 'Le film qui coule', via: 'scenes/film dans un cadre', poids: 3, outil: 'souffler', outils: ['observer', 'souffler', 'eclater'], actions: 'cadre',
       exposes: ['tourbillons'],
       plages: { tourbillons: [0.5, 1.6] },
@@ -23534,10 +23609,6 @@ FJ.fiche('bulles', {
       choix: ['Il s’étire sans fin', 'Il se coupe en deux disques plats', 'Il devient tout noir'], bonne: 1,
       prepare: { scene: 'cate', regle: { ecart: 0.72 } }, attente: 4,
       revele: 'Il se coupe en deux ! Un film de savon prend toujours la forme qui a la plus petite surface possible. Entre deux anneaux, c’est une sorte de diabolo. Au-delà d’un certain écartement, cette forme n’existe plus : le col se pince, et il reste un film plat dans chaque anneau.' },
-    { id: 'noir', scene: 'cadre', question: 'Et si on laissait le film couler un moment, que deviendrait son haut ?',
-      choix: ['Il devient noir', 'Il devient blanc', 'Il reste de la même couleur'], bonne: 0,
-      prepare: { scene: 'cadre', regle: { tourbillons: 0.3 } }, regarde: 'Regarde le haut du film…', attente: 10,
-      revele: 'Il devient noir ! L’eau coule vers le bas, et le haut du film s’amincit. Quand il est très mince, les deux reflets, sur ses deux faces, s’annulent pour toutes les couleurs : c’est l’**interférence**. Ce film noir est le plus fragile : il va bientôt éclater.' },
   ],
   rotation: 'recreer',
 });
@@ -23941,10 +24012,73 @@ FJ.fiche('quantique', {
 
 ;
 /* ═════ meta/meduses.js ═════ */
-/* Les Abysses — fiche jeunesse (squelette généré depuis tools/out/ui.json ; à enrichir) */
+/* Les Abysses — fiche jeunesse */
 FJ.fiche('meduses', {
-  scenes: {"portraits": {"nom": "Portraits", "via": "scenes/portraits"}, "la-descente": {"nom": "La descente", "via": "scenes/la descente"}},
-  outils: {"observer": {"verbe": "Observer"}, "toucher": {"verbe": "Toucher"}, "lampe": {"verbe": "Lampe"}, "courant": {"verbe": "Courant"}},
+  nom: 'Les Abysses',
+  question: 'Pourquoi tant d’animaux des profondeurs brillent-ils dans le noir ?',
+  outil: 'toucher',
+  scenes: {
+    portraits: { nom: 'Portraits', via: 'scenes/portraits', poids: 3, outil: 'toucher', actions: 'portrait',
+      exposes: ['creature', 'lampe', 'lueur', 'halo'],
+      plages: { creature: ['atolla', 'periphylla', 'pelagia', 'aequorea', 'beroe', 'praya', 'pyrosoma'], diaporama: true, lampe: false, lueur: [0.35, 0.8], halo: [0.6, 1.3] },
+      essaie: 'Effleure la créature du doigt : sa lumière s’allume. Puis éclaire-la avec la lampe.' },
+    descente: { nom: 'La descente', via: 'scenes/la descente', poids: 2, outil: 'toucher', actions: 'descente',
+      exposes: ['profondeur', 'descendre', 'lampe', 'lueur'],
+      // la profondeur coupe la descente automatique, qu'on relance ensuite
+      plages: { profondeur: [150, 2200], descendre: true, lampe: false, lueur: [0.35, 0.8], halo: [0.6, 1.2] },
+      essaie: 'Laisse-toi descendre, et touche les créatures que tu croises pour voir leur lumière.' },
+  },
+  outils: {
+    observer: { verbe: 'Regarde', icone: 'loupe', geste: 'tap', aide: 'Touche une créature : tu sauras son nom, à quelle profondeur elle vit et comment elle brille.' },
+    toucher: { verbe: 'Effleure', icone: 'doigt', geste: 'tap', aide: 'Effleure une créature du doigt : dérangée, elle se met à briller pour se défendre.' },
+    lampe: { verbe: 'Éclaire', icone: 'torche', geste: 'tap', aide: 'Garde le doigt posé : la lampe du plongeur montre les vraies couleurs, et la lumière vivante se voit moins.' },
+    courant: { verbe: 'Remue', icone: 'courant', geste: 'trait', aide: 'Glisse le doigt pour pousser l’eau : les tentacules suivent le courant.' },
+  },
+  leviers: {
+    creature: { chemin: 'portrait/creature', nom: 'Créature',
+      options: { atolla: 'Méduse couronne', periphylla: 'Méduse casquée', pelagia: 'Pélagie', aequorea: 'Méduse cristal', beroe: 'Béroé', praya: 'Siphonophore géant', pyrosoma: 'Pyrosome' } },
+    diaporama: { chemin: 'portrait/diaporama une creature toutes les 45 s', nom: 'Une nouvelle créature toutes les 45 s' },
+    lampe: { chemin: 'lumiere/lampe du plongeur vraies couleurs', nom: 'Lampe du plongeur' },
+    lueur: { chemin: 'lumiere/lueur ambiante', nom: 'Lueur de l’eau', bouts: ['noir total', 'eau éclairée'] },
+    halo: { chemin: 'lumiere/halo', nom: 'Halo autour des lumières', bouts: ['aucun', 'fort'] },
+    profondeur: { chemin: 'descente/profondeur+', nom: 'Profondeur', bouts: ['surface', '4 500 m'] },
+    descendre: { chemin: 'descente/descendre tout seul', nom: 'Descendre tout seul' },
+  },
+  exposes: ['creature', 'lampe', 'lueur', 'halo'],
+  groupesActions: {
+    portrait: [
+      { chemin: 'portrait/allumer sa lumiere', nom: 'Allume !', icone: 'etincelles' },
+      { chemin: 'portrait/suivante', nom: 'Une autre', icone: 'suiv' },
+    ],
+    descente: [{ chemin: 'descente/remonter a la surface', nom: 'Remonter', icone: 'fusee' }],
+  },
+  plages: {},
+  partGraines: 0.3,
+  graines: [
+    { nom: 'La méduse couronne sous la lampe du plongeur', scene: 'portraits', regle: { creature: 'atolla', diaporama: false, lampe: true, lueur: 0.5 } },
+    { nom: 'La méduse cristal, dont la protéine verte a valu un prix Nobel', scene: 'portraits', regle: { creature: 'aequorea', diaporama: false, lampe: false, lueur: 0.5 } },
+    { nom: 'Le pyrosome, « corps de feu »', scene: 'portraits', regle: { creature: 'pyrosoma', diaporama: false, lampe: false, lueur: 0.5 } },
+    { nom: 'À 1 500 m, là où le soleil n’arrive plus', scene: 'descente', regle: { profondeur: 1500, descendre: false, lampe: false, lueur: 0.6 } },
+  ],
+  recettes: [
+    { nom: 'Lampe allumée', icone: 'torche', regle: { lampe: true } },
+    { nom: 'Noir total', icone: 'ombre', regle: { lampe: false, lueur: 0, halo: 1.4 } },
+    { nom: 'La méduse couronne', icone: 'etincelles', scene: 'portraits', regle: { creature: 'atolla', diaporama: false } },
+    { nom: 'Le siphonophore géant', icone: 'corde', scene: 'portraits', regle: { creature: 'praya', diaporama: false } },
+    { nom: 'Plonger depuis 1 000 m', icone: 'courant', scene: 'descente', regle: { profondeur: 1000, descendre: true } },
+  ],
+  pourquoi: {
+    etincelle: 'Au fond de la mer, la lumière du soleil n’arrive plus : la seule lumière vient des animaux eux-mêmes.',
+    texte: 'Plus on descend, plus la lumière du soleil faiblit ; vers 1 000 mètres, il n’en reste rien. Pourtant, les profondeurs scintillent : environ trois animaux sur quatre y fabriquent leur propre lumière, grâce à une réaction chimique. C’est la **bioluminescence**. Elle est presque toujours bleue, car le bleu voyage le plus loin dans l’eau.\n\nCette lumière sert à attirer une proie, à trouver un partenaire, à effrayer un attaquant, ou à se cacher : un ventre éclairé efface la silhouette vue d’en dessous. Beaucoup d’animaux des profondeurs ont des yeux très sensibles. Ici, les créatures sont un peu grossies et plus actives qu’en vrai.',
+    vraie: 'En 2012, au large du Japon, la biologiste Edith Widder installe une fausse méduse lumineuse, l’« e-jelly ». Elle imite la roue de lumière bleue de la méduse couronne. Un calmar géant s’en approche : c’est l’une des toutes premières vidéos de cet animal vivant dans les profondeurs.',
+  },
+  etsi: [
+    { id: 'rouge', scene: 'portraits', question: 'Et si on éclairait la méduse couronne avec une lampe, de quelle couleur serait-elle ?',
+      choix: ['Bleue', 'Rouge', 'Transparente'], bonne: 1,
+      prepare: { scene: 'portraits', regle: { creature: 'atolla', diaporama: false, lampe: true, lueur: 0.5 } }, attente: 5,
+      revele: 'Rouge sombre ! Dans les profondeurs, la lumière rouge du soleil n’arrive pas : elle est absorbée par l’eau dès les premières dizaines de mètres. Sans lumière rouge, un animal rouge paraît noir. Il devient invisible. Seule une lampe, apportée par un plongeur ou un robot, révèle sa vraie couleur.' },
+  ],
+  rotation: 'recreer',
 });
 
 ;
@@ -24031,9 +24165,9 @@ FJ.fiche('mycelium', {
   question: 'Comment un champignon tisse-t-il un réseau sous le sol ?',
   outil: 'semer',
   scenes: {
-    combat: { nom: 'Le combat des moisissures', via: 'scenes/le combat', poids: 3, outil: 'semer', outils: ['semer', 'nourrir', 'tracer', 'gratter'], actions: 'combat',
+    combat: { nom: 'Le combat des champignons', via: 'scenes/le combat', poids: 3, outil: 'semer', outils: ['semer', 'nourrir', 'tracer', 'gratter'], actions: 'combat',
       exposes: ['richesse', 'ramif', 'espece', 'penicilline'], plages: { richesse: [1.1, 1.8], ramif: [1.1, 1.8], halo: true },
-      essaie: 'Choisis une moisissure dans Bidouiller, sème-la près des autres, et regarde qui gagne le terrain.' },
+      essaie: 'Choisis un champignon dans Bidouiller, sème-le près des autres, et regarde qui gagne le terrain.' },
     ronds: { nom: 'Les ronds de sorcières', via: 'scenes/les ronds de sorcieres', poids: 2, outil: 'semer', outils: ['semer', 'nourrir', 'tracer', 'gratter', 'arroser'], actions: 'ronds',
       exposes: ['annee', 'front', 'vent', 'dessous'], plages: { annee: [5, 10], front: [18, 40], vent: true },
       essaie: 'Sème deux spores pas trop loin l’une de l’autre, puis regarde ce qui se passe quand les ronds se touchent.' },
@@ -24052,7 +24186,7 @@ FJ.fiche('mycelium', {
   leviers: {
     richesse: { chemin: 'substrat/richesse du substrat', nom: 'Nourriture dans le sol', bouts: ['sol pauvre', 'sol très riche'] },
     ramif: { chemin: 'substrat/ramification', nom: 'Branches des filaments', bouts: ['peu', 'buissonnantes'] },
-    espece: { chemin: 'le combat/espece semee outil semer', nom: 'Moisissure à semer',
+    espece: { chemin: 'le combat/espece semee outil semer', nom: 'Champignon à semer',
       options: { 0: 'Mucor (blanche)', 1: 'Laccaria (orange)', 2: 'Penicillium (bleue)', 3: 'Fusarium (rose)' } },
     penicilline: { chemin: 'affichage/reveler la penicilline', nom: 'Montrer la pénicilline' },
     halo: { chemin: 'affichage/halo lumineux', nom: 'Halo lumineux' },
@@ -24082,7 +24216,7 @@ FJ.fiche('mycelium', {
   },
   partGraines: 0.25,
   graines: [
-    { nom: 'Quatre moisissures se disputent le terrain', scene: 'combat', regle: { richesse: 1.2, ramif: 1.2 } },
+    { nom: 'Quatre champignons se disputent le terrain', scene: 'combat', regle: { richesse: 1.2, ramif: 1.2 } },
     { nom: 'Des ronds de sorcières dans une prairie', scene: 'ronds', regle: { annee: 6, front: 30, vent: true } },
     { nom: 'Douglas et bouleaux reliés par un champignon', scene: 'reseau', regle: { jour: true, journee: 50, partage: false } },
   ],
@@ -24115,7 +24249,7 @@ FJ.fiche('blob', {
     cercle: { nom: 'Le cercle d’avoine', via: 'experiences celebres/cercle d avoine', poids: 2, outil: 'couper', outils: ['physarum', 'avoine', 'sel', 'lumiere', 'couper'],
       essaie: 'Quand le réseau est formé, coupe un tube avec ton doigt et regarde-le se reconnecter.' },
     labyrinthe: { nom: 'Le labyrinthe', via: 'experiences celebres/labyrinthe', poids: 2, outil: 'lumiere', outils: ['physarum', 'avoine', 'sel', 'lumiere', 'couper'],
-      essaie: 'Regarde le blob explorer les couloirs de sel jusqu’à l’avoine. Pose une lampe pour lui barrer la route.' },
+      essaie: 'Regarde le blob explorer le labyrinthe aux murs de sel jusqu’à l’avoine. Pose une lampe pour lui barrer la route.' },
     duel: { nom: 'Duel à trois', via: 'experiences celebres/duel a trois', poids: 2, outil: 'sel', outils: ['physarum', 'avoine', 'sel', 'lumiere', 'couper'],
       essaie: 'Trace un mur de sel entre deux blobs, ou pose de l’avoine entre eux.' },
   },
@@ -24348,7 +24482,7 @@ window.FJ.VIGNETTES = window.FJ.VIGNETTES || {};
     // constant pendant la visite ; y0 : sous le titre et les pastilles de scènes (les messages des machines s'y décalent)
     const view = { x0: col.g, x1: Math.max(col.g + 200, W - col.d), y0: 104, y1: H };
     return { ctx, canvas, w: W, h: H, dpr, t: 0, audio, view, get tool() { return S.outil; }, get paused() { return S.pause; },
-      get decor() { return true; }, sonParLeShell: true, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
+      get decor() { return true; }, sonParLeShell: true, get doux() { return S.prefs.doux; }, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
   }
   function detruire() {
     if (S.sim && S.sim.dispose) { try { S.sim.dispose(); } catch (e) { /* rien */ } }
@@ -24702,15 +24836,9 @@ window.FJ.VIGNETTES = window.FJ.VIGNETTES || {};
     return (sc && sc.exposes) || S.meta.exposes || [];
   }
   function rendreBidouiller(corps) {
-    const lev = exposes().map((k) => ({ k, l: levier(k) })).filter((x) => x.l);
-    ctrlLeviers = null;
-    if (lev.length) {
-      const box = h('div', { class: 'leviers' }); corps.append(box);
-      ctrlLeviers = { box, lev, items: [] };
-      for (const { k, l } of lev) {
-        const it = leverControle(k, l); if (it) { box.append(it.el); ctrlLeviers.items.push(it); }
-      }
-    }
+    const box = h('div', { class: 'leviers' }); corps.append(box);
+    ctrlLeviers = { box, sig: null, items: [] };
+    remplirLeviers();
     const sc = S.scene && S.meta.scenes[S.scene];
     const rec = (S.meta.recettes || []).filter((r) => !r.scene || r.scene === S.scene || (sc && sc.recettesPartout));
     if (rec.length) {
@@ -24733,6 +24861,24 @@ window.FJ.VIGNETTES = window.FJ.VIGNETTES || {};
     ctrlLabo = { zone, sig: '', items: [] };
     if (laboOuvert) remplirLabo();
   }
+  // les leviers suivent l'interface de la machine : une autre illusion, une autre forme… et les réglages changent
+  function signatureLeviers() {
+    return exposes().map((k) => {
+      const l = levier(k), r = l && pilote.get(l.chemin);
+      return r ? k + ':' + r.kind + ':' + (r.c.min != null ? r.c.min + '-' + r.c.max : '') + ':' + ((r.c.options || []).length) : '';
+    }).join('|');
+  }
+  function remplirLeviers() {
+    if (!ctrlLeviers) return;
+    const sig = signatureLeviers();
+    if (sig === ctrlLeviers.sig) return;
+    ctrlLeviers.sig = sig; ctrlLeviers.box.textContent = ''; ctrlLeviers.items = [];
+    for (const k of exposes()) {
+      const l = levier(k); if (!l) continue;
+      const it = leverControle(k, l); if (it) { ctrlLeviers.box.append(it.el); ctrlLeviers.items.push(it); }
+    }
+    ctrlLeviers.box.hidden = !ctrlLeviers.items.length;
+  }
   function leverControle(k, l) {
     const r = pilote.get(l.chemin);
     if (!r) return null;
@@ -24747,7 +24893,7 @@ window.FJ.VIGNETTES = window.FJ.VIGNETTES || {};
       return { el, maj() { const rr = pilote.get(l.chemin); if (rr && document.activeElement !== inp) inp.value = rr.c.value; } };
     }
     if (r.kind === 'toggle') {
-      const b = h('button', { class: 'bascule', onclick: () => { const rr = pilote.get(l.chemin); pilote.set(l.chemin, !(rr && rr.c.value)); S.touche = true; maj(); } }, h('i'), h('span', null, nom));
+      const b = h('button', { class: 'bascule', onclick: () => { const rr = pilote.get(l.chemin); pilote.set(l.chemin, !(rr && rr.c.value)); S.touche = true; maj(); setTimeout(remplirLeviers, 0); } }, h('i'), h('span', null, nom));
       const maj = () => { const rr = pilote.get(l.chemin); b.classList.toggle('on', !!(rr && rr.c.value)); };
       maj();
       return { el: b, maj };
@@ -24757,7 +24903,7 @@ window.FJ.VIGNETTES = window.FJ.VIGNETTES || {};
       const opts = h('div', { class: 'opts' }); box.append(opts);
       const noms = l.options || {};
       const bs = (c.options || []).filter((o) => !l.garder || l.garder.includes(o.id)).map((o) => {
-        const b = h('button', { onclick: () => { pilote.set(l.chemin, o.id); S.touche = true; maj(); } }, noms[o.id] || o.label);
+        const b = h('button', { onclick: () => { pilote.set(l.chemin, o.id); S.touche = true; maj(); setTimeout(remplirLeviers, 0); } }, noms[o.id] || o.label);
         b._id = o.id; opts.append(b); return b;
       });
       const maj = () => { const rr = pilote.get(l.chemin); for (const b of bs) b.classList.toggle('on', rr && rr.c.value === b._id); };
@@ -24801,7 +24947,7 @@ window.FJ.VIGNETTES = window.FJ.VIGNETTES || {};
   }
   function controleLabo(c, i) {
     const live = () => (ctrlLabo.cur && ctrlLabo.cur[i]) || c;
-    const apres = () => { S.touche = true; setTimeout(() => { remplirLabo(); if (ctrlLeviers) ctrlLeviers.items.forEach((x) => x.maj()); rendreActions(); }, 0); };
+    const apres = () => { S.touche = true; setTimeout(() => { remplirLabo(); if (ctrlLeviers) { remplirLeviers(); ctrlLeviers.items.forEach((x) => x.maj()); } rendreActions(); }, 0); };
     switch (c.type) {
       case 'section': { const el = h('h4'); return { el, maj: (c2) => { el.textContent = c2.label || ''; } }; }
       case 'note': { const el = h('p', { class: 'note' }); return { el, maj: (c2) => { el.textContent = c2.text || c2.label || ''; } }; }
@@ -24838,7 +24984,7 @@ window.FJ.VIGNETTES = window.FJ.VIGNETTES || {};
   setInterval(() => {
     if (S.tiroir === 'bidouiller' && !S.ecran) {
       if (laboOuvert) remplirLabo();
-      if (ctrlLeviers) ctrlLeviers.items.forEach((x) => x.maj());
+      if (ctrlLeviers) { remplirLeviers(); ctrlLeviers.items.forEach((x) => x.maj()); }
     }
   }, 500);
 

@@ -85,7 +85,7 @@
     // constant pendant la visite ; y0 : sous le titre et les pastilles de scènes (les messages des machines s'y décalent)
     const view = { x0: col.g, x1: Math.max(col.g + 200, W - col.d), y0: 104, y1: H };
     return { ctx, canvas, w: W, h: H, dpr, t: 0, audio, view, get tool() { return S.outil; }, get paused() { return S.pause; },
-      get decor() { return true; }, sonParLeShell: true, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
+      get decor() { return true; }, sonParLeShell: true, get doux() { return S.prefs.doux; }, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
   }
   function detruire() {
     if (S.sim && S.sim.dispose) { try { S.sim.dispose(); } catch (e) { /* rien */ } }
@@ -439,15 +439,9 @@
     return (sc && sc.exposes) || S.meta.exposes || [];
   }
   function rendreBidouiller(corps) {
-    const lev = exposes().map((k) => ({ k, l: levier(k) })).filter((x) => x.l);
-    ctrlLeviers = null;
-    if (lev.length) {
-      const box = h('div', { class: 'leviers' }); corps.append(box);
-      ctrlLeviers = { box, lev, items: [] };
-      for (const { k, l } of lev) {
-        const it = leverControle(k, l); if (it) { box.append(it.el); ctrlLeviers.items.push(it); }
-      }
-    }
+    const box = h('div', { class: 'leviers' }); corps.append(box);
+    ctrlLeviers = { box, sig: null, items: [] };
+    remplirLeviers();
     const sc = S.scene && S.meta.scenes[S.scene];
     const rec = (S.meta.recettes || []).filter((r) => !r.scene || r.scene === S.scene || (sc && sc.recettesPartout));
     if (rec.length) {
@@ -470,6 +464,24 @@
     ctrlLabo = { zone, sig: '', items: [] };
     if (laboOuvert) remplirLabo();
   }
+  // les leviers suivent l'interface de la machine : une autre illusion, une autre forme… et les réglages changent
+  function signatureLeviers() {
+    return exposes().map((k) => {
+      const l = levier(k), r = l && pilote.get(l.chemin);
+      return r ? k + ':' + r.kind + ':' + (r.c.min != null ? r.c.min + '-' + r.c.max : '') + ':' + ((r.c.options || []).length) : '';
+    }).join('|');
+  }
+  function remplirLeviers() {
+    if (!ctrlLeviers) return;
+    const sig = signatureLeviers();
+    if (sig === ctrlLeviers.sig) return;
+    ctrlLeviers.sig = sig; ctrlLeviers.box.textContent = ''; ctrlLeviers.items = [];
+    for (const k of exposes()) {
+      const l = levier(k); if (!l) continue;
+      const it = leverControle(k, l); if (it) { ctrlLeviers.box.append(it.el); ctrlLeviers.items.push(it); }
+    }
+    ctrlLeviers.box.hidden = !ctrlLeviers.items.length;
+  }
   function leverControle(k, l) {
     const r = pilote.get(l.chemin);
     if (!r) return null;
@@ -484,7 +496,7 @@
       return { el, maj() { const rr = pilote.get(l.chemin); if (rr && document.activeElement !== inp) inp.value = rr.c.value; } };
     }
     if (r.kind === 'toggle') {
-      const b = h('button', { class: 'bascule', onclick: () => { const rr = pilote.get(l.chemin); pilote.set(l.chemin, !(rr && rr.c.value)); S.touche = true; maj(); } }, h('i'), h('span', null, nom));
+      const b = h('button', { class: 'bascule', onclick: () => { const rr = pilote.get(l.chemin); pilote.set(l.chemin, !(rr && rr.c.value)); S.touche = true; maj(); setTimeout(remplirLeviers, 0); } }, h('i'), h('span', null, nom));
       const maj = () => { const rr = pilote.get(l.chemin); b.classList.toggle('on', !!(rr && rr.c.value)); };
       maj();
       return { el: b, maj };
@@ -494,7 +506,7 @@
       const opts = h('div', { class: 'opts' }); box.append(opts);
       const noms = l.options || {};
       const bs = (c.options || []).filter((o) => !l.garder || l.garder.includes(o.id)).map((o) => {
-        const b = h('button', { onclick: () => { pilote.set(l.chemin, o.id); S.touche = true; maj(); } }, noms[o.id] || o.label);
+        const b = h('button', { onclick: () => { pilote.set(l.chemin, o.id); S.touche = true; maj(); setTimeout(remplirLeviers, 0); } }, noms[o.id] || o.label);
         b._id = o.id; opts.append(b); return b;
       });
       const maj = () => { const rr = pilote.get(l.chemin); for (const b of bs) b.classList.toggle('on', rr && rr.c.value === b._id); };
@@ -538,7 +550,7 @@
   }
   function controleLabo(c, i) {
     const live = () => (ctrlLabo.cur && ctrlLabo.cur[i]) || c;
-    const apres = () => { S.touche = true; setTimeout(() => { remplirLabo(); if (ctrlLeviers) ctrlLeviers.items.forEach((x) => x.maj()); rendreActions(); }, 0); };
+    const apres = () => { S.touche = true; setTimeout(() => { remplirLabo(); if (ctrlLeviers) { remplirLeviers(); ctrlLeviers.items.forEach((x) => x.maj()); } rendreActions(); }, 0); };
     switch (c.type) {
       case 'section': { const el = h('h4'); return { el, maj: (c2) => { el.textContent = c2.label || ''; } }; }
       case 'note': { const el = h('p', { class: 'note' }); return { el, maj: (c2) => { el.textContent = c2.text || c2.label || ''; } }; }
@@ -575,7 +587,7 @@
   setInterval(() => {
     if (S.tiroir === 'bidouiller' && !S.ecran) {
       if (laboOuvert) remplirLabo();
-      if (ctrlLeviers) ctrlLeviers.items.forEach((x) => x.maj());
+      if (ctrlLeviers) { remplirLeviers(); ctrlLeviers.items.forEach((x) => x.maj()); }
     }
   }, 500);
 

@@ -17,8 +17,8 @@ await p.waitForTimeout(2500);
 const ids = await p.evaluate(() => window.FJ.MONDES.flatMap((m) => m.machines));
 // les machines lentes à se remplir ou qui attendent un geste : plus de temps, quelques gestes, plusieurs graines (on garde l'image la plus riche)
 const PLUS = {
-  mycelium: { sec: 14, essais: 3 }, vie: { sec: 8, essais: 4 }, cristal: { sec: 16, essais: 3 },
-  fluide: { sec: 4, essais: 3, gestes: 6 }, feu: { sec: 10, essais: 3 }, foudre: { sec: 3, essais: 4, gestes: 2, tap: true },
+  mycelium: { sec: 30, essais: 2 }, vie: { sec: 8, essais: 4 }, cristal: { sec: 16, essais: 3 },
+  fluide: { sec: 4, essais: 3, gestes: 6 }, feu: { sec: 10, essais: 3 }, foudre: { sec: 0.05, essais: 6, gestes: 1, tap: true, apresTap: 120 },
   harmono: { sec: 12, essais: 3 }, sonillus: { sec: 6, essais: 4 },
 };
 for (const id of ids) {
@@ -32,7 +32,7 @@ for (const id of ids) {
   for (let g = 0; g < (o.gestes || 0); g++) {
     const v = await p.evaluate(() => window.FJ_TEST.S.env.view), H = 800, y = H * (0.35 + 0.3 * Math.random());
     const x0 = v.x0 + (v.x1 - v.x0) * (0.2 + 0.2 * Math.random()), x1 = v.x0 + (v.x1 - v.x0) * (0.6 + 0.2 * Math.random());
-    if (o.tap) { await p.mouse.click(x0 + (x1 - x0) / 2, y); await p.waitForTimeout(500); continue; }
+    if (o.tap) { await p.waitForTimeout(1500); await p.mouse.click(x0 + (x1 - x0) / 2, y * 0.8); await p.waitForTimeout(o.apresTap || 500); continue; }   // l'éclair : on photographie juste après
     await p.mouse.move(x0, y); await p.mouse.down(); await p.mouse.move(x1, y + 60 * (Math.random() - 0.5), { steps: 12 }); await p.mouse.up();
     await p.waitForTimeout(150);
   }

@@ -7,7 +7,7 @@ FJ.fiche('galaxie', {
     spirale: { nom: 'Galaxie spirale', via: 'scenes/galaxie spirale', poids: 3, outil: 'tourner', actions: 'vues',
       outils: ['tourner', 'observer'],
       exposes: ['type', 'temps', 'poussiere', 'halo'],
-      plages: { type: ['grand', 'grand', 'barree', 'barree', 'floconneuse', 'elliptique'], temps: [0.2, 0.8], poussiere: [0.5, 0.9], halo: [0.5, 1] },
+      plages: { type: ['grand', 'grand', 'barree', 'barree', 'floconneuse'], temps: [0.2, 0.8], poussiere: [0.5, 0.9], halo: [0.5, 1] },
       essaie: 'Fais tourner la galaxie avec le doigt, puis regarde-la par la tranche : elle est toute plate.' },
     collision: { nom: 'Collision de galaxies', via: 'scenes/collision de galaxies', poids: 3, outil: 'astre', actions: 'collision',
       outils: ['astre', 'tourner', 'observer'], regle: { vitesseC: 0.8 },
@@ -54,7 +54,7 @@ FJ.fiche('galaxie', {
   },
   partGraines: 0.3,
   graines: [
-    { nom: 'Les Antennes, deux galaxies en pleine collision', scene: 'collision', regle: { scenario: 'antennes', vitesseC: 0.8 } },
+    { nom: 'Les Antennes : deux galaxies qui se rencontrent', scene: 'collision', regle: { scenario: 'antennes', vitesseC: 0.8 } },
     { nom: 'Les Souris, deux galaxies aux longues queues', scene: 'collision', regle: { scenario: 'souris', vitesseC: 0.8 } },
     { nom: 'La galaxie de la Roue de charrette', scene: 'collision', regle: { scenario: 'roue', vitesseC: 0.8 } },
     { nom: 'Une spirale barrée, comme la Voie lactée', scene: 'spirale', regle: { type: 'barree', poussiere: 0.8 } },

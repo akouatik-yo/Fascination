@@ -52,7 +52,7 @@
         if (!r) return undefined;
         const c = r.c;
         try {
-          if (r.kind === 'slider') { const v = clamp(Number(val), c.min, c.max); c.set(v); return v; }
+          if (r.kind === 'slider') { let v = clamp(Number(val), c.min, c.max); if (c.step > 0) v = clamp(+(c.min + Math.round((v - c.min) / c.step) * c.step).toFixed(6), c.min, c.max); c.set(v); return v; }   // arrondi au pas : 24 arcs, pas 24,6
           if (r.kind === 'toggle') { const v = !!val; if (!!c.value !== v) c.set(v); return v; }
           if (r.kind === 'choice') { const o = (c.options || []).find((x) => x.id === val || norme(x.label) === norme(val)); if (o && c.value !== o.id) c.set(o.id); return o ? o.id : undefined; }
           if (r.kind === 'bouton') { r.it.act(); return true; }

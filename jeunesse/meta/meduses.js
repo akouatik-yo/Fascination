@@ -16,9 +16,9 @@ FJ.fiche('meduses', {
   },
   outils: {
     observer: { verbe: 'Regarde', icone: 'loupe', geste: 'tap', aide: 'Touche une créature : tu sauras son nom, à quelle profondeur elle vit et comment elle brille.' },
-    toucher: { verbe: 'Effleure', icone: 'doigt', geste: 'tap', aide: 'Effleure une créature du doigt : dérangée, elle se met à briller pour se défendre.' },
+    toucher: { verbe: 'Effleure', icone: 'doigt', geste: 'tap', aide: 'Effleure une créature du doigt : quand on la dérange, elle s’allume. Cette lumière peut effrayer un attaquant.' },
     lampe: { verbe: 'Éclaire', icone: 'torche', geste: 'tap', aide: 'Garde le doigt posé : la lampe du plongeur montre les vraies couleurs, et la lumière vivante se voit moins.' },
-    courant: { verbe: 'Remue', icone: 'courant', geste: 'trait', aide: 'Glisse le doigt pour pousser l’eau : les tentacules suivent le courant.' },
+    courant: { verbe: 'Remue', icone: 'courant', geste: 'trait', aide: 'Glisse le doigt pour pousser l’eau : les tentacules ondulent et suivent le courant que tu fais.' },
   },
   leviers: {
     creature: { chemin: 'portrait/creature', nom: 'Créature',
@@ -62,7 +62,7 @@ FJ.fiche('meduses', {
     { id: 'rouge', scene: 'portraits', question: 'Et si on éclairait la méduse couronne avec une lampe, de quelle couleur serait-elle ?',
       choix: ['Bleue', 'Rouge', 'Transparente'], bonne: 1,
       prepare: { scene: 'portraits', regle: { creature: 'atolla', diaporama: false, lampe: true, lueur: 0.5 } }, attente: 5,
-      revele: 'Rouge sombre ! Dans les profondeurs, la lumière rouge du soleil n’arrive pas : elle est absorbée par l’eau dès les premières dizaines de mètres. Sans lumière rouge, un animal rouge paraît noir. Il devient invisible. Seule une lampe, apportée par un plongeur ou un robot, révèle sa vraie couleur.' },
+      revele: 'Rouge ! La lumière rouge du soleil est absorbée par l’eau dès les premières dizaines de mètres. En profondeur, sans lumière rouge, un animal rouge paraît noir : il est invisible. Seule une lampe révèle sa vraie couleur. Ici, l’eau est un peu éclairée pour qu’on voie les animaux : mets la lueur de l’eau à zéro pour le vrai noir.' },
   ],
   rotation: 'recreer',
 });

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Fascinations Labo</title>
+<meta name="description" content="32 machines de science à toucher, pour les 10-14 ans : on joue, c'est beau, et l'envie de comprendre vient après.">
+<meta name="theme-color" content="#05050a">
+<!--build:css-->
+<link rel="stylesheet" href="css/labo.css">
+<!--/build:css-->
+</head>
+<body>
+<!--build:body-->
+<div id="fj">
+  <canvas id="cv"></canvas>
+  <nav class="col" id="colG" aria-label="Gestes">
+    <button class="cb" id="bCarte" aria-label="La carte des machines"></button>
+    <div id="gestes" role="toolbar" aria-label="Que fait ton doigt ?"></div>
+    <div class="sep"></div>
+    <button class="cb" id="bPause"></button>
+  </nav>
+  <nav class="col" id="colD" aria-label="Commandes">
+    <button class="cb" id="bSon"></button>
+    <div class="sep"></div>
+    <button class="cb" id="bPourquoi"></button>
+    <button class="cb" id="bBidouiller"></button>
+    <button class="cb" id="bEncore" aria-label="Encore : la même machine, autrement"></button>
+    <div class="sep"></div>
+    <button class="cb" id="bPhoto"></button>
+  </nav>
+  <header id="haut">
+    <div class="titre"><button class="fl" id="bPrec" aria-label="Machine précédente"></button><button id="nom" aria-label="Pourquoi ?"></button><button class="fl" id="bSuiv" aria-label="Machine suivante"></button></div>
+    <div id="scenes" role="tablist" aria-label="Scènes"></div>
+  </header>
+  <div id="actions"></div>
+  <div id="carton" hidden></div>
+  <div id="bulle" hidden role="status"></div>
+  <div id="pastille" hidden></div>
+  <button id="remplir" hidden></button>
+  <aside id="tiroir" hidden></aside>
+  <section class="ecran" id="carte" hidden></section>
+  <section class="ecran" id="carnet" hidden></section>
+  <section class="ecran" id="parents" hidden></section>
+  <button id="sortie" hidden aria-label="Quitter le spectacle"></button>
+  <div id="main" hidden></div>
+  <div id="flash" hidden></div>
+  <div id="chargement">Les machines se réveillent…</div>
+</div>
+<!--/build:body-->
+<!--build:js-->
+<script src="../app/js/fk.js"></script>
+<script src="../app/js/fkgl.js"></script>
+<script src="../app/js/fk-son.js"></script>
+<script src="../app/js/machines/s-lucioles.js"></script>
+<script src="../app/js/machines/s-murmu.js"></script>
+<script src="../app/js/machines/s-feu.js"></script>
+<script src="../app/js/machines/s-eau.js"></script>
+<script src="../app/js/machines/s-flux.js"></script>
+<script src="../app/js/machines/s-sable3d.js"></script>
+<script src="../app/js/machines/s-sable.js"></script>
+<script src="../app/js/machines/s-foudre.js"></script>
+<script src="../app/js/machines/s-ciel.js"></script>
+<script src="../app/js/machines/s-cristal.js"></script>
+<script src="../app/js/machines/s-rd.js"></script>
+<script src="../app/js/machines/s-spirales.js"></script>
+<script src="../app/js/machines/s-cymatiques.js"></script>
+<script src="../app/js/machines/s-kaleido.js"></script>
+<script src="../app/js/machines/s-harmono.js"></script>
+<script src="../app/js/machines/s-attracteur.js"></script>
+<script src="../app/js/machines/s-moire.js"></script>
+<script src="../app/js/machines/s-fractales.js"></script>
+<script src="../app/js/machines/s-illusions.js"></script>
+<script src="../app/js/machines/s-galaxie.js"></script>
+<script src="../app/js/machines/s-tunnel.js"></script>
+<script src="../app/js/machines/s-lave.js"></script>
+<script src="../app/js/machines/s-bulles.js"></script>
+<script src="../app/js/machines/s-spectre.js"></script>
+<script src="../app/js/machines/s-harpe.js"></script>
+<script src="../app/js/machines/s-pendules.js"></script>
+<script src="../app/js/machines/s-sonillus.js"></script>
+<script src="../app/js/machines/s-quantique.js"></script>
+<script src="../app/js/machines/s-abysses.js"></script>
+<script src="../app/js/machines/s-four-corps.js"></script>
+<script src="../app/js/machines/s-fourmis.js"></script>
+<script src="../app/js/machines/s-myce.js"></script>
+<script src="../app/js/machines/s-myce-ronds.js"></script>
+<script src="../app/js/machines/s-myce-reseau.js"></script>
+<script src="../app/js/machines/s-blob.js"></script>
+<script src="../app/js/machines/s-vie.js"></script>
+<script src="js/pilote.js"></script>
+<script src="js/icones.js"></script>
+<script src="js/mondes.js"></script>
+<script src="meta/lucioles.js"></script>
+<script src="meta/boids.js"></script>
+<script src="meta/feu.js"></script>
+<script src="meta/eau.js"></script>
+<script src="meta/fluide.js"></script>
+<script src="meta/sable.js"></script>
+<script src="meta/foudre.js"></script>
+<script src="meta/ciel.js"></script>
+<script src="meta/cristal.js"></script>
+<script src="meta/rd.js"></script>
+<script src="meta/spirales.js"></script>
+<script src="meta/chladni.js"></script>
+<script src="meta/kaleido.js"></script>
+<script src="meta/harmono.js"></script>
+<script src="meta/attracteur.js"></script>
+<script src="meta/moire.js"></script>
+<script src="meta/fractal.js"></script>
+<script src="meta/illusions.js"></script>
+<script src="meta/galaxie.js"></script>
+<script src="meta/tunnel.js"></script>
+<script src="meta/lave.js"></script>
+<script src="meta/bulles.js"></script>
+<script src="meta/viz.js"></script>
+<script src="meta/harpe.js"></script>
+<script src="meta/pendules.js"></script>
+<script src="meta/sonillus.js"></script>
+<script src="meta/quantique.js"></script>
+<script src="meta/meduses.js"></script>
+<script src="meta/fourmis.js"></script>
+<script src="meta/mycelium.js"></script>
+<script src="meta/blob.js"></script>
+<script src="meta/vie.js"></script>
+<script src="js/vignettes.js"></script>
+<script src="js/labo.js"></script>
+<!--/build:js-->
+</body>
+</html>

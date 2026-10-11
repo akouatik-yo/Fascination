@@ -15179,7 +15179,7 @@ void main(){
       : { bg: '#06050b', txt: 'rgba(235,228,255,.78)', dim: 'rgba(235,228,255,.4)' };
     function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     function soundHint(cc) {
-      if (c) return null;
+      if (c || env.sonParLeShell) return null;
       const v = view(), w = 190, h = 34, x = v.cx - w / 2, y = H - 64 - (keep.scene === 'timbre' ? H * 0.25 : 0);
       ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke();
       ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', v.cx, y + 21); ctx.textAlign = 'left'; void cc;
@@ -15651,7 +15651,7 @@ void main(){
       ctx.fillText(e.hm ? `EFFLEURÉE : SEULS LES MULTIPLES DE ${e.hm}` : half ? 'PINCÉE AU MILIEU : PAS D’HARMONIQUES PAIRS' : `PINCÉE AU ${Math.round(Math.min(p, 1 - p) * 100)} % DE SA LONGUEUR`, x0, y0 + h + 26);
     }
     function soundHint(c) {
-      if (au && au.on) return null;
+      if ((au && au.on) || env.sonParLeShell) return null;
       const v = view(), w = 190, h = 34, x = v.cx - w / 2, y = H - 64;
       ctx.fillStyle = light() ? 'rgba(255,255,255,.8)' : 'rgba(20,14,34,.8)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1;
       rr(x, y, w, h, 17); ctx.fill(); ctx.stroke();
@@ -15831,7 +15831,9 @@ void main(){
     if (!B && au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 }); c = B ? B.ctx : null; });
     const light = () => env.theme === 'light', bare = () => env.decor === false;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
-    let T = 0, cam = { az: -0.32, el: 0.26 }, flash = [], toast = null;
+    let T = 0, flash = [], toast = null;
+    const camDe = (x) => (x === 'face' ? { az: 0, el: 0.08 } : x === 'dessus' ? { az: 0, el: 1.4 } : x === 'bout' ? { az: -1.5, el: 0.25 } : { az: -0.32, el: 0.26 });
+    const cam = camDe(keep.view); // le point de vue choisi survit à une recréation
     const G = 9.81, TH0 = 0.32; // amplitude de départ (18°)
 
     /* ───────── les notes ───────── */
@@ -15952,7 +15954,7 @@ void main(){
       if (keep.scene === 'vague') drawPend(cc); else drawRings(cc);
       if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 70); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = null;
-      if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = H - 58; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = cc.acc; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = cc.acc; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
+      if (!c && !env.sonParLeShell) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = H - 58; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = cc.acc; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = cc.acc; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
     }
     function update(k) {
       T += k;
@@ -15999,7 +16001,7 @@ void main(){
           ] });
           L.push({ type: 'slider', label: 'Pendules', min: 8, max: 24, step: 1, value: keep.n, fmt: (x) => String(x), set: (x) => { keep.n = x; buildPend(); } });
           L.push({ type: 'slider', label: 'Durée du cycle', min: 20, max: 120, step: 1, value: keep.gam, fmt: (x) => x + ' s', set: (x) => { keep.gam = x; buildPend(); } });
-          L.push({ type: 'choice', label: 'Point de vue', value: keep.view, set: (x) => { keep.view = x; Object.assign(cam, x === 'face' ? { az: 0, el: 0.08 } : x === 'dessus' ? { az: 0, el: 1.4 } : x === 'bout' ? { az: -1.5, el: 0.25 } : { az: -0.32, el: 0.26 }); }, options: [{ id: 'biais', label: 'Dans l’axe, de biais' }, { id: 'face', label: 'Dans l’axe' }, { id: 'dessus', label: 'Du dessus' }, { id: 'bout', label: 'De côté' }] });
+          L.push({ type: 'choice', label: 'Point de vue', value: keep.view, set: (x) => { keep.view = x; Object.assign(cam, camDe(x)); }, options: [{ id: 'biais', label: 'Dans l’axe, de biais' }, { id: 'face', label: 'Dans l’axe' }, { id: 'dessus', label: 'Du dessus' }, { id: 'bout', label: 'De côté' }] });
           L.push({ type: 'note', text: `Longueurs de ${fr(pend[0].L * 100, 1)} à ${fr(pend[pend.length - 1].L * 100, 1)} cm ; chacun sonne en revenant au point d’où on l’a lâché. Vue « du dessus » : les serpents. Le cycle complet dure ${keep.gam} s à la vitesse ×1.` });
         } else {
           L.push({ type: 'section', label: 'Polyrythmie' });
@@ -16343,7 +16345,7 @@ void main(){
       else drawRisset(cc);
       if (toast && T - toast.t < 4) { ctx.fillStyle = cc.txt; ctx.globalAlpha = Math.min(1, (4 - (T - toast.t)) * 1.5); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(toast.s, view().cx, ((env.view && env.view.y0) || 0) + 116); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
       hintBox = null;
-      if (!c) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = ((env.view && env.view.y0) || 0) + 64; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
+      if (!c && !env.sonParLeShell) { const v = view(), w = 190, h = 34, x = v.x1 - w - 20, y = ((env.view && env.view.y0) || 0) + 64; ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', x + w / 2, y + 21); ctx.textAlign = 'left'; hintBox = { x, y, w, h }; }
     }
     function update(k) {
       T += k;

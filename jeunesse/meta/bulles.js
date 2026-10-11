@@ -1,5 +1,75 @@
-/* Les Bulles — fiche jeunesse (squelette généré depuis tools/out/ui.json ; à enrichir) */
+/* Les Bulles — fiche jeunesse */
 FJ.fiche('bulles', {
-  scenes: {"bulles-de-savon": {"nom": "Bulles de savon", "via": "scenes/bulles de savon"}, "film-dans-un-cadre": {"nom": "Film dans un cadre", "via": "scenes/film dans un cadre"}, "catenoide": {"nom": "Caténoïde", "via": "scenes/catenoide"}},
-  outils: {"observer": {"verbe": "Observer"}, "souffler": {"verbe": "Souffler"}, "eclater": {"verbe": "Éclater"}, "ecarter": {"verbe": "Écarter"}},
+  nom: 'Les Bulles',
+  question: 'D’où viennent les couleurs d’une bulle de savon ?',
+  outil: 'souffler',
+  scenes: {
+    bulles: { nom: 'Bulles de savon', via: 'scenes/bulles de savon', poids: 4, outil: 'souffler', outils: ['observer', 'souffler', 'eclater'], actions: 'bulles',
+      exposes: ['vie', 'vent', 'auto'],
+      plages: { vie: [0.7, 2.2], vent: [0.2, 1.1], auto: true },
+      essaie: 'Touche le vide pour souffler une bulle, puis regarde son sommet : il devient noir avant d’éclater.' },
+    cadre: { nom: 'Le film qui coule', via: 'scenes/film dans un cadre', poids: 3, outil: 'souffler', outils: ['observer', 'souffler', 'eclater'], actions: 'cadre',
+      exposes: ['tourbillons'],
+      plages: { tourbillons: [0.5, 1.6] },
+      essaie: 'Glisse le doigt sur le film pour y faire des tourbillons de couleur.' },
+    cate: { nom: 'Entre deux anneaux', via: 'scenes/catenoide', poids: 2, outil: 'ecarter', outils: ['observer', 'ecarter'], actions: 'cate',
+      exposes: ['ecart', 'seul'],
+      // l'écartement coupe le mouvement automatique, qu'on remet ensuite une fois sur deux
+      plages: { ecart: [0.3, 0.6], seul: 0.5 },
+      essaie: 'Glisse le doigt vers le bas pour écarter les anneaux, jusqu’à ce que le film se coupe.' },
+  },
+  outils: {
+    observer: { verbe: 'Regarde', icone: 'loupe', geste: 'tap', aide: 'Touche une bulle ou le film : tu sauras son épaisseur et la couleur qu’elle donne.' },
+    souffler: { verbe: 'Souffle', icone: 'bulle', geste: 'tap', aide: 'Touche le vide pour faire une bulle, ou glisse le doigt pour souffler un courant d’air.' },
+    eclater: { verbe: 'Éclate', icone: 'eclate', geste: 'tap', aide: 'Touche une bulle pour la crever. Sur le film du cadre, ça le perce, puis le cadre se retrempe.' },
+    ecarter: { verbe: 'Écarte', icone: 'ecarter', geste: 'trait', aide: 'Glisse vers le bas pour écarter les anneaux, vers le haut pour les rapprocher, et sur le côté pour tourner.' },
+  },
+  leviers: {
+    vie: { chemin: 'bulles/duree de vie', nom: 'Durée de vie des bulles', bouts: ['éclatent vite', 'tiennent longtemps'] },
+    vent: { chemin: 'bulles/courants d air', nom: 'Courants d’air', bouts: ['air calme', 'grand vent'] },
+    auto: { chemin: 'bulles/de nouvelles bulles arrivent', nom: 'De nouvelles bulles arrivent' },
+    tourbillons: { chemin: 'film/tourbillons', nom: 'Tourbillons', bouts: ['film calme', 'film agité'] },
+    ecart: { chemin: 'deux anneaux/demi ecartement rayon', nom: 'Écartement des anneaux', bouts: ['proches', 'très écartés'] },
+    seul: { chemin: 'deux anneaux/ecarter et rapprocher tout seul', nom: 'Les anneaux bougent tout seuls' },
+  },
+  exposes: ['vie', 'vent', 'auto'],
+  groupesActions: {
+    bulles: [
+      { chemin: 'bulles/souffler cinq bulles', nom: 'Cinq bulles !', icone: 'bulle' },
+      { chemin: 'bulles/tout eclater', nom: 'Tout éclater', icone: 'eclate' },
+    ],
+    cadre: [{ chemin: 'film/retremper le cadre', nom: 'Retremper', icone: 'goutte' }],
+    cate: [{ chemin: 'deux anneaux/retremper les anneaux', nom: 'Retremper', icone: 'goutte' }],
+  },
+  plages: {},
+  partGraines: 0.25,
+  graines: [
+    { nom: 'Bulles dans un grand vent', scene: 'bulles', regle: { vie: 1.6, vent: 1.8, auto: true } },
+    { nom: 'Film de savon sans tourbillons', scene: 'cadre', regle: { tourbillons: 0 } },
+    { nom: 'Anneaux presque trop écartés', scene: 'cate', regle: { ecart: 0.65, seul: false } },
+  ],
+  recettes: [
+    { nom: 'Bulles qui durent', icone: 'bulle', scene: 'bulles', regle: { vie: 3, vent: 0.3 } },
+    { nom: 'Bulles pressées', icone: 'eclate', scene: 'bulles', regle: { vie: 0.4, auto: true } },
+    { nom: 'Tempête de bulles', icone: 'vent', scene: 'bulles', regle: { vent: 2, auto: true } },
+    { nom: 'Film tout calme', icone: 'feuille', scene: 'cadre', regle: { tourbillons: 0 } },
+    { nom: 'Film en tempête', icone: 'remuer', scene: 'cadre', regle: { tourbillons: 2 } },
+    { nom: 'Anneaux qui dansent', icone: 'ecarter', scene: 'cate', regle: { seul: true } },
+  ],
+  pourquoi: {
+    etincelle: 'La lumière se reflète sur les deux faces du film ; les deux reflets se mélangent, et certaines couleurs s’effacent.',
+    texte: 'Une bulle est une couche d’eau savonneuse des centaines de fois plus fine qu’un cheveu. La lumière s’y reflète deux fois : sur la face de devant et sur celle de derrière. Les deux reflets se superposent. Pour certaines couleurs, ils s’additionnent ; pour d’autres, ils s’annulent. C’est l’**interférence**. La couleur dépend donc de l’épaisseur du film.\n\nL’eau coule vers le bas : le haut s’amincit et ses couleurs changent. Juste avant d’éclater, le film devient si mince que les reflets s’annulent pour toutes les couleurs : il paraît noir. Le savon ne colore rien, il aide seulement le film à tenir.',
+    vraie: 'En 1704, Isaac Newton décrit les couleurs des bulles de savon dans son livre « Opticks ». Il remarque qu’elles se suivent toujours dans le même ordre, et que le haut de la bulle devient noir juste avant d’éclater. L’explication par l’interférence viendra un siècle plus tard, avec Thomas Young.',
+  },
+  etsi: [
+    { id: 'rupture', scene: 'cate', question: 'Et si on écartait beaucoup les deux anneaux, que deviendrait le film ?',
+      choix: ['Il s’étire sans fin', 'Il se coupe en deux disques plats', 'Il devient tout noir'], bonne: 1,
+      prepare: { scene: 'cate', regle: { ecart: 0.72 } }, attente: 4,
+      revele: 'Il se coupe en deux ! Un film de savon prend toujours la forme qui a la plus petite surface possible. Entre deux anneaux, c’est une sorte de diabolo. Au-delà d’un certain écartement, cette forme n’existe plus : le col se pince, et il reste un film plat dans chaque anneau.' },
+    { id: 'noir', scene: 'cadre', question: 'Et si on laissait le film couler un moment, que deviendrait son haut ?',
+      choix: ['Il devient noir', 'Il devient blanc', 'Il reste de la même couleur'], bonne: 0,
+      prepare: { scene: 'cadre', regle: { tourbillons: 0.3 } }, regarde: 'Regarde le haut du film…', attente: 10,
+      revele: 'Il devient noir ! L’eau coule vers le bas, et le haut du film s’amincit. Quand il est très mince, les deux reflets, sur ses deux faces, s’annulent pour toutes les couleurs : c’est l’**interférence**. Ce film noir est le plus fragile : il va bientôt éclater.' },
+  ],
+  rotation: 'recreer',
 });

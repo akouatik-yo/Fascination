@@ -381,7 +381,7 @@
       ctx.fillText(e.hm ? `EFFLEURÉE : SEULS LES MULTIPLES DE ${e.hm}` : half ? 'PINCÉE AU MILIEU : PAS D’HARMONIQUES PAIRS' : `PINCÉE AU ${Math.round(Math.min(p, 1 - p) * 100)} % DE SA LONGUEUR`, x0, y0 + h + 26);
     }
     function soundHint(c) {
-      if (au && au.on) return null;
+      if ((au && au.on) || env.sonParLeShell) return null;
       const v = view(), w = 190, h = 34, x = v.cx - w / 2, y = H - 64;
       ctx.fillStyle = light() ? 'rgba(255,255,255,.8)' : 'rgba(20,14,34,.8)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1;
       rr(x, y, w, h, 17); ctx.fill(); ctx.stroke();

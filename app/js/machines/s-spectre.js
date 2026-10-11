@@ -401,7 +401,7 @@
       : { bg: '#06050b', txt: 'rgba(235,228,255,.78)', dim: 'rgba(235,228,255,.4)' };
     function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     function soundHint(cc) {
-      if (c) return null;
+      if (c || env.sonParLeShell) return null;
       const v = view(), w = 190, h = 34, x = v.cx - w / 2, y = H - 64 - (keep.scene === 'timbre' ? H * 0.25 : 0);
       ctx.fillStyle = light() ? 'rgba(255,255,255,.85)' : 'rgba(20,14,34,.85)'; ctx.strokeStyle = light() ? '#c2368f' : '#ff8ad8'; ctx.lineWidth = 1; rr(x, y, w, h, 17); ctx.fill(); ctx.stroke();
       ctx.fillStyle = ctx.strokeStyle; ctx.font = '600 11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('♪  ACTIVER LE SON', v.cx, y + 21); ctx.textAlign = 'left'; void cc;

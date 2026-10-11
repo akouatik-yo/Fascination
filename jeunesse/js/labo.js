@@ -85,7 +85,7 @@
     // constant pendant la visite ; y0 : sous le titre et les pastilles de scènes (les messages des machines s'y décalent)
     const view = { x0: col.g, x1: Math.max(col.g + 200, W - col.d), y0: 104, y1: H };
     return { ctx, canvas, w: W, h: H, dpr, t: 0, audio, view, get tool() { return S.outil; }, get paused() { return S.pause; },
-      get decor() { return true; }, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
+      get decor() { return true; }, sonParLeShell: true, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
   }
   function detruire() {
     if (S.sim && S.sim.dispose) { try { S.sim.dispose(); } catch (e) { /* rien */ } }

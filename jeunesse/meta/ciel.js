@@ -45,7 +45,7 @@ FJ.fiche('ciel', {
     { nom: 'Coucher de soleil sur Mars', scene: 'ciel', regle: { planete: 'mars', soleil: 1.5, marche: false, regard: 'soleil' } },
     { nom: 'Ciel noir en plein jour sur la Lune', scene: 'ciel', regle: { planete: 'lune', soleil: 25, marche: false, regard: 'soleil' } },
     { nom: 'L’ombre de la Terre, juste après le coucher', scene: 'ciel', regle: { planete: 'terre', soleil: -2, marche: false, regard: 'dos', brume: 1, altitude: 0 } },
-    { nom: 'Arc-en-ciel blanc dans le brouillard', scene: 'arc', regle: { vue: 'ciel', arcsoleil: 10, gouttes: -1.62 } },
+    { nom: 'Arc pâle et large dans le brouillard', scene: 'arc', regle: { vue: 'ciel', arcsoleil: 10, gouttes: -1.62 } },
     { nom: 'Deux faux soleils, à gauche et à droite du vrai', scene: 'halos', regle: { hsoleil: 15, hregard: 'soleil', plaquettes: 1, colonnes: 0, desordre: 0.15 } },
   ],
   recettes: [

@@ -13,6 +13,7 @@ FJ.fiche('harpe', {
       plages: { aimant: true },
       essaie: 'Fais glisser le chevalet vers la gauche, puis touche la corde : plus elle est courte, plus elle vibre vite.' },
     eolienne: { nom: 'La harpe du vent', via: 'scenes/harpe eolienne', poids: 2, outil: 'pincer', outils: ['pincer'],
+      noms: { pincer: { verbe: 'Souffle', icone: 'vent', geste: 'tap', aide: 'Touche l’écran n’importe où : une rafale de vent passe sur les cordes. Plus le vent est fort, plus elles chantent aigu.' } },
       exposes: ['vent', 'rafales'],
       plages: { vent: [1.5, 5], rafales: 0.8 },
       essaie: 'Touche l’écran pour souffler une rafale, puis monte le vent dans Bidouiller.' },

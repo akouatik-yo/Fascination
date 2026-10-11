@@ -28,6 +28,7 @@ FJ.fiche('id', {
       poids: 3,                     // fréquence au hasard (défaut 1) : plus fort pour les scènes les plus spectaculaires
       outil: 'souffle',             // geste à l'arrivée dans cette scène
       outils: ['souffle', 'eau'],   // facultatif : seuls ces gestes sont montrés dans cette scène
+      noms: { pincer: { verbe: 'Souffle', icone: 'vent' } },   // facultatif : renomme un geste dans cette scène seulement
       exposes: ['gravite', 'oxygene'],  // facultatif : remplace « exposes » pour cette scène
       plages: { gravite: [0, 0.02] },   // facultatif : complète « plages » pour cette scène
       regle: { },                   // facultatif : appliqué quand l'enfant choisit cette scène lui-même

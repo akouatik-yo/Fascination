@@ -38,7 +38,9 @@
     if (!B && au && au.whenLive) au.whenLive(() => { B = bus(au, { rev: 0.32, sec: 3.4, gain: 0.85 }); c = B ? B.ctx : null; });
     const light = () => env.theme === 'light', bare = () => env.decor === false;
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
-    let T = 0, cam = { az: -0.32, el: 0.26 }, flash = [], toast = null;
+    let T = 0, flash = [], toast = null;
+    const camDe = (x) => (x === 'face' ? { az: 0, el: 0.08 } : x === 'dessus' ? { az: 0, el: 1.4 } : x === 'bout' ? { az: -1.5, el: 0.25 } : { az: -0.32, el: 0.26 });
+    const cam = camDe(keep.view); // le point de vue choisi survit à une recréation
     const G = 9.81, TH0 = 0.32; // amplitude de départ (18°)
 
     /* ───────── les notes ───────── */
@@ -206,7 +208,7 @@
           ] });
           L.push({ type: 'slider', label: 'Pendules', min: 8, max: 24, step: 1, value: keep.n, fmt: (x) => String(x), set: (x) => { keep.n = x; buildPend(); } });
           L.push({ type: 'slider', label: 'Durée du cycle', min: 20, max: 120, step: 1, value: keep.gam, fmt: (x) => x + ' s', set: (x) => { keep.gam = x; buildPend(); } });
-          L.push({ type: 'choice', label: 'Point de vue', value: keep.view, set: (x) => { keep.view = x; Object.assign(cam, x === 'face' ? { az: 0, el: 0.08 } : x === 'dessus' ? { az: 0, el: 1.4 } : x === 'bout' ? { az: -1.5, el: 0.25 } : { az: -0.32, el: 0.26 }); }, options: [{ id: 'biais', label: 'Dans l’axe, de biais' }, { id: 'face', label: 'Dans l’axe' }, { id: 'dessus', label: 'Du dessus' }, { id: 'bout', label: 'De côté' }] });
+          L.push({ type: 'choice', label: 'Point de vue', value: keep.view, set: (x) => { keep.view = x; Object.assign(cam, camDe(x)); }, options: [{ id: 'biais', label: 'Dans l’axe, de biais' }, { id: 'face', label: 'Dans l’axe' }, { id: 'dessus', label: 'Du dessus' }, { id: 'bout', label: 'De côté' }] });
           L.push({ type: 'note', text: `Longueurs de ${fr(pend[0].L * 100, 1)} à ${fr(pend[pend.length - 1].L * 100, 1)} cm ; chacun sonne en revenant au point d’où on l’a lâché. Vue « du dessus » : les serpents. Le cycle complet dure ${keep.gam} s à la vitesse ×1.` });
         } else {
           L.push({ type: 'section', label: 'Polyrythmie' });

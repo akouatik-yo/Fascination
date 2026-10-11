@@ -146,6 +146,12 @@
     // flashs adoucis (photosensibilité) : forcés tant que le coin des grands ne dit pas le contraire
     if (S.prefs.doux && S.meta.flashs) pilote.set(S.meta.flashs, true);
   }
+  // le nom d'un geste peut changer selon la scène (harpe éolienne : on souffle, on ne pince pas)
+  function ficheOutil(id) {
+    const base = S.meta.outils && S.meta.outils[id], sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
+    const loc = sc && sc.noms && sc.noms[id];
+    return loc ? Object.assign({}, base, loc) : base;
+  }
   function outilsVisibles() {
     const sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
     const ids = (sc && sc.outils) || S.meta.outilsMontres || null;
@@ -333,14 +339,14 @@
     const on = box.querySelector('.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ } }
   }
   function verbe(t) {
-    const o = S.meta.outils && S.meta.outils[t.id];
+    const o = ficheOutil(t.id);
     if (o && o.verbe) return o.verbe;
     return t.label.charAt(0).toUpperCase() + t.label.slice(1);
   }
   function rendreGestes() {
     const box = $('gestes'); box.textContent = '';
     for (const t of outilsVisibles()) {
-      const o = (S.meta.outils && S.meta.outils[t.id]) || {};
+      const o = ficheOutil(t.id) || {};
       box.append(h('button', { class: 'geste' + (t.id === S.outil ? ' on' : ''), title: t.desc || '', 'aria-pressed': t.id === S.outil ? 'true' : 'false',
         onclick: () => choisirOutil(t.id) }, FJ.icone(o.icone || FJ.iconeOutil(t.id)), h('span', null, verbe(t))));
     }
@@ -348,7 +354,7 @@
   function choisirOutil(id) {
     S.outil = id; rendreGestes(); son('outil');
     if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) { /* rien */ } }
-    const t = S.def.tools.find((x) => x.id === id), o = (S.meta.outils && S.meta.outils[id]) || {};
+    const t = S.def.tools.find((x) => x.id === id), o = ficheOutil(id) || {};
     if (!S.outilsMontres.has(S.id + '/' + id)) { S.outilsMontres.add(S.id + '/' + id); montrerMain(id); }
     const aide = o.aide || (t && t.desc);
     if (aide) bulle(aide, aide.length > 90);
@@ -389,7 +395,7 @@
   let mainT = 0;
   function montrerMain(id) {
     if (S.prefs.calme) return;
-    const o = (S.meta.outils && S.meta.outils[id]) || {};
+    const o = ficheOutil(id) || {};
     const geste = o.geste || (['gomme', 'souffle', 'souffler', 'remuer', 'encre', 'mur', 'murs', 'tracer', 'couper', 'guider', 'dessiner', 'sculpter', 'greffer', 'effacer', 'glisser', 'secouer', 'courant', 'gratter', 'verser', 'pluie', 'ecarter', 'tourner'].includes(id) ? 'trait' : 'tap');
     if (id === 'observer' || id === 'regarder') return;
     const m = $('main'); m.textContent = ''; m.append(FJ.icone('main'));

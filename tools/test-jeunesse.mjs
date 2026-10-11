@@ -65,9 +65,9 @@ const h = await T(async () => {
   const cles = Object.keys(F.S.meta.scenes); const sc = cles[cles.length - 1];
   await F.changerScene(sc); await wait(300);
   F.pilote.set('physique/vent', 0.42); const inst = F.pilote.valeur('physique/vent');
-  F.suivant(); await wait(1500);
+  await F.suivant(); await wait(300);
   const autre = F.S.id;
-  F.precedent(); await wait(1800);
+  await F.precedent(); await wait(300);
   return { autre, id: F.S.id, scene: F.S.scene, voulu: sc, vent: F.pilote.valeur('physique/vent'), inst };
 });
 verif('‹ revient à la machine précédente, même scène, mêmes réglages', h.id === 'feu' && h.autre !== 'feu' && h.scene === h.voulu && Math.abs(h.vent - h.inst) < 1e-6, h);

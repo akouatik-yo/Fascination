@@ -164,11 +164,11 @@
   function precedent() {
     if (S.hpos <= 0) return;
     memoriser(); S.hpos--;
-    const e = S.hist[S.hpos]; ouvrir(e.id, e.etat ? { etat: e.etat } : {});
+    const e = S.hist[S.hpos]; return ouvrir(e.id, e.etat ? { etat: e.etat } : {});
   }
   function suivant() {
-    if (S.hpos < S.hist.length - 1) { memoriser(); S.hpos++; const e = S.hist[S.hpos]; ouvrir(e.id, e.etat ? { etat: e.etat } : {}); return; }
-    aller(sac.suivant());
+    if (S.hpos < S.hist.length - 1) { memoriser(); S.hpos++; const e = S.hist[S.hpos]; return ouvrir(e.id, e.etat ? { etat: e.etat } : {}); }
+    return aller(sac.suivant());
   }
   function encore() { // même machine, nouveau tirage : c'est une demande explicite de recommencer
     memoriser();

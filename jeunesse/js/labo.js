@@ -131,6 +131,14 @@
     rendre();
     carton(opt.etat ? null : t);
     amorce();
+    // si l'enfant ne touche à rien, la main montre le geste (une fois par machine et par session)
+    const sim0 = S.sim;
+    setTimeout(() => {
+      if (S.sim !== sim0 || S.touche || S.tiroir || S.ecran || !S.outil) return;
+      const cle = S.id + '/' + S.outil;
+      if (S.outilsMontres.has(cle)) return;
+      S.outilsMontres.add(cle); montrerMain(S.outil);
+    }, 4600);
     if (TEST) window.FJ_TEST.ouvertures++;
   }
   function securite() {

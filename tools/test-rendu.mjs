@@ -10,7 +10,7 @@ import path from 'node:path';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2);
 const opt = Object.fromEntries(args.filter((a) => a.startsWith('--')).map((a) => a.slice(2).split('=')));
-const scenes = (args.find((a) => !a.startsWith('--')) || 'nebuleuse,lucioles,spectres,traits').split(',');
+const scenes = (args.find((a) => !a.startsWith('--')) || 'nebuleuse,lucioles,spectres,traits,matiere').split(',');
 const OUT = opt.sortie ? path.resolve(opt.sortie) : path.join(ROOT, 'tools/out/rendu');
 fs.mkdirSync(OUT, { recursive: true });
 let echecs = 0;

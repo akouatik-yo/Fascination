@@ -1,6 +1,6 @@
 # Chantier « rendu » — brief scientifique et répartition (nuit du 12 au 13/11/2026)
 
-Demande de Yoann (relayée par le CEO) : le fond scientifique est bon, mais le rendu des expériences est « moche ». **Le Feu est la référence** : toutes les machines devraient atteindre ce niveau.
+Demande de Yoann (relayée par le CEO) : le fond scientifique est bon, mais le rendu des expériences est « moche ». **Le Feu est la référence** (et, avec l'Eau et la Fourmilière, il est intouchable) : toutes les machines devraient atteindre ce niveau.
 - Le but n'est pas de calculer plus de particules. Il faut montrer **ce qu'un humain verrait vraiment**, en plus beau, comme les photos de Hubble colorisées : plus jolies, jamais fausses.
 - **Chef de projet et garant de la science** : la session Fascinations. Envoyez-moi le hash après chaque machine : je relis la justesse.
 
@@ -30,7 +30,7 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 
 | # | Rendu A (`rendu-a`) | Rendu B (`rendu-b`) |
 |---|---|---|
-| 1 | Galaxie | Eau (suspendue) |
+| 1 | Galaxie | (chaîne optique commune, `fkgl.js`) |
 | 2 | Foudre | Couleurs du ciel |
 | 3 | Abysses (méduses) | Lucioles |
 | 4 | Cristal | Bulles |
@@ -39,13 +39,14 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 | 7 | Mycélium | Blob |
 | 8 | Monde quantique | Tunnel |
 | 9 | Cymatiques | Spirales |
-| 10 | Motifs de Turing | Fourmilière (suspendue) |
-| 11 | Pendules | Harpe |
-| 12 | Harmonographe | Spectre |
-| 13 | Attracteur | Kaléidoscope |
-| 14 | Fractales | Jeu de la vie |
+| 10 | Motifs de Turing | Harpe |
+| 11 | Pendules | Spectre |
+| 12 | Harmonographe | Kaléidoscope |
+| 13 | | Jeu de la vie |
+| 14 | | Attracteur |
+| 15 | | Fractales |
 
-**Eau et Fourmilière : suspendues.** Une décision de Yoann du 10/11, relayée par le CEO et signalée par chef-design, rend intouchables le feu, l'eau et les fourmis. On attend la confirmation du CEO avant d'y toucher. D'ici là, rendu B commence par le Ciel.
+**Feu, Eau et Fourmilière : intouchables.** C'est une décision de Yoann du 10/11, confirmée par le CEO le 13/11 vers 00 h 25 : on n'y touche pas tant que Yoann n'en décide pas autrement. Pour rééquilibrer, l'Attracteur et les Fractales passent de A à B.
 
 **On ne touche pas au stimulus** des Illusions, du Moiré et des Illusions sonores : l'effet dépend du dessin exact. Seul le cadre autour peut être amélioré. Le Feu sert de référence et n'est pas touché.
 
@@ -113,18 +114,8 @@ Chaque machine a trois lignes : **Vu** (ce qu'on observe), **Juste** (ce qu'il f
 - **Juste** : on garde les équations des pendules amortis.
 - **Stylisé** : le grain du papier et la couleur de l'encre.
 
-**Attracteur**
-- **Vu** : c'est un objet mathématique, qui ne se voit nulle part en vrai.
-- **Juste** : la trajectoire et sa sensibilité aux conditions initiales.
-- **Stylisé** : tout le reste (lueur, couleurs), à présenter comme un choix.
-
-**Fractales**
-- **Vu** : un objet mathématique. Seule la fougère de Barnsley ressemble à une vraie fougère.
-- **Juste** : les ensembles eux-mêmes doivent être exacts.
-- **Stylisé** : la coloration selon le nombre d'itérations, qui est une convention et peut être belle.
-
 ### Rendu B
-**Eau**
+**Eau** — intouchable, ces lignes servent de référence seulement
 - **Vu** : au fond de la mare, des **caustiques** lumineuses et mouvantes. La surface est transparente vue d'en haut et devient un miroir en vue rasante (Fresnel), avec le ciel en reflet. Les ronds de pluie s'élargissent, avec des éclaboussures et de petites bulles.
 - **Juste** : les ondes capillaires ont une vitesse minimale d'environ 23 cm/s (longueur d'onde vers 1,7 cm). La cuve à ondes montre des franges claires et sombres projetées. Le sillage de Kelvin fait **39° d'ouverture** (19,5° de chaque côté), quelle que soit la vitesse.
 - **Stylisé** : la lumière du soleil et la couleur du fond.
@@ -168,7 +159,7 @@ Chaque machine a trois lignes : **Vu** (ce qu'on observe), **Juste** (ce qu'il f
 - **Juste** : on ne voit pas l'électricité du cœur à l'œil nu. Les spirales viennent de la cartographie optique, en fausses couleurs. Chez les amibes *Dictyostelium*, les ondes d'AMPc se voient en bandes claires et sombres au fond noir.
 - **Stylisé** : les fausses couleurs du cœur, à présenter comme telles.
 
-**Fourmilière**
+**Fourmilière** — intouchable, ces lignes servent de référence seulement
 - **Vu** : des fourmis brun-noir d'environ 5 mm, qui forment des pistes.
 - **Juste** : les phéromones sont invisibles. Leur affichage est une couche stylisée, à présenter comme telle.
 - **Stylisé** : le sol, les ombres et les détails des fourmis.
@@ -192,3 +183,13 @@ Chaque machine a trois lignes : **Vu** (ce qu'on observe), **Juste** (ce qu'il f
 - **Vu** : un automate mathématique, sans équivalent réel.
 - **Juste** : les règles. Lenia peut ressembler à des micro-organismes, mais ce n'en sont pas.
 - **Stylisé** : tout le rendu.
+
+**Attracteur**
+- **Vu** : c'est un objet mathématique, qui ne se voit nulle part en vrai.
+- **Juste** : la trajectoire et sa sensibilité aux conditions initiales.
+- **Stylisé** : tout le reste (lueur, couleurs), à présenter comme un choix.
+
+**Fractales**
+- **Vu** : un objet mathématique. Seule la fougère de Barnsley ressemble à une vraie fougère.
+- **Juste** : les ensembles eux-mêmes doivent être exacts.
+- **Stylisé** : la coloration selon le nombre d'itérations, qui est une convention et peut être belle.

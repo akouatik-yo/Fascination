@@ -1,6 +1,6 @@
 # Chantier « rendu » — brief scientifique et répartition (nuit du 12 au 13/11/2026)
 
-Demande de Yoann (relayée par le CEO) : le fond scientifique est bon, mais le rendu des expériences est « moche ». **Le Feu est la référence** (et, avec l'Eau et la Fourmilière, il est intouchable) : toutes les machines devraient atteindre ce niveau.
+Demande de Yoann (relayée par le CEO) : le fond scientifique est bon, mais le rendu des expériences est « moche ». **Le Feu est la référence**, et il est le seul intouchable : toutes les machines devraient atteindre ce niveau.
 - Le but n'est pas de calculer plus de particules. Il faut montrer **ce qu'un humain verrait vraiment**, en plus beau, comme les photos de Hubble colorisées : plus jolies, jamais fausses.
 - **Chef de projet et garant de la science** : la session Fascinations. Envoyez-moi le hash après chaque machine : je relis la justesse.
 
@@ -31,20 +31,22 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 | # | Rendu A (`rendu-a`) | Rendu B (`rendu-b`) |
 |---|---|---|
 | 1 | Lucioles | (chaîne optique commune, `fkgl.js`) |
-| 2 | Foudre | Couleurs du ciel |
-| 3 | Abysses (méduses) | Galaxie |
-| 4 | Cristal | Bulles |
-| 5 | Lampe à lave | Murmuration |
-| 6 | Écoulement | Sable |
-| 7 | Mycélium | Blob |
-| 8 | Monde quantique | Tunnel |
-| 9 | Cymatiques | Spirales |
-| 10 | Motifs de Turing | Harpe |
-| 11 | Pendules | Spectre |
-| 12 | Harmonographe | Kaléidoscope |
-| 13 | | Jeu de la vie |
-| 14 | | Attracteur |
-| 15 | | Fractales |
+| 2 | Foudre | Eau |
+| 3 | Abysses (méduses) | Couleurs du ciel |
+| 4 | Cristal | Fourmilière |
+| 5 | Lampe à lave **+ volcans et intérieur de la Terre** | Galaxie |
+| 6 | Écoulement | Bulles |
+| 7 | Mycélium | Murmuration |
+| 8 | Monde quantique | Sable |
+| 9 | Cymatiques | Blob |
+| 10 | Motifs de Turing | Tunnel |
+| 11 | Pendules | Spirales |
+| 12 | Harmonographe | Harpe |
+| 13 | | Spectre |
+| 14 | | Kaléidoscope |
+| 15 | | Jeu de la vie |
+| 16 | | Attracteur |
+| 17 | | Fractales |
 
 **Échange (13/11 vers 00 h 40)** : les Lucioles passent à rendu A, car c'est la machine d'accueil de l'application adulte, donc la plus vue. La Galaxie passe à rendu B : elle a déjà la chaîne de lumière du Feu, le gain y est moindre.
 
@@ -53,7 +55,9 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 - `app/js/fkgl.js` (le cœur WebGL) appartient à rendu B.
 - Personne ne duplique le post-traitement : rendu B utilise `fkcabine.js`.
 
-**Feu, Eau et Fourmilière : intouchables.** C'est une décision de Yoann du 10/11, confirmée par le CEO le 13/11 vers 00 h 25 : on n'y touche pas tant que Yoann n'en décide pas autrement. Pour rééquilibrer, l'Attracteur et les Fractales passent de A à B.
+**Seul le Feu est intouchable.** Le 13/11 vers 0 h 45, Yoann a écrit : « Oui, embellissez aussi l'eau et les fourmis ». L'**Eau** et la **Fourmilière** reviennent donc à rendu B, en tête de sa liste après la chaîne commune. La DA de chef-design (059035f) les précise. L'Attracteur et les Fractales restent à B, en fin de liste.
+
+**Nouveau, demandé par Yoann le 13/11 vers 0 h 55 : la Lampe à lave montre aussi les volcans et l'intérieur de la Terre.** Ce chantier est confié à rendu A, qui a la Lave. Le cadrage scientifique est plus bas, à « Lampe à lave ».
 
 **On ne touche pas au stimulus** des Illusions, du Moiré et des Illusions sonores : l'effet dépend du dessin exact. Seul le cadre autour peut être amélioré. Le Feu sert de référence et n'est pas touché.
 
@@ -85,6 +89,29 @@ Chaque machine a trois lignes : **Vu** (ce qu'on observe), **Juste** (ce qu'il f
 - **Vu** : de la cire colorée dans un liquide éclairé par l'ampoule du bas. Les gouttes montent quand elles sont chaudes, refroidissent en haut et redescendent en quelques minutes ; elles fusionnent rarement. Dans la casserole, les cellules de Bénard-Marangoni sont hexagonales, avec des reflets miroitants.
 - **Juste** : à la surface du Soleil, les granules mesurent environ 1 000 km. Leur centre clair monte, leurs bords sombres descendent, et ils vivent 8 à 10 minutes. Il y a des taches solaires.
 - **Stylisé** : le Soleil est **blanc**. L'orange des images filtrées est une convention, à dire si on la garde.
+
+**Volcans et intérieur de la Terre** (nouvelles scènes de la Lampe à lave)
+
+Le cadrage scientifique est non négociable.
+- **Le manteau n'est pas de la lave.** C'est de la roche **solide**, qui s'écoule très lentement par convection (quelques cm par an, soit la vitesse de pousse des ongles). Un tour de convection prend de l'ordre de 100 millions d'années.
+  - **Juste** : montrer une **horloge des temps** (« 1 seconde à l'écran = X millions d'années »), et dire que la roche du manteau est chaude (environ 1 000 à 3 500 °C) mais solide, sauf très localement.
+  - **Stylisé** : l'ondulation lente des panaches.
+- **Le magma n'existe que localement.** Il apparaît à trois endroits :
+  - aux **dorsales**, où la roche fond parce que la pression baisse quand elle remonte ;
+  - aux **points chauds**, au-dessus d'un panache (Hawaï : la plaque glisse au-dessus et laisse une chaîne d'îles de plus en plus vieilles) ;
+  - aux **zones de subduction**, où l'eau entraînée par la plaque qui plonge abaisse la température de fusion.
+  
+  Il s'accumule dans des **chambres magmatiques**, à quelques kilomètres de profondeur, puis monte par des fissures. Il ne devient **lave** qu'en surface.
+- **Les couches, à l'échelle** : rayon de la Terre 6 371 km ; croûte de 5 à 70 km seulement (une peau de pomme) ; manteau jusqu'à 2 900 km ; **noyau externe liquide** (du fer, pas de la lave) ; noyau interne solide. Une coupe à l'échelle doit montrer à quel point la croûte est fine.
+- **La lave en surface** :
+  - les **couleurs suivent la température** (incandescence) : jaune-orange vers 1 100-1 200 °C, rouge cerise vers 800-900 °C, croûte noire ou argentée en refroidissant ;
+  - le basalte fluide (Hawaï, Islande) coule en rivières ;
+  - le magma visqueux et riche en gaz (riche en silice) **explose** : panache de cendres grises, nuées ardentes.
+  - **Stylisé** : la vapeur, la nuit étoilée, et la lueur de la lave sur le panache.
+- **Le lien avec la lampe à lave** est une **analogie** à présenter comme telle : chauffé par en bas, on monte ; refroidi en haut, on redescend. Mais la cire est liquide et fait un tour en quelques minutes ; le manteau est solide et fait un tour en 100 millions d'années.
+- **Selon l'âge et le niveau** (chantier d'interface), une fiche jeunesse sera écrite par la session Fascinations dès que les scènes existent. Envoie-moi les chemins des réglages et des scènes.
+  - Je découvre : « Sous nos pieds, la roche est chaude et bouge très, très lentement. »
+  - Je connais déjà : convection solide, fusion par décompression, températures, échelles.
 
 **Écoulement**
 - **Vu** : l'eau est transparente ; on voit l'écoulement grâce à de l'encre ou des colorants. On voit ces motifs dans la nature : l'allée de tourbillons de Kármán derrière une île (nuages vus par satellite), les rouleaux de Kelvin-Helmholtz dans des nuages, les champignons d'encre de Rayleigh-Taylor quand on verse de l'encre dans l'eau.
@@ -122,7 +149,7 @@ Chaque machine a trois lignes : **Vu** (ce qu'on observe), **Juste** (ce qu'il f
 - **Stylisé** : le grain du papier et la couleur de l'encre.
 
 ### Rendu B
-**Eau** — intouchable, ces lignes servent de référence seulement
+**Eau** (rouverte le 13/11)
 - **Vu** : au fond de la mare, des **caustiques** lumineuses et mouvantes. La surface est transparente vue d'en haut et devient un miroir en vue rasante (Fresnel), avec le ciel en reflet. Les ronds de pluie s'élargissent, avec des éclaboussures et de petites bulles.
 - **Juste** : les ondes capillaires ont une vitesse minimale d'environ 23 cm/s (longueur d'onde vers 1,7 cm). La cuve à ondes montre des franges claires et sombres projetées. Le sillage de Kelvin fait **39° d'ouverture** (19,5° de chaque côté), quelle que soit la vitesse.
 - **Stylisé** : la lumière du soleil et la couleur du fond.
@@ -166,7 +193,7 @@ Chaque machine a trois lignes : **Vu** (ce qu'on observe), **Juste** (ce qu'il f
 - **Juste** : on ne voit pas l'électricité du cœur à l'œil nu. Les spirales viennent de la cartographie optique, en fausses couleurs. Chez les amibes *Dictyostelium*, les ondes d'AMPc se voient en bandes claires et sombres au fond noir.
 - **Stylisé** : les fausses couleurs du cœur, à présenter comme telles.
 
-**Fourmilière** — intouchable, ces lignes servent de référence seulement
+**Fourmilière** (rouverte le 13/11 ; phéromones en fausse couleur nommée, selon la DA)
 - **Vu** : des fourmis brun-noir d'environ 5 mm, qui forment des pistes.
 - **Juste** : les phéromones sont invisibles. Leur affichage est une couche stylisée, à présenter comme telle.
 - **Stylisé** : le sol, les ombres et les détails des fourmis.

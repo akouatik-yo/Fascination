@@ -34,6 +34,17 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # le numéro de version suit le nombre de commits
+          persist-credentials: false # le jeton ne reste pas dans .git/config ; il ne sert qu'à l'étape de commit
+
+      - name: Garde contre l'ancien script et l'ancienne clé
+        run: |
+          set -euo pipefail
+          if [ -n "$(git ls-files '*.p12' '*.jks' '*.keystore')" ]; then
+            echo "::error::une clé est versionnée sur cette branche (ancienne clé ?) : arrêt"; git ls-files '*.p12' '*.jks' '*.keystore'; exit 1
+          fi
+          if ! grep -q 'FASC_KEYSTORE' tools/build-apk.mjs; then
+            echo "::error::tools/build-apk.mjs est l'ancien script (il ignorerait la nouvelle clé) : lancer le workflow depuis une branche à jour"; exit 1
+          fi
 
       - name: Java 21
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
@@ -79,6 +90,7 @@ jobs:
       - name: Commit des APK signés
         env:
           CIBLE: ${{ inputs.cible }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -86,7 +98,7 @@ jobs:
           git add dist/fascinations.apk dist/fascinations-labo.apk
           if git diff --cached --quiet; then echo "aucun APK modifié"; exit 0; fi
           git commit -m "APK : signés avec la nouvelle clé (${CIBLE}, workflow signer-apk, lancement ${GITHUB_RUN_ID})"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)" push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Effacement de la clé
         if: always()

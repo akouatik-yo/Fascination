@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const AND = path.join(ROOT, 'android');
@@ -22,11 +23,13 @@ const JEUNE = process.argv[2] === 'jeunesse';
 const OUT = path.join(ROOT, 'dist', JEUNE ? 'fascinations-labo.apk' : 'fascinations.apk');
 const W = path.join(os.tmpdir(), JEUNE ? 'fascinations-labo-apk-build' : 'fascinations-apk-build');
 const M = 'https://repo1.maven.org/maven2';
+/* les jars s'exécutent pendant que la clé est présente : chacun est épinglé par son SHA-256
+   (calculé le 12/11/2026 sur un téléchargement dont le .sha1 de Maven Central concordait ; .sha256 publié concordant pour dx) */
 const TOOLS = {
-  apktool: `${M}/org/apktool/apktool-cli/3.0.3/apktool-cli-3.0.3.jar`,
-  dx: `${M}/com/jakewharton/android/repackaged/dalvik-dx/16.0.1/dalvik-dx-16.0.1.jar`,
-  android: `${M}/com/google/android/android/4.1.1.4/android-4.1.1.4.jar`,
-  apksig: `${M}/com/android/tools/build/apksig/2.3.0/apksig-2.3.0.jar`,
+  apktool: [`${M}/org/apktool/apktool-cli/3.0.3/apktool-cli-3.0.3.jar`, '29fc610eed9dd349e75d40fd5af02538e0118b08d56a61ef6f53f8256adadc9a'],
+  dx: [`${M}/com/jakewharton/android/repackaged/dalvik-dx/16.0.1/dalvik-dx-16.0.1.jar`, '1e4b645628e3bdb097b5331d669e177ef235a551582a8c646dbe36865e541907'],
+  android: [`${M}/com/google/android/android/4.1.1.4/android-4.1.1.4.jar`, '84072541cbb711eff89f7277100ff854929a446dba7ceb1b195c340e0b4fd3cb'],
+  apksig: [`${M}/com/android/tools/build/apksig/2.3.0/apksig-2.3.0.jar`, '9637078c0016244e4be0941836295365a7e2e5b164c59cb7885783c40460bfee'],
 };
 /* 0. la clé de signature, lue hors du dépôt : on vérifie avant tout le reste pour ne rien construire en vain */
 const stop = (msg) => { console.error('✗ ' + msg); process.exit(1); };
@@ -46,13 +49,17 @@ const log = (s) => console.log('· ' + s);
 /* 1. les outils */
 fs.mkdirSync(CACHE, { recursive: true });
 const jar = {};
-for (const [k, url] of Object.entries(TOOLS)) {
+const sha256 = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+for (const [k, [url, attendu]] of Object.entries(TOOLS)) {
   const f = path.join(CACHE, path.basename(url));
   if (!fs.existsSync(f)) { log('téléchargement ' + path.basename(url)); run('curl', ['-sSfL', '-o', f, url]); }
+  const vu = sha256(f); // vérifié à chaque construction, cache compris
+  if (vu !== attendu) { fs.rmSync(f, { force: true }); stop(`${path.basename(url)} : SHA-256 inattendu (${vu}) ; fichier supprimé, rien n'est signé.`); }
   jar[k] = f;
 }
+// aapt2 et la table du système sont réextraits à chaque fois du jar vérifié (on ne fait pas confiance à une ancienne extraction)
 const AAPT2 = path.join(CACHE, 'prebuilt/linux/aapt2'), FRAMEWORK = path.join(CACHE, 'prebuilt/android-framework.jar');
-if (!fs.existsSync(AAPT2)) { run('unzip', ['-o', '-q', jar.apktool, 'prebuilt/linux/aapt2', 'prebuilt/android-framework.jar', '-d', CACHE]); fs.chmodSync(AAPT2, 0o755); }
+run('unzip', ['-o', '-q', jar.apktool, 'prebuilt/linux/aapt2', 'prebuilt/android-framework.jar', '-d', CACHE]); fs.chmodSync(AAPT2, 0o755);
 
 /* 2. l'application web, en un seul fichier, avec les polices en local */
 log('assemblage de l’application web');

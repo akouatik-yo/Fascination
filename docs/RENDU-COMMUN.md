@@ -2,7 +2,7 @@
 
 `app/js/fkrendu.js` expose `window.FKR`, la bibliothèque de rendu partagée par les branches de reprise visuelle (`rendu-a`, `rendu-b`). Elle généralise ce qui rend le Feu beau, pour que toutes les machines parlent la même langue visuelle.
 
-- **Banc d'essai** : `tools/demo-rendu.html` (scènes `#nebuleuse`, `#lucioles`, `#spectres`, `#traits`).
+- **Banc d'essai** : `tools/demo-rendu.html` (scènes `#nebuleuse`, `#lucioles`, `#spectres`, `#traits`, `#matiere`).
 - **Test** : `node tools/test-rendu.mjs` vérifie dix couleurs physiques, puis rend chaque scène dans Chromium sans écran. Les captures vont dans `tools/out/rendu/`.
 - **Captures de référence** : `docs/rendu/fkr-*.jpg`.
 - **Chargement** : après `fkgl.js`, dans `app/index.html`, `jeunesse/index.html` et `app/sw.js`.
@@ -181,6 +181,11 @@ Une palette est une fonction `t ∈ [0, 1] → [r, g, b]`. Pour en faire une tex
   - surfaces : `schlick`, `enveloppe` (éclairage enveloppant), `normaleHauteur` ;
   - milieux : `phaseHG`, `phaseRayleigh`, `beer`, `brouillard`.
 - **formes** : `sdCercle`, `sdBoite`, `sdSegment`, `sminP`, `rot2`.
+- **matiere** : de quoi donner du corps à un champ 2D (motif de Turing, lave, fluide, gel, cire…).
+  - `normaleDe(h, hx, hy, pas)` : la normale du relief ;
+  - `surface(n, l, albédo, rugosité, f0, lumière, cielHaut, cielBas)` : micro-facettes GGX, Fresnel de Schlick, diffus enveloppant, reflet d'un ciel en dégradé, qui se brouille avec la rugosité ;
+  - `traverse(sigma, épaisseur)` : la translucidité de Beer-Lambert ;
+  - voir la scène `#matiere` du banc d'essai.
 - **finition** : `vignetage`, `tramer`.
 
 ## Partager entre les branches

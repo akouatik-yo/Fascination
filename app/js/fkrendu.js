@@ -390,8 +390,33 @@ float vignetage(vec2 uv, float aspect, float k){ vec2 d = (uv - .5) * vec2(aspec
 // tramage triangulaire : supprime les bandes dans les dégradés sombres (à appliquer après versSrgb)
 vec3 tramer(vec3 s, vec2 px, float t){ return s + (ign(px + t * 59.) + ign(px.yx + 13.7 + t * 83.) - 1.) / 255.; }
 `;
-  const ORDRE = ['couleur', 'bruit', 'tons', 'lumiere', 'formes', 'finition'];
-  const DEPS = { tons: ['couleur'], finition: ['bruit'], lumiere: [], couleur: [], bruit: [], formes: [] };
+  G.matiere = `
+// ── matière ── : donner du corps à un champ 2D (un relief h), éclairé comme une vraie surface vue de face.
+// Micro-facettes GGX (Trowbridge-Reitz), Fresnel de Schlick, diffus enveloppant, reflet d'un ciel en dégradé,
+// translucidité de Beer-Lambert. Repère : x à droite, y en haut, z vers l'œil.
+float ggxD(float ndh, float rug){ float a = rug * rug, a2 = a * a, d = ndh * ndh * (a2 - 1.) + 1.; return a2 / (3.1415927 * d * d); }
+float smithG(float ndv, float ndl, float rug){ float k = (rug + 1.) * (rug + 1.) * .125; return ndv / (ndv * (1. - k) + k) * ndl / (ndl * (1. - k) + k); }
+// normale d'un relief donné par trois hauteurs : au point, un pas à droite, un pas en haut (pas en unités du relief)
+vec3 normaleDe(float h, float hx, float hy, float pas){ return normalize(vec3(h - hx, h - hy, pas)); }
+// n : normale ; l : vers la lumière ; alb : albédo ; rug : rugosité, de 0,05 (vernis) à 1 (mat) ;
+// f0 : réflectance de face (eau .02, verre et gel .04, métal : sa couleur) ; L : la lumière ; ciel : (haut, bas) pour les reflets
+vec3 surface(vec3 n, vec3 l, vec3 alb, float rug, vec3 f0, vec3 L, vec3 cielH, vec3 cielB){
+  rug = clamp(rug, .05, 1.);
+  vec3 v = vec3(0., 0., 1.), h = normalize(l + v);
+  float ndl = max(dot(n, l), 0.), ndv = max(n.z, 1e-3), ndh = max(dot(n, h), 0.), vdh = max(dot(v, h), 0.);
+  vec3 F = f0 + (1. - f0) * pow(1. - vdh, 5.);
+  vec3 spec = ggxD(ndh, rug) * smithG(ndv, ndl, rug) * F / max(4. * ndv, 1e-3);
+  vec3 diff = alb * enveloppe(dot(n, l), .25) * (1. - F);
+  vec3 r = reflect(-v, n);
+  vec3 Fe = f0 + (1. - f0) * pow(1. - ndv, 5.) / (1. + 4. * rug);
+  vec3 cielR = mix(mix(cielB, cielH, r.y * .5 + .5), (cielH + cielB) * .5, rug);  // une surface mate voit un ciel moyen
+  return (diff + spec) * L + cielR * Fe + alb * (cielH + cielB) * .25 * (1. - Fe);
+}
+// translucidité : ce qui reste d'une lumière blanche après une épaisseur d de matière d'absorption sigma (par canal)
+vec3 traverse(vec3 sigma, float d){ return exp(-sigma * max(d, 0.)); }
+`;
+  const ORDRE = ['couleur', 'bruit', 'tons', 'lumiere', 'formes', 'matiere', 'finition'];
+  const DEPS = { tons: ['couleur'], finition: ['bruit'], matiere: ['lumiere'], lumiere: [], couleur: [], bruit: [], formes: [] };
   // FKR.glsl('bruit', 'tons') → les morceaux demandés et leurs dépendances, dans le bon ordre (sans la tête)
   function glsl(...noms) {
     const S = new Set();
@@ -822,5 +847,5 @@ void main(){
     return c;
   }
 
-  window.FKR = { version: '1.0.0', couleur, palette, GLSL: G, glsl, fs, cabine, cabine2D, cabineOuRepli, sprite, DEFAUTS, courbeLottes };
+  window.FKR = { version: '1.1.0', couleur, palette, GLSL: G, glsl, fs, cabine, cabine2D, cabineOuRepli, sprite, DEFAUTS, courbeLottes };
 })();

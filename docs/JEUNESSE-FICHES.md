@@ -59,6 +59,7 @@ FJ.fiche('id', {
     etincelle: '…',                 // 1 phrase, 25 mots max : le phénomène expliqué d'un trait
     texte: '…\n\n…',                // 60 à 120 mots, 1 ou 2 paragraphes, **un** mot savant en **gras** (le mot arrive après l'idée)
     vraie: '…',                     // facultatif : une histoire vraie et vérifiée (2 ou 3 phrases)
+    petit: '…',                     // facultatif : pour « Je découvre » (5-8 ans) : 1 ou 2 phrases de 8 à 12 mots, lisibles à voix haute ; les mêmes faits que l'étincelle, en mots de tous les jours (sinon l'étincelle sert)
   },
   etsi: [{ id: 'espace', scene: 'bougie', question: 'Et si … ?', choix: ['…', '…', '…'], bonne: 1,
            prepare: { scene: 'bougie', regle: { gravite: 0 }, outil: 'sel', action: 'rubrique/bouton' },
@@ -101,3 +102,18 @@ Ces corrections viennent de la relecture scientifique de Claire :
 - Turing : le mécanisme est confirmé pour quelques cas (les rayures du poisson-zèbre). Pour le guépard, ce n'est pas démontré.
 - Sophie Germain : l'École polytechnique lui était fermée, elle en suivait les cours sous un nom d'homme. Elle a remporté le prix de l'Académie en 1816, et sa théorie était incomplète.
 - Le Mycélium : le partage du carbone entre arbres est **débattu**.
+
+## L'âge et le niveau (13/11/2026)
+À la première ouverture, l'enfant (ou un parent) choisit **son âge** (de 5 à 15 ans, ou 16 et plus) puis **son niveau** : Je découvre, J'aime comprendre, Je veux tous les détails, Je connais déjà. Le niveau est proposé d'après l'âge ; on le change depuis la carte (pastille du profil) ou le coin des grands.
+- **L'âge règle l'ergonomie.**
+  - 5-6 ans : commandes agrandies (× 1,3), 2 gestes au plus, 2 leviers au plus, pas de Labo ; les « Et si » sont cachés au niveau « Je découvre ».
+  - 7-9 ans : × 1,15, 3 leviers, pas de Labo (sauf niveau 3 ou 4).
+  - 10-14 ans : l'interface d'origine.
+  - 16 ans et plus : la même, avec le Labo.
+- **Le niveau règle la profondeur.**
+  - Je découvre : question, `petit` (ou l'étincelle) et « Essaie ça » ; le texte est replié sous « Lire la suite ».
+  - J'aime comprendre : la fiche complète.
+  - Je veux tous les détails : tous les leviers de la fiche et « Pour les curieux » ouvert.
+  - Je connais déjà : en plus, le Labo ouvert, le texte adulte de la machine, et sous chaque levier son vrai nom et sa vraie valeur.
+- **La lecture à voix haute** (« Écouter ») utilise la synthèse vocale de l'appareil, quand elle a une voix française. Elle est proposée aux moins de 10 ans et au niveau « Je découvre ».
+- **La science ne change pas d'un niveau à l'autre** : seuls la quantité de texte et le vocabulaire changent. Un texte `petit` dit les mêmes faits que l'étincelle, sans mot savant. Il ne simplifie jamais au point d'être faux.

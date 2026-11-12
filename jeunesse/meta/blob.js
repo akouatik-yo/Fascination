@@ -50,6 +50,7 @@ FJ.fiche('blob', {
   ],
   pourquoi: {
     etincelle: 'Les tubes qui mènent à la nourriture sont les plus parcourus : ils grossissent, les autres disparaissent, et il reste un bon réseau.',
+    petit: 'Le blob grossit sur les chemins qui mènent à la nourriture. Les autres chemins disparaissent.',
     texte: 'Le blob n’est ni un animal, ni une plante, ni un champignon. C’est une seule cellule géante, avec une multitude de noyaux et sans cerveau. Il avance en pulsant : son intérieur coule d’avant en arrière dans des tubes. Les tubes qui mènent à la nourriture sont les plus parcourus et grossissent ; les autres disparaissent. Les biologistes le rangent parmi les **myxomycètes**.\n\nIl laisse aussi un mucus qu’il évite ensuite : une mémoire posée au sol. Dans la machine, le blob est imité par des milliers de points qui suivent leurs propres traces. C’est un modèle, pas une vraie cellule.',
     vraie: 'En 2010, une équipe de chercheurs pose des flocons d’avoine à la place des villes autour de Tokyo, et un blob à la place de Tokyo. En une journée environ, il tisse un réseau de tubes qui ressemble beaucoup à celui des trains de la région.',
   },

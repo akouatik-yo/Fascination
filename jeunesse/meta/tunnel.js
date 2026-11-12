@@ -57,6 +57,7 @@ FJ.fiche('tunnel', {
   ],
   pourquoi: {
     etincelle: 'À très grande vitesse, la lumière des étoiles semble venir de devant : le ciel se resserre devant toi et bleuit.',
+    petit: 'Quand on va très, très vite, les étoiles semblent se serrer devant toi. Elles deviennent plus bleues.',
     texte: 'Quand tu cours sous la pluie, les gouttes semblent tomber de face. Avec la lumière, c’est pareil : plus le vaisseau va vite, plus les étoiles semblent venir de devant. Le ciel se resserre vers l’avant, bleuit et brille, et l’arrière s’éteint. C’est l’**aberration** de la lumière, calculée avec la relativité d’Einstein. Cette partie-là est de la vraie physique.\n\nLe trou de ver, lui, est une hypothèse : les équations l’autorisent, mais personne n’en a jamais vu, et on ne sait pas comment en garder un ouvert. La porte des étoiles et le tunnel des démos sont de purs effets visuels, inventés pour le cinéma et pour le plaisir.',
     vraie: 'À la fin des années 1720, l’astronome anglais James Bradley remarque que les étoiles se décalent un tout petit peu au fil de l’année. Il comprend pourquoi : la Terre tourne autour du Soleil, et sa vitesse change la direction d’où semble venir leur lumière. C’est l’effet de la machine, mais des milliers de fois plus faible.',
   },

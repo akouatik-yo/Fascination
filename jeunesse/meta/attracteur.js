@@ -58,6 +58,7 @@ FJ.fiche('attracteur', {
   ],
   pourquoi: {
     etincelle: 'Chaque point suit trois règles simples, sans aucun hasard. Pourtant, deux points presque collés finissent toujours par se séparer complètement.',
+    petit: 'Deux points qui partent presque au même endroit finissent très loin l’un de l’autre.',
     texte: 'Ici, chaque point lumineux est un état possible d’un modèle très simplifié d’air chauffé par en dessous. Trois équations disent où il va ensuite, sans aucun hasard. Mais deux points partis à un millième près finissent sur des ailes différentes : la moindre différence grandit sans cesse. C’est le **chaos**.\n\nLes points ne vont pas n’importe où pour autant : ils restent sur une forme précise, qui ne se recoupe jamais, l’attracteur. L’atmosphère réelle est bien plus compliquée, mais elle a la même faiblesse : c’est pour ça qu’on ne prévoit pas bien la météo au-delà d’une dizaine de jours.',
     vraie: 'En 1961, le météorologue Edward Lorenz relance une simulation du temps en recopiant un nombre arrondi : 0,506 au lieu de 0,506127. À son retour, la météo calculée n’a plus rien à voir avec la première. En 1972, il donne une conférence au titre resté célèbre : « Le battement d’ailes d’un papillon au Brésil peut-il déclencher une tornade au Texas ? »',
   },

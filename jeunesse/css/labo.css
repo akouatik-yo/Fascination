@@ -206,3 +206,31 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   .titre .fl { width: 44px; height: 44px; }
 }
 @media (max-height: 560px) { .cb, .geste { min-height: 52px; } .cb span, .geste span { font-size: 12px; } }
+
+/* ── l'âge et le niveau ── */
+/* les commandes grandissent pour les plus jeunes (--k) ; le canevas, lui, ne change pas */
+:root { --k: 1; }
+.col, #haut, #actions, #carton, #bulle, #pastille, #tiroir { zoom: var(--k); }
+#fj.age-1 .cb .ic, #fj.age-1 .geste .ic { width: 34px; height: 34px; }
+.accueil { display: flex; flex-direction: column; align-items: center; text-align: center; background: radial-gradient(ellipse at 50% 30%, rgba(24, 28, 52, .78), rgba(8, 9, 16, .9)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.accueil > .tete { background: none; }
+.accueil .tete { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.grandeq { font-size: clamp(28px, 4.5vw, 44px); margin: 18px 0 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.ages { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 14px; width: min(760px, 100%); }
+.age { min-height: 96px; border-radius: 22px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.age b { font-size: 40px; line-height: 1; }
+.age span { color: var(--doux); font-size: 15px; }
+.age.on { border-color: #7ee8a9; }
+.niveaux { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; width: min(760px, 100%); }
+.niveau { min-height: 120px; border-radius: 22px; padding: 16px 18px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 14px; text-align: left; align-items: center; }
+.niveau .ic { grid-row: span 2; width: 48px; height: 48px; color: #7ee8a9; }
+.niveau b { font-size: 22px; }
+.niveau span { color: var(--doux); font-size: 15.5px; }
+.niveau.propose { border-color: #7ee8a9; box-shadow: 0 0 0 4px rgba(126, 232, 169, .18); }
+.accueil .petit { max-width: 620px; margin: 22px auto 0; }
+.ecouter { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 14px; border-radius: 999px; background: rgba(255, 255, 255, .08); border: 1px solid var(--trait); font-size: 15px; font-weight: 700; vertical-align: middle; margin-left: 8px; }
+.ecouter .ic { width: 22px; height: 22px; }
+.levier .vrai { display: block; font-weight: 400; font-size: 13.5px; color: var(--doux); font-family: ui-monospace, monospace; }
+.bt.profil { border: 1.5px solid #7ee8a9; }
+/* 5-6 ans : la question et l'étincelle en gros */
+#fj.age-1 .question { font-size: 26px; } #fj.age-1 .etincelle { font-size: 22px; }

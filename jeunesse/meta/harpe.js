@@ -57,6 +57,7 @@ FJ.fiche('harpe', {
   ],
   pourquoi: {
     etincelle: 'Plus une corde est courte, plus elle vibre vite, et plus le son est aigu.',
+    petit: 'Une corde courte vibre plus vite. Son son est plus aigu.',
     texte: 'Pincée, une corde fait des allers-retours très rapides : des centaines par seconde. Ici, on te les montre au ralenti. Pour une même corde, plus la partie qui vibre est courte, plus elle vibre vite, et plus le son est aigu. Deux fois plus courte, elle vibre deux fois plus vite : c’est l’octave.\n\nUne corde ne vibre pas d’une seule façon. Elle vibre en entier, mais aussi en deux, trois, quatre morceaux à la fois. Ces vibrations s’additionnent : ce sont les **harmoniques**, que montrent les petites barres en bas. Selon la légende, Pythagore aurait remarqué que deux cordes sonnent bien ensemble quand leurs longueurs sont dans un rapport simple, comme 1 pour 2.',
     vraie: 'Une harpe de concert a 47 cordes. Pour s’y retrouver, la harpiste a des repères de couleur : les cordes de do sont rouges, et celles de fa sont noires ou bleu foncé.',
   },

@@ -58,6 +58,7 @@ FJ.fiche('boids', {
   ],
   pourquoi: {
     etincelle: 'Personne : chaque oiseau imite seulement ses 6 ou 7 voisins, et de proche en proche, des milliers d’oiseaux bougent ensemble.',
+    petit: 'Personne ne commande. Chaque oiseau suit seulement ses voisins les plus proches.',
     texte: 'Dans la machine, chaque oiseau suit trois règles simples : ne pas heurter ses voisins, voler dans le même sens qu’eux, rester près d’eux. Comme un vrai étourneau, il ne regarde que 6 ou 7 voisins, jamais toute la nuée. Quand l’un vire, ses voisins virent aussi, puis les voisins des voisins. Une forme d’ensemble naît sans chef ni plan : c’est l’**auto-organisation**.\n\nDans la nature, voler en nuée protège : l’oiseau isolé est une proie facile, alors qu’au cœur de la nuée le faucon a du mal à en viser un seul. Les scientifiques cherchent encore pourquoi les étourneaux dansent si longtemps avant de se poser.',
     vraie: 'Au milieu des années 2000, l’équipe du physicien italien Giorgio Parisi filme des nuées d’étourneaux au-dessus de Rome avec plusieurs caméras à la fois, pour suivre chaque oiseau en 3D. Résultat, publié en 2008 : chacun suit ses 6 ou 7 voisins les plus proches, qu’ils soient près ou loin. Parisi a reçu le prix Nobel de physique en 2021, pour ses travaux sur les systèmes complexes.',
   },

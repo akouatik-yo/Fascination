@@ -210,6 +210,34 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 }
 @media (max-height: 560px) { .cb, .geste { min-height: 52px; } .cb span, .geste span { font-size: 12px; } }
 
+/* ── l'âge et le niveau ── */
+/* les commandes grandissent pour les plus jeunes (--k) ; le canevas, lui, ne change pas */
+:root { --k: 1; }
+.col, #haut, #actions, #carton, #bulle, #pastille, #tiroir { zoom: var(--k); }
+#fj.age-1 .cb .ic, #fj.age-1 .geste .ic { width: 34px; height: 34px; }
+.accueil { display: flex; flex-direction: column; align-items: center; text-align: center; background: radial-gradient(ellipse at 50% 30%, rgba(24, 28, 52, .78), rgba(8, 9, 16, .9)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.accueil > .tete { background: none; }
+.accueil .tete { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.grandeq { font-size: clamp(28px, 4.5vw, 44px); margin: 18px 0 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.ages { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 14px; width: min(760px, 100%); }
+.age { min-height: 96px; border-radius: 22px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.age b { font-size: 40px; line-height: 1; }
+.age span { color: var(--doux); font-size: 15px; }
+.age.on { border-color: #7ee8a9; }
+.niveaux { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; width: min(760px, 100%); }
+.niveau { min-height: 120px; border-radius: 22px; padding: 16px 18px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 14px; text-align: left; align-items: center; }
+.niveau .ic { grid-row: span 2; width: 48px; height: 48px; color: #7ee8a9; }
+.niveau b { font-size: 22px; }
+.niveau span { color: var(--doux); font-size: 15.5px; }
+.niveau.propose { border-color: #7ee8a9; box-shadow: 0 0 0 4px rgba(126, 232, 169, .18); }
+.accueil .petit { max-width: 620px; margin: 22px auto 0; }
+.ecouter { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 14px; border-radius: 999px; background: rgba(255, 255, 255, .08); border: 1px solid var(--trait); font-size: 15px; font-weight: 700; vertical-align: middle; margin-left: 8px; }
+.ecouter .ic { width: 22px; height: 22px; }
+.levier .vrai { display: block; font-weight: 400; font-size: 13.5px; color: var(--doux); font-family: ui-monospace, monospace; }
+.bt.profil { border: 1.5px solid #7ee8a9; }
+/* 5-6 ans : la question et l'étincelle en gros */
+#fj.age-1 .question { font-size: 26px; } #fj.age-1 .etincelle { font-size: 22px; }
+
 </style>
 <div id="fj">
   <canvas id="cv"></canvas>
@@ -241,6 +269,7 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   <section class="ecran" id="carte" hidden></section>
   <section class="ecran" id="carnet" hidden></section>
   <section class="ecran" id="parents" hidden></section>
+  <section class="ecran accueil" id="accueil" hidden></section>
   <button id="sortie" hidden aria-label="Quitter le spectacle"></button>
   <div id="main" hidden></div>
   <div id="flash" hidden></div>
@@ -21918,6 +21947,7 @@ FJ.fiche('lucioles', {
   ],
   pourquoi: {
     etincelle: 'Chaque luciole avance un peu son horloge quand elle voit une voisine briller : de proche en proche, toutes finissent par clignoter ensemble.',
+    petit: 'Quand une luciole voit sa voisine briller, elle s’allume un peu plus tôt. Peu à peu, elles brillent ensemble.',
     texte: 'Chaque luciole mâle a une sorte d’horloge interne qui déclenche ses flashs. Quand elle voit une voisine s’allumer, son horloge avance un peu. Personne ne donne le signal : de proche en proche, les flashs se rapprochent, puis toute la vallée clignote d’un même pas. C’est la **synchronisation**.\n\nChaque espèce a son propre code lumineux pour trouver un partenaire. Pourquoi certaines s’accordent-elles ainsi ? Peut-être pour que les femelles reconnaissent mieux leur espèce, mais ce n’est pas certain. La lumière des villes brouille ces messages : c’est l’une des causes du déclin des lucioles.',
     vraie: 'Pendant longtemps, des spécialistes ont pensé qu’aucune luciole d’Amérique du Nord ne clignotait en rythme. Au début des années 1990, Lynn Faust, qui voyait ce spectacle chaque été près de son chalet des Great Smoky Mountains, leur a écrit. Des biologistes sont venus voir : elle avait raison.',
   },
@@ -21996,6 +22026,7 @@ FJ.fiche('boids', {
   ],
   pourquoi: {
     etincelle: 'Personne : chaque oiseau imite seulement ses 6 ou 7 voisins, et de proche en proche, des milliers d’oiseaux bougent ensemble.',
+    petit: 'Personne ne commande. Chaque oiseau suit seulement ses voisins les plus proches.',
     texte: 'Dans la machine, chaque oiseau suit trois règles simples : ne pas heurter ses voisins, voler dans le même sens qu’eux, rester près d’eux. Comme un vrai étourneau, il ne regarde que 6 ou 7 voisins, jamais toute la nuée. Quand l’un vire, ses voisins virent aussi, puis les voisins des voisins. Une forme d’ensemble naît sans chef ni plan : c’est l’**auto-organisation**.\n\nDans la nature, voler en nuée protège : l’oiseau isolé est une proie facile, alors qu’au cœur de la nuée le faucon a du mal à en viser un seul. Les scientifiques cherchent encore pourquoi les étourneaux dansent si longtemps avant de se poser.',
     vraie: 'Au milieu des années 2000, l’équipe du physicien italien Giorgio Parisi filme des nuées d’étourneaux au-dessus de Rome avec plusieurs caméras à la fois, pour suivre chaque oiseau en 3D. Résultat, publié en 2008 : chacun suit ses 6 ou 7 voisins les plus proches, qu’ils soient près ou loin. Parisi a reçu le prix Nobel de physique en 2021, pour ses travaux sur les systèmes complexes.',
   },
@@ -22068,6 +22099,7 @@ FJ.fiche('feu', {
   ],
   pourquoi: {
     etincelle: 'Une flamme est pointue parce que l’air chaud, plus léger, monte et l’étire vers le haut.',
+    petit: 'L’air chaud est léger, alors il monte. Il étire la flamme vers le haut.',
     texte: 'Le bois chauffé dégage des gaz, et ce sont eux qui brûlent avec l’oxygène de l’air. Les gaz brûlés sont très chauds, donc plus légers que l’air autour : ils montent, et de l’air frais arrive par le bas. C’est la **convection**. Elle donne à la flamme sa forme de goutte pointue.\n\nSans gravité, rien ne monte plus : la flamme devient une petite boule bleue, comme dans les stations spatiales. Pour brûler, il faut toujours trois choses : un combustible, de l’oxygène et de la chaleur. Retire-en une, le feu s’éteint.',
     vraie: 'En 1848, Michael Faraday donne à Londres des conférences de Noël pour les enfants, sur un seul objet : une bougie. Il y montre que c’est la vapeur de cire qui brûle, pas la mèche. Ces conférences existent toujours, chaque hiver, à la Royal Institution.',
   },
@@ -22168,6 +22200,7 @@ FJ.fiche('eau', {
   ],
   pourquoi: {
     etincelle: 'Chaque ride est une petite loupe : elle rassemble la lumière du soleil en filets brillants qui dansent au fond.',
+    petit: 'Chaque petite vague fait comme une loupe. Elle rassemble la lumière en traits brillants au fond.',
     texte: 'Quand la lumière passe de l’air à l’eau, elle se plie un peu. Une ride bombée agit comme une loupe : elle rassemble les rayons du soleil en une ligne brillante au fond. Un creux, lui, les étale. Comme les rides bougent sans cesse, ces filets de lumière dansent. On les appelle des **caustiques**.\n\nLes rides sont des ondes : quand deux se croisent, elles s’ajoutent ou s’annulent. Les gerris s’en servent pour repérer une proie tombée à l’eau. Et dans la cuve, on rejoue avec de l’eau l’expérience qui a montré, au début des années 1800, que la lumière se comporte aussi comme une onde.',
     vraie: 'Les jeunes gerris remuent les pattes moins vite que les plus lentes des rides : en théorie, ils ne pourraient pas avancer en ramant sur elles. Ce « paradoxe de Denny » a été résolu en 2003 par David Hu, Brian Chan et John Bush : en ramant, le gerris lance surtout de petits tourbillons sous la surface.',
   },
@@ -22266,6 +22299,7 @@ FJ.fiche('fluide', {
   ],
   pourquoi: {
     etincelle: 'Quand l’eau va vite et colle peu, elle ne contourne plus l’obstacle en douceur : elle se déchire en tourbillons.',
+    petit: 'Derrière un rocher, l’eau qui va vite ne contourne plus doucement. Elle se met à tourner en tourbillons.',
     texte: 'Derrière un rocher, l’eau tourne en tourbillons qui partent un coup à gauche, un coup à droite. Tout dépend de deux choses : la vitesse du liquide et à quel point il est épais. Le miel, lent et collant, glisse en douceur autour de l’obstacle. L’eau, rapide et fluide, se déchire en remous. Les physiciens résument ça par un seul nombre, le **nombre de Reynolds** : plus il est grand, plus ça tourbillonne.\n\nIci, l’eau est simulée à plat. Les équations des liquides sont connues depuis deux siècles, mais personne n’a encore prouvé qu’en trois dimensions, elles marchent toujours sans accroc : un million de dollars attend qui y parviendra.',
     vraie: 'En 1883, l’ingénieur britannique Osborne Reynolds fait couler de l’eau dans un tube de verre et y injecte un mince filet d’encre. Quand l’eau coule lentement, le filet reste bien droit. Plus vite, il se brise d’un coup en tourbillons, et l’encre envahit tout le tube.',
   },
@@ -22367,6 +22401,7 @@ FJ.fiche('sable', {
   ],
   pourquoi: {
     etincelle: 'Le sable coule comme un liquide, puis s’arrête net sur une pente toujours pareille. Le vent, grain par grain, le sculpte en dunes.',
+    petit: 'Le sable coule, puis s’arrête sur une pente toujours pareille. Le vent le pousse, grain par grain, en dunes.',
     texte: 'Verse du sable sec : il forme un cône. Sa pente ne dépasse jamais un certain angle, entre 30 et 40° selon le sable. Si elle devient plus raide, une avalanche la ramène. C’est l’**angle de repos**. Les grains anguleux s’accrochent entre eux : leurs tas sont plus pointus.\n\nMouillé, le sable tient debout : de minuscules ponts d’eau collent les grains. Le vent, lui, arrache des grains qui rebondissent et retombent à l’abri des crêtes : des dunes naissent et avancent. Dans la machine, tout va très vite. Une vraie dune avance de quelques mètres à quelques dizaines de mètres par an.',
     vraie: 'Certaines dunes chantent ! Quand une grande avalanche dévale leur pente, elles émettent un grondement grave, comme un bourdon, qu’on entend de loin. Au XIIIᵉ siècle, Marco Polo le raconte déjà, en l’attribuant à des esprits du désert.',
   },
@@ -22465,6 +22500,7 @@ FJ.fiche('foudre', {
   ],
   pourquoi: {
     etincelle: 'L’éclair avance par petits bonds, un peu au hasard, plus volontiers là où l’attraction électrique est la plus forte : d’où les zigzags.',
+    petit: 'L’éclair avance par petits sauts, un peu au hasard. C’est pour ça qu’il fait des zigzags.',
     texte: 'Dans un nuage d’orage, les grêlons et les cristaux de glace se cognent : le haut et le bas du nuage se chargent d’électricités opposées. Quand la charge devient énorme, un fin canal d’air électrisé descend vers le sol, par bonds d’une cinquantaine de mètres. À chaque bond, il part un peu au hasard, plus souvent là où l’attraction électrique est la plus forte : d’où les zigzags et les branches. Ce canal s’appelle le **traceur**.\n\nQuand il touche le sol, un courant énorme remonte : l’air chauffe à 30 000 °C, brille et éclate. C’est le tonnerre. Ici, le traceur est très ralenti : en vrai, il descend en moins d’un clin d’œil.',
     vraie: 'Le 10 mai 1752, à Marly-la-Ville, près de Paris, un orage passe au-dessus d’une grande tige de fer installée par Thomas-François Dalibard. On en tire des étincelles : la foudre est bien électrique, comme l’avait imaginé Benjamin Franklin. Le paratonnerre est né de cette idée.',
   },
@@ -22541,6 +22577,7 @@ FJ.fiche('ciel', {
   ],
   pourquoi: {
     etincelle: 'L’air éparpille le bleu de la lumière du soleil bien plus que le rouge : le ciel est bleu, le couchant rouge.',
+    petit: 'L’air éparpille surtout le bleu du soleil : le ciel est bleu. Le soir, la lumière traverse beaucoup d’air, et il lui reste surtout le rouge.',
     texte: 'La lumière du soleil est blanche : c’est un mélange de toutes les couleurs. En traversant l’air, elle heurte des milliards de molécules minuscules. Elles renvoient la lumière dans tous les sens, mais bien plus le bleu que le rouge. Ce bleu éparpillé t’arrive de partout : le ciel est bleu. C’est la **diffusion de Rayleigh**.\n\nLe soir, la lumière traverse beaucoup plus d’air pour arriver jusqu’à toi. Le bleu a été éparpillé en route : il reste l’orange et le rouge. Sur la Lune, sans air, le ciel reste noir en plein jour. Dans la machine, le ciel de Mars est un modèle approché.',
     vraie: 'En 2015, le robot Curiosity photographie un coucher de soleil sur Mars : autour du soleil, le ciel est bleuté, alors qu’il est couleur caramel le reste de la journée. D’autres robots l’avaient déjà vu avant lui. La poussière martienne, très fine, renvoie le bleu surtout vers l’avant.',
   },
@@ -22625,6 +22662,7 @@ FJ.fiche('cristal', {
   ],
   pourquoi: {
     etincelle: 'Les molécules d’eau s’empilent en hexagones : voilà pourquoi les flocons en étoile ont six branches.',
+    petit: 'L’eau gèle en petits hexagones, des formes à six côtés. Alors le flocon a six branches.',
     texte: 'Dans un nuage, la vapeur d’eau se dépose sur un minuscule grain de glace. Ses molécules s’empilent en hexagones, d’où les six branches. Les pointes, plus exposées, attrapent plus de vapeur et poussent plus vite : le flocon se ramifie. Ses six branches traversent le même air au même moment, alors elles se ressemblent. Deux flocons, eux, ne suivent jamais exactement le même chemin.\n\nUn liquide peut aussi rester liquide sous son point de gel, s’il n’a rien pour commencer à cristalliser. C’est la **surfusion**. Au moindre germe, tout devient solide d’un coup, en rendant de la chaleur : c’est le secret de la chaufferette.',
     vraie: 'En 1885, Wilson Bentley, un fermier du Vermont, aux États-Unis, réussit la première photo d’un flocon au microscope. Il en photographiera plus de cinq mille au cours de sa vie.',
   },
@@ -22694,6 +22732,7 @@ FJ.fiche('rd', {
   ],
   pourquoi: {
     etincelle: 'Deux substances qui réagissent et s’étalent à des vitesses différentes suffisent à faire naître des taches et des rayures.',
+    petit: 'Deux produits s’étalent, l’un vite, l’autre lentement. Des taches et des rayures apparaissent.',
     texte: 'Imagine un liquide où l’on verse sans cesse de la nourriture. Un colorant s’y multiplie en la mangeant, mais il s’étale lentement. La nourriture, elle, se répand vite. Autour de chaque tache, elle vient à manquer : aucune autre tache ne peut naître juste à côté. D’un mélange tout lisse sortent ainsi des taches bien espacées. C’est la **réaction-diffusion**.\n\nC’est confirmé pour quelques cas, comme les rayures du poisson-zèbre, et sans doute l’espacement des doigts dans l’embryon. Pour le zèbre ou le guépard, c’est une piste sérieuse, pas une preuve. Ici, ce sont des équations simplifiées, pas la vraie chimie d’un animal.',
     vraie: 'En 1952, Alan Turing, qui avait aidé à casser les codes secrets allemands pendant la guerre, propose cette idée dans un article sur la forme des êtres vivants. En 1995, les Japonais Shigeru Kondo et Rihito Asai voient de nouvelles rayures apparaître entre les anciennes quand un poisson-ange grandit, comme le prévoit le modèle.',
   },
@@ -22779,6 +22818,7 @@ FJ.fiche('spirales', {
   ],
   pourquoi: {
     etincelle: 'Une onde qui s’allume puis se repose ne peut pas revenir en arrière : coupée, elle s’enroule en spirale.',
+    petit: 'Derrière une onde, il y a une zone qui se repose. Si on coupe l’onde, elle tourne en spirale.',
     texte: 'Ici, chaque point s’allume quand son voisin s’allume, puis il doit se reposer un moment. L’onde avance sans s’affaiblir, et ne peut pas repartir en arrière : derrière elle, tout se repose. Deux ondes qui se croisent s’éteignent. Coupe un front : ses deux bouts s’enroulent et tournent sans fin. C’est un milieu **excitable**.\n\nLa même règle se cache dans une potion chimique, chez des amibes qui se rassemblent, et dans ton cœur : chaque battement est une onde électrique. Si elle s’enroule, le cœur bat trop vite. Si les spirales se brisent en morceaux, il ne pompe plus bien : un défibrillateur rallume tout le muscle d’un coup, et le rythme normal peut repartir.',
     vraie: 'En 1951, le chimiste soviétique Boris Belousov découvre un mélange qui change de couleur tout seul, en rythme. Les revues refusent son article : pour elles, c’est impossible. Dans les années 1960, Anatol Zhabotinsky reprend ses travaux. Vers 1970, on voit des cercles puis des spirales apparaître dans une boîte.',
   },
@@ -22857,6 +22897,7 @@ FJ.fiche('chladni', {
   ],
   pourquoi: {
     etincelle: 'Le sable est chassé des endroits qui vibrent et s’arrête sur les lignes où la plaque ne bouge pas.',
+    petit: 'La plaque tremble. Le sable va se poser là où elle ne bouge pas.',
     texte: 'Une plaque de métal qui vibre ne bouge pas partout pareil. Certaines zones s’agitent très fort, d’autres restent immobiles. Le sable rebondit sur les zones qui vibrent et glisse peu à peu vers celles qui ne bougent pas. Il dessine ces lignes immobiles : les **lignes nodales**.\n\nUne plaque vibre très fort seulement pour certaines notes, et chacune a son dessin. Plus le son est aigu, plus les lignes sont nombreuses et serrées. Entre ces notes, le sable bouge à peine. Dans l’eau et dans le tube de flammes, le son forme aussi des vagues qui restent sur place. La machine simplifie : une vraie plaque donne des dessins un peu différents.',
     vraie: 'Ernst Chladni montre ses figures de sable à Napoléon, à Paris, vers 1809. L’empereur fait offrir un prix à qui les expliquera. Sophie Germain le remporte en 1816, à sa troisième tentative, avec une théorie encore incomplète.',
   },
@@ -22922,6 +22963,7 @@ FJ.fiche('kaleido', {
   ],
   pourquoi: {
     etincelle: 'Chaque miroir copie ce qui est devant lui, et l’autre miroir copie la copie : quelques éclats deviennent une rosace.',
+    petit: 'Les miroirs copient l’image, puis copient la copie. Quelques morceaux deviennent une rosace.',
     texte: 'Devant un miroir, un objet a un double. Avec deux miroirs en angle, chaque reflet se reflète à son tour dans l’autre miroir, et les copies se rangent en rond. Plus l’angle est petit, plus il y a de copies : à 60°, tu vois 6 images ; à 30°, 12. L’angle doit tomber juste, sinon les reflets ne se raccordent pas. Ce motif qui se répète en tournant est une **symétrie**.\n\nAvec trois miroirs en triangle, les reflets se reflètent sans fin et remplissent tout le cercle. Seuls trois triangles marchent parfaitement. Chaque reflet perd un peu de lumière : les copies lointaines sont plus sombres.',
     vraie: 'En 1816, le physicien écossais David Brewster invente le kaléidoscope en étudiant la lumière. Il fabrique son nom avec trois mots grecs : beau, image, regarder. Le jouet connaît un succès fou, mais des copies se vendent partout, et il n’en tire presque rien.',
   },
@@ -22998,6 +23040,7 @@ FJ.fiche('harmono', {
   ],
   pourquoi: {
     etincelle: 'Deux pendules qui se balancent à des rythmes en rapport simple guident une plume : leurs mouvements s’additionnent en figure.',
+    petit: 'Deux pendules qui se balancent guident un crayon. Ensemble, ils dessinent une figure.',
     texte: 'Deux pendules se balancent, chacun à son rythme. L’un pousse la plume de gauche à droite, l’autre de haut en bas. Si leurs rythmes sont dans un rapport simple, comme 2 allers-retours contre 3, la plume repasse presque au même endroit : une figure apparaît. Ce sont les mêmes rapports que ceux des notes qui sonnent bien ensemble.\n\nLes frottements font rapetisser peu à peu les balancements : la plume s’enroule vers le centre. C’est l’**amortissement**. Dans le Spirographe, une roue dentée roule dans un anneau : le dessin se referme quand les dents de la roue retombent en face des mêmes dents de l’anneau.',
     vraie: 'Vers 1844, le mathématicien écossais Hugh Blackburn suspend un entonnoir de sable à des pendules : le sable dessine ces figures. Plus tard, les harmonographes à plume deviennent une attraction des salons de l’époque victorienne.',
   },
@@ -23076,6 +23119,7 @@ FJ.fiche('attracteur', {
   ],
   pourquoi: {
     etincelle: 'Chaque point suit trois règles simples, sans aucun hasard. Pourtant, deux points presque collés finissent toujours par se séparer complètement.',
+    petit: 'Deux points qui partent presque au même endroit finissent très loin l’un de l’autre.',
     texte: 'Ici, chaque point lumineux est un état possible d’un modèle très simplifié d’air chauffé par en dessous. Trois équations disent où il va ensuite, sans aucun hasard. Mais deux points partis à un millième près finissent sur des ailes différentes : la moindre différence grandit sans cesse. C’est le **chaos**.\n\nLes points ne vont pas n’importe où pour autant : ils restent sur une forme précise, qui ne se recoupe jamais, l’attracteur. L’atmosphère réelle est bien plus compliquée, mais elle a la même faiblesse : c’est pour ça qu’on ne prévoit pas bien la météo au-delà d’une dizaine de jours.',
     vraie: 'En 1961, le météorologue Edward Lorenz relance une simulation du temps en recopiant un nombre arrondi : 0,506 au lieu de 0,506127. À son retour, la météo calculée n’a plus rien à voir avec la première. En 1972, il donne une conférence au titre resté célèbre : « Le battement d’ailes d’un papillon au Brésil peut-il déclencher une tornade au Texas ? »',
   },
@@ -23157,6 +23201,7 @@ FJ.fiche('moire', {
   ],
   pourquoi: {
     etincelle: 'Superpose deux motifs presque pareils : de grandes bandes apparaissent, alors qu’elles ne sont dessinées sur aucun des deux.',
+    petit: 'Mets deux dessins presque pareils l’un sur l’autre. De grandes bandes apparaissent.',
     texte: 'Pose deux films couverts de traits l’un sur l’autre. Là où les traits tombent les uns sur les autres, la lumière passe entre eux. Là où ils sont décalés, ils bouchent tout. Ces zones claires et sombres forment de larges bandes : c’est le **moiré**.\n\nTourne le film du dessus d’un tout petit angle : les bandes deviennent énormes, et elles bougent bien plus vite que ton doigt. On s’en sert pour repérer de minuscules déformations, et sur les billets contre les faussaires. Tu en vois aussi en photographiant un écran : la grille de ses pixels se superpose à celle de l’appareil photo.',
     vraie: 'Le mot vient d’un tissu, la moire : une soie aux reflets ondulés. Pour la fabriquer, on plie l’étoffe en deux et on l’écrase entre de lourds rouleaux. Les fils des deux couches, superposés, dessinent des vagues.',
   },
@@ -23251,6 +23296,7 @@ FJ.fiche('fractal', {
   ],
   pourquoi: {
     etincelle: 'Une règle toute simple, répétée des milliers de fois, dessine une forme dont les détails ne finissent jamais.',
+    petit: 'On répète une règle très simple, encore et encore. On trouve toujours de nouveaux détails.',
     texte: 'Chaque point de l’écran est un nombre un peu spécial, à deux coordonnées. On part de zéro, on le met au carré, on ajoute le nombre du point, et on recommence encore et encore. Pour certains points, le résultat reste petit : ils forment l’ensemble de Mandelbrot. Pour les autres, il s’envole, et la couleur dit à quelle vitesse.\n\nZoome sur le bord : de nouveaux détails apparaissent sans fin, et parfois une copie de la forme entière. Une forme qui se ressemble à toutes les échelles s’appelle une **fractale**. La nature en est pleine : fougères, chou romanesco, côtes rocheuses, éclairs. Mais dans la nature, les détails s’arrêtent un jour, au plus tard aux atomes.',
     vraie: 'En 1967, Benoît Mandelbrot publie un article au titre étonnant : « Combien mesure la côte de la Grande-Bretagne ? » Sa réponse : ça dépend de ta règle. Plus elle est petite, plus elle suit de recoins, et plus la côte paraît longue. En 1975, il invente le mot « fractale ».',
   },
@@ -23336,6 +23382,7 @@ FJ.fiche('illusions', {
   ],
   pourquoi: {
     etincelle: 'Ton cerveau ne photographie pas le monde : il le devine à toute vitesse, et parfois il se trompe.',
+    petit: 'Ton cerveau devine ce que tes yeux voient. Parfois, il se trompe.',
     texte: 'Tes yeux ne reçoivent que de la lumière. Tout le reste, ton cerveau le déduit très vite : la taille des choses, leur couleur, si elles bougent. Ce travail s’appelle la **perception**. Il se trompe rarement. Ici, les images sont fabriquées exprès pour le piéger.\n\nLe plus étrange : connaître le trucage n’y change rien, tu continues de voir les traits inégaux. Certaines illusions naissent dans l’œil, quand des cellules se fatiguent. D’autres viennent de la façon dont le cerveau interprète l’image. Pour beaucoup d’entre elles, les scientifiques proposent des explications, mais en discutent encore.',
     vraie: 'Dans les années 1970, un membre de l’équipe du psychologue Richard Gregory remarque la façade carrelée d’un café de Bristol, en Angleterre : ses lignes semblent pencher. Elles sont parfaitement horizontales. Gregory étudie l’effet et le publie en 1979 : c’est l’illusion du « mur du café ».',
   },
@@ -23433,6 +23480,7 @@ FJ.fiche('galaxie', {
   ],
   pourquoi: {
     etincelle: 'Les bras d’une galaxie sont des embouteillages d’étoiles : elles y entrent, ralentissent, puis en ressortent, et le bras demeure.',
+    petit: 'Les étoiles tournent autour du centre. Dans les bras, elles se serrent comme dans un embouteillage.',
     texte: 'Une galaxie, ce sont des centaines de milliards d’étoiles qui tournent autour de son centre. Celles du milieu font le tour plus vite que celles du bord : des bras faits toujours des mêmes étoiles s’enrouleraient vite. L’idée la plus connue : les bras sont des embouteillages, où les étoiles entrent puis ressortent. On parle d’**onde de densité**. Les astronomes en discutent encore.\n\nQuand deux galaxies se rencontrent, leurs étoiles ne se heurtent presque jamais, tant elles sont éloignées. Mais la gravité les étire en longues queues. Dans la machine, le temps est énormément accéléré : en vrai, le Soleil met 230 millions d’années à faire un tour.',
     vraie: 'Jusqu’en 1924, beaucoup d’astronomes pensaient que la Voie lactée était tout l’Univers. Cette année-là, Edwin Hubble mesure la distance de la « nébuleuse » d’Andromède : elle est bien trop loin pour faire partie de la Voie lactée. C’est une autre galaxie, et l’Univers en compte des centaines de milliards.',
   },
@@ -23506,6 +23554,7 @@ FJ.fiche('tunnel', {
   ],
   pourquoi: {
     etincelle: 'À très grande vitesse, la lumière des étoiles semble venir de devant : le ciel se resserre devant toi et bleuit.',
+    petit: 'Quand on va très, très vite, les étoiles semblent se serrer devant toi. Elles deviennent plus bleues.',
     texte: 'Quand tu cours sous la pluie, les gouttes semblent tomber de face. Avec la lumière, c’est pareil : plus le vaisseau va vite, plus les étoiles semblent venir de devant. Le ciel se resserre vers l’avant, bleuit et brille, et l’arrière s’éteint. C’est l’**aberration** de la lumière, calculée avec la relativité d’Einstein. Cette partie-là est de la vraie physique.\n\nLe trou de ver, lui, est une hypothèse : les équations l’autorisent, mais personne n’en a jamais vu, et on ne sait pas comment en garder un ouvert. La porte des étoiles et le tunnel des démos sont de purs effets visuels, inventés pour le cinéma et pour le plaisir.',
     vraie: 'À la fin des années 1720, l’astronome anglais James Bradley remarque que les étoiles se décalent un tout petit peu au fil de l’année. Il comprend pourquoi : la Terre tourne autour du Soleil, et sa vitesse change la direction d’où semble venir leur lumière. C’est l’effet de la machine, mais des milliers de fois plus faible.',
   },
@@ -23582,6 +23631,7 @@ FJ.fiche('lave', {
   ],
   pourquoi: {
     etincelle: 'Chauffée par en bas, la cire devient plus légère que le liquide et monte ; refroidie en haut, elle redescend.',
+    petit: 'En bas, la cire chauffe et devient plus légère : elle monte. En haut, elle refroidit et redescend.',
     texte: 'L’ampoule chauffe la cire au fond. En chauffant, la cire gonfle un tout petit peu : à volume égal, elle devient plus légère que le liquide, alors elle monte. En haut, loin de l’ampoule, elle refroidit, s’alourdit et redescend. Ce grand manège s’appelle la **convection**.\n\nOn le retrouve partout : dans une casserole d’eau, très lentement dans les roches chaudes sous nos pieds, et à la surface du Soleil. Là-bas, du gaz brûlant monte au centre de grains grands comme la France, puis replonge dans les couloirs sombres, un peu moins chauds. Dans la machine, le Soleil est accéléré.',
     vraie: 'L’Anglais Edward Craven Walker lance la lampe à lave en 1963. On raconte que l’idée lui est venue dans un pub, en voyant un minuteur pour œufs bricolé avec des liquides qui bougeaient en chauffant.',
   },
@@ -23657,6 +23707,7 @@ FJ.fiche('bulles', {
   ],
   pourquoi: {
     etincelle: 'La lumière se reflète sur les deux faces du film ; les deux reflets se mélangent, et certaines couleurs s’effacent.',
+    petit: 'La lumière rebondit sur les deux côtés de la bulle. Les reflets se mélangent et font des couleurs.',
     texte: 'Une bulle est une couche d’eau savonneuse des centaines de fois plus fine qu’un cheveu. La lumière s’y reflète deux fois : sur la face de devant et sur celle de derrière. Les deux reflets se superposent. Pour certaines couleurs, ils s’additionnent ; pour d’autres, ils s’annulent. C’est l’**interférence**. La couleur dépend donc de l’épaisseur du film.\n\nL’eau coule vers le bas : le haut s’amincit et ses couleurs changent. Juste avant d’éclater, le film devient si mince que les reflets s’annulent pour toutes les couleurs : il paraît noir. Le savon ne colore rien, il aide seulement le film à tenir.',
     vraie: 'En 1704, Isaac Newton décrit les couleurs des bulles de savon dans son livre « Opticks ». Il remarque qu’elles se suivent toujours dans le même ordre, et que le haut de la bulle devient noir juste avant d’éclater. L’explication par l’interférence viendra un siècle plus tard, avec Thomas Young.',
   },
@@ -23722,6 +23773,7 @@ FJ.fiche('viz', {
   ],
   pourquoi: {
     etincelle: 'Un son, c’est de l’air qui vibre : la machine dessine ces vibrations pour te les faire voir.',
+    petit: 'Un son, c’est de l’air qui tremble. La machine dessine ce tremblement.',
     texte: 'Un son, c’est de l’air qui vibre, des centaines de fois par seconde. Plus il vibre vite, plus le son est aigu.\n\nDans les figures, un son pur pousse le point de gauche à droite, un autre de haut en bas. Si leurs vitesses sont dans un rapport simple, comme 2 pour 3, la courbe se referme sur elle-même. Une note d’instrument n’est jamais pure : elle empile des vibrations 2, 3, 4 fois plus rapides, ses **harmoniques**. Chaque barre en règle une. Leur dosage donne la forme du son et sa couleur : c’est pour ça qu’une flûte et une trompette ne sonnent pas pareil.',
     vraie: 'En 1857, le physicien français Jules Lissajous colle de petits miroirs sur deux diapasons. Un rayon de lumière rebondit sur l’un, puis sur l’autre, et dessine ces courbes sur un écran. On pouvait ainsi voir si deux diapasons étaient bien accordés.',
   },
@@ -23799,6 +23851,7 @@ FJ.fiche('harpe', {
   ],
   pourquoi: {
     etincelle: 'Plus une corde est courte, plus elle vibre vite, et plus le son est aigu.',
+    petit: 'Une corde courte vibre plus vite. Son son est plus aigu.',
     texte: 'Pincée, une corde fait des allers-retours très rapides : des centaines par seconde. Ici, on te les montre au ralenti. Pour une même corde, plus la partie qui vibre est courte, plus elle vibre vite, et plus le son est aigu. Deux fois plus courte, elle vibre deux fois plus vite : c’est l’octave.\n\nUne corde ne vibre pas d’une seule façon. Elle vibre en entier, mais aussi en deux, trois, quatre morceaux à la fois. Ces vibrations s’additionnent : ce sont les **harmoniques**, que montrent les petites barres en bas. Selon la légende, Pythagore aurait remarqué que deux cordes sonnent bien ensemble quand leurs longueurs sont dans un rapport simple, comme 1 pour 2.',
     vraie: 'Une harpe de concert a 47 cordes. Pour s’y retrouver, la harpiste a des repères de couleur : les cordes de do sont rouges, et celles de fa sont noires ou bleu foncé.',
   },
@@ -23875,6 +23928,7 @@ FJ.fiche('pendules', {
   ],
   pourquoi: {
     etincelle: 'Chaque pendule a son propre rythme, fixé par sa longueur : en se décalant, ils dessinent des vagues.',
+    petit: 'Les pendules longs se balancent lentement, les courts plus vite. Ensemble, ils dessinent des vagues.',
     texte: 'Un pendule qui ne part pas de trop haut met toujours le même temps pour faire un aller-retour. Sur Terre, ce temps ne dépend que de sa longueur : plus il est long, plus il est lent. Son poids n’y change rien. Ce temps s’appelle la **période**.\n\nIci, chaque pendule est un peu plus court que son voisin. En une minute, le plus long fait 51 allers-retours, le suivant 52, puis 53… Lâchés ensemble, ils se décalent peu à peu : vagues, serpents, deux rangées. Au bout d’une minute, tous se retrouvent alignés. Dans la machine, les pendules sont parfaits : sans frottement, ils ne s’arrêtent jamais.',
     vraie: 'On raconte que le jeune Galilée, dans la cathédrale de Pise, a regardé un lustre se balancer en comptant les battements de son pouls. Grands ou petits, les balancements duraient le même temps. C’est peut-être une légende, mais Galilée a vraiment étudié les pendules toute sa vie.',
   },
@@ -23969,6 +24023,7 @@ FJ.fiche('sonillus', {
   ],
   pourquoi: {
     etincelle: 'Ton oreille capte des vibrations, mais c’est ton cerveau qui en fait des notes, et on peut le piéger.',
+    petit: 'C’est ton cerveau qui fabrique les notes que tu entends. On peut le tromper.',
     texte: 'Un son, c’est de l’air qui vibre. Ton oreille capte ces vibrations, puis ton cerveau en fait une note : grave ou aiguë, qui monte ou qui descend. Comme pour les yeux, il interprète, et on peut le tromper.\n\nDans l’escalier sans fin, dix sons montent ensemble. Chacun vibre deux fois plus vite que le précédent : on dit qu’ils sont à une **octave** l’un de l’autre. Le plus aigu s’éteint doucement pendant qu’un nouveau naît tout en bas. Tu entends monter sans arrêt, alors que tout revient au point de départ. Le son est coupé au début : allume-le pour l’entendre.',
     vraie: 'Dans le jeu vidéo Super Mario 64 (1996), un escalier ne finit jamais tant qu’on n’a pas récolté assez d’étoiles. Sa musique utilise l’escalier sans fin de Shepard : elle monte, monte… sans jamais arriver en haut.',
   },
@@ -24054,6 +24109,7 @@ FJ.fiche('quantique', {
   ],
   pourquoi: {
     etincelle: 'Tout petit, un électron se propage comme une vague qui s’étale ; mais quand on le détecte, il apparaît en un seul point.',
+    petit: 'Un électron voyage comme une vague. Mais quand il touche l’écran, il fait un seul point.',
     texte: 'À l’échelle des atomes, le monde ne marche plus comme le nôtre. Un électron lancé vers deux fentes se propage comme une vague : elle passe par les deux et se superpose à elle-même. Pourtant, sur l’écran, chaque électron arrive en un seul point, au hasard. Point après point, des bandes se dessinent. C’est la **mécanique quantique**.\n\nCette physique n’est pas au programme du collège, et elle étonne même les spécialistes. Elle marche pourtant très bien : sans elle, pas de puces électroniques ni de lasers. Ici, tout est énormément ralenti : un vrai électron traverserait l’écran en un millionième de milliardième de seconde.',
     vraie: 'En 1989, au Japon, Akira Tonomura et son équipe envoient des électrons un par un dans un appareil qui joue le rôle des deux fentes. Au début, les points semblent tomber n’importe où. Après des milliers d’électrons, des bandes apparaissent, exactement comme dans la machine.',
   },
@@ -24125,6 +24181,7 @@ FJ.fiche('meduses', {
   ],
   pourquoi: {
     etincelle: 'Au fond de la mer, la lumière du soleil n’arrive plus : la seule lumière vient des animaux eux-mêmes.',
+    petit: 'Au fond de la mer, il fait tout noir. La seule lumière vient des animaux.',
     texte: 'Plus on descend, plus la lumière du soleil faiblit ; vers 1 000 mètres, il n’en reste rien. Pourtant, les profondeurs scintillent : environ trois animaux sur quatre y fabriquent leur propre lumière, grâce à une réaction chimique. C’est la **bioluminescence**. Elle est le plus souvent bleue, car le bleu voyage le plus loin dans l’eau.\n\nCette lumière sert à attirer une proie, à trouver un partenaire, à effrayer un attaquant, ou à se cacher : un ventre éclairé efface la silhouette vue d’en dessous. Beaucoup d’animaux des profondeurs ont des yeux très sensibles. Ici, les créatures sont un peu grossies et plus actives qu’en vrai.',
     vraie: 'En 2012, au large du Japon, la biologiste Edith Widder installe une fausse méduse lumineuse, l’« e-jelly ». Elle imite la roue de lumière bleue de la méduse couronne. Un calmar géant s’en approche : c’est l’une des toutes premières vidéos de cet animal vivant dans les profondeurs.',
   },
@@ -24200,6 +24257,7 @@ FJ.fiche('fourmis', {
   ],
   pourquoi: {
     etincelle: 'Chaque fourmi suit l’odeur laissée par les autres et la renforce : les chemins les plus empruntés sentent de plus en plus fort.',
+    petit: 'Chaque fourmi laisse une odeur et suit celle des autres. Le chemin court est parcouru plus souvent : il sent plus fort.',
     texte: 'Aucune fourmi ne connaît le chemin. Les éclaireuses errent au hasard. Celle qui trouve du sucre rentre au nid en laissant au sol une trace odorante, une **phéromone**. D’autres suivent cette odeur, trouvent le sucre et renforcent la trace en revenant. Plus une piste est suivie, plus elle sent fort, et plus elle attire.\n\nL’odeur s’évapore : une piste qu’on n’entretient plus disparaît. Sur un chemin court, les allers-retours sont plus rapides, donc la trace s’y renforce plus vite. Sans que personne ne mesure rien, la colonie finit souvent par emprunter le chemin le plus court.',
     vraie: 'En 1989, des chercheurs de Bruxelles posent un pont à deux branches, une courte et une longue, entre un nid de fourmis d’Argentine et de la nourriture. En quelques minutes, la grande majorité passe par la courte. Cette idée a ensuite inspiré des programmes informatiques qui calculent des itinéraires.',
   },
@@ -24279,6 +24337,7 @@ FJ.fiche('mycelium', {
   ],
   pourquoi: {
     etincelle: 'Chaque filament pousse par sa pointe et se ramifie là où il y a à manger : ensemble, ils tissent un réseau sous le sol.',
+    petit: 'Le champignon pousse en fils très fins sous la terre. Les fils se divisent là où il y a à manger.',
     texte: 'Un champignon, c’est surtout des fils plus fins qu’un cheveu, cachés dans le sol : les **hyphes**. Ensemble, ils forment le mycélium. Le champignon qu’on cueille n’en est que le fruit. Personne ne dessine le réseau : chaque pointe pousse là où il y a à manger, évite ses propres fils, et le sol se couvre tout seul.\n\nBeaucoup de champignons vivent collés aux racines des arbres. Ils leur apportent eau et minéraux, et reçoivent du sucre en échange. Les arbres se partagent-ils aussi du sucre par ce réseau ? Les scientifiques en débattent encore. Dans la machine, des années passent en quelques secondes.',
     vraie: 'En 1928, Alexander Fleming rentre de vacances et trouve une moisissure, un Penicillium, dans une boîte où il cultivait des bactéries. Autour d’elle, les bactéries ont disparu. Il vient de découvrir la pénicilline. Plus de dix ans après, d’autres chercheurs en feront un médicament.',
   },
@@ -24339,6 +24398,7 @@ FJ.fiche('blob', {
   ],
   pourquoi: {
     etincelle: 'Les tubes qui mènent à la nourriture sont les plus parcourus : ils grossissent, les autres disparaissent, et il reste un bon réseau.',
+    petit: 'Le blob grossit sur les chemins qui mènent à la nourriture. Les autres chemins disparaissent.',
     texte: 'Le blob n’est ni un animal, ni une plante, ni un champignon. C’est une seule cellule géante, avec une multitude de noyaux et sans cerveau. Il avance en pulsant : son intérieur coule d’avant en arrière dans des tubes. Les tubes qui mènent à la nourriture sont les plus parcourus et grossissent ; les autres disparaissent. Les biologistes le rangent parmi les **myxomycètes**.\n\nIl laisse aussi un mucus qu’il évite ensuite : une mémoire posée au sol. Dans la machine, le blob est imité par des milliers de points qui suivent leurs propres traces. C’est un modèle, pas une vraie cellule.',
     vraie: 'En 2010, une équipe de chercheurs pose des flocons d’avoine à la place des villes autour de Tokyo, et un blob à la place de Tokyo. En une journée environ, il tisse un réseau de tubes qui ressemble beaucoup à celui des trains de la région.',
   },
@@ -24419,6 +24479,7 @@ FJ.fiche('vie', {
   ],
   pourquoi: {
     etincelle: 'Chaque case regarde seulement ses 8 voisines et suit deux règles : de là naissent des planeurs, des canons et des motifs qui bougent.',
+    petit: 'Chaque case regarde ses 8 voisines et suit deux règles. Des formes naissent et bougent.',
     texte: 'Imagine une grille où chaque case est vivante ou morte. À chaque tour, une case morte entourée d’exactement 3 voisines vivantes naît. Une case vivante survit avec 2 ou 3 voisines ; sinon, elle meurt. C’est tout. Pourtant, de ces deux règles sortent des planeurs qui avancent, des canons qui tirent, des motifs qui s’agitent longtemps avant de se figer. Ce genre de petit monde s’appelle un **automate cellulaire**.\n\nIci, la grille se referme sur elle-même : ce qui sort à droite revient à gauche. Dans Lenia, les cases valent entre 0 et 1, et on croirait voir des bactéries.',
     vraie: 'En 1970, le mathématicien John Conway invente ce jeu et promet 50 dollars à qui montrera qu’un motif peut, ou non, grandir sans fin. La même année, Bill Gosper et son équipe trouvent le canon à planeurs, qui tire un planeur toutes les 30 générations : sur une grille infinie, il ne s’arrête jamais.',
   },
@@ -24482,11 +24543,95 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     son: false, spectacle: false, tiroir: null, ecran: null, hist: [], hpos: -1, lb: false, ouverture: 0, nom: null,
     vus: new Set(lireJSON('fj-vus', [])), outilsMontres: new Set(), etsiVu: new Set(lireJSON('fj-etsi', [])),
     prefs: Object.assign({ doux: true, calme: false }, lireJSON('fj-prefs', {})), constructions: 0, doigts: 0,
+    profil: lireJSON('fj-profil', null),   // { age, niveau } : choisi à l'accueil, modifiable ensuite
   };
   let defs = [], audio = null, sac = null, raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null;
   const canvas = $('cv'), app = $('fj');
   const pilote = FJ.Pilote(() => S.sim);
   const images = (n) => new Promise((ok) => { let k = 0; const f = () => (++k >= n ? ok() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+
+  /* ───────── l'âge et le niveau ─────────
+     L'âge règle l'ergonomie (taille des cibles, nombre de gestes et de leviers, lecture à voix haute) ;
+     le niveau règle la profondeur (quels textes, quels réglages, vrais noms ou noms d'enfant).
+     La science est la même à tous les niveaux : seuls la quantité et le vocabulaire changent. */
+  const NIVEAUX = [
+    { n: 1, nom: 'Je découvre', sous: 'Je regarde, je touche, et une phrase m’explique.', icone: 'graines' },
+    { n: 2, nom: 'J’aime comprendre', sous: 'Des explications courtes et des défis « Et si… ? ».', icone: 'pousse' },
+    { n: 3, nom: 'Je veux tous les détails', sous: 'Tous les réglages et les textes pour les curieux.', icone: 'loupe' },
+    { n: 4, nom: 'Je connais déjà', sous: 'Les vrais noms, les vraies valeurs, le Labo ouvert.', icone: 'labo' },
+  ];
+  const AGES = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];   // 16 = « 16 ans et plus »
+  const niveauPropose = (age) => (age <= 6 ? 1 : age <= 14 ? 2 : 3);
+  const palier = () => { const a = S.profil ? S.profil.age : 11; return a <= 6 ? 1 : a <= 9 ? 2 : a <= 14 ? 3 : 4; };
+  const niveau = () => (S.profil ? S.profil.niveau : 2);
+  const ZOOM = { 1: 1.3, 2: 1.15, 3: 1, 4: 1 };
+  function appliquerProfil() {
+    for (let i = 1; i <= 4; i++) { app.classList.toggle('age-' + i, palier() === i); app.classList.toggle('niv-' + i, niveau() === i); }
+    document.documentElement.style.setProperty('--k', ZOOM[palier()]);
+  }
+  function enregistrerProfil(p) {
+    S.profil = p; store.set('fj-profil', JSON.stringify(p)); appliquerProfil();
+    laboOuvert = niveau() >= 4;
+  }
+  // lecture à voix haute (synthèse de l'appareil, en français ; rien si l'appareil n'en a pas)
+  const voix = (function () {
+    const ok = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined';
+    let fr = null;
+    const choisir = () => { try { const vs = window.speechSynthesis.getVoices() || []; fr = vs.find((v) => /^fr(-|_|$)/i.test(v.lang)) || null; } catch (e) { fr = null; } };
+    if (ok) { choisir(); try { window.speechSynthesis.addEventListener('voiceschanged', choisir); } catch (e) { /* rien */ } }
+    return {
+      get dispo() { return ok && !!fr; },
+      dire(txt) {
+        if (!ok) return;
+        try {
+          window.speechSynthesis.cancel();
+          const u = new window.SpeechSynthesisUtterance(String(txt).replace(/\*\*/g, ''));
+          u.lang = 'fr-FR'; if (fr) u.voice = fr; u.rate = palier() === 1 ? 0.9 : 1;
+          window.speechSynthesis.speak(u);
+        } catch (e) { /* rien */ }
+      },
+      taire() { if (ok) { try { window.speechSynthesis.cancel(); } catch (e) { /* rien */ } } },
+    };
+  })();
+  const boutonEcouter = (txt) => (voix.dispo ? h('button', { class: 'ecouter', 'aria-label': 'Écouter', onclick: () => voix.dire(typeof txt === 'function' ? txt() : txt) }, FJ.icone('sonOn'), h('span', null, 'Écouter')) : null);
+
+  // l'écran d'accueil : l'âge, puis le niveau (proposé d'après l'âge, modifiable)
+  function ouvrirAccueil() {
+    ecran('accueil');
+    const box = $('accueil'); box.textContent = '';
+    let age = S.profil ? S.profil.age : null;
+    const etapeAge = () => {
+      box.textContent = '';
+      box.append(h('div', { class: 'tete' }, h('div', { class: 'logo' }, h('b', null, 'Fascinations'), h('span', null, 'labo')),
+        S.profil ? h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer')) : null));
+      box.append(h('h2', { class: 'grandeq' }, 'Quel âge as-tu ?', boutonEcouter('Quel âge as-tu ?')));
+      const g = h('div', { class: 'ages' }); box.append(g);
+      for (const a of AGES) {
+        g.append(h('button', { class: 'age' + (a === age ? ' on' : ''), onclick: () => { age = a; son('outil'); etapeNiveau(); } },
+          h('b', null, a === 16 ? '16 +' : String(a)), h('span', null, a === 16 ? 'et plus' : 'ans')));
+      }
+      box.append(h('p', { class: 'petit' }, 'L’âge règle la taille des boutons et la quantité de texte. On peut le changer à tout moment, depuis la carte.'));
+    };
+    const etapeNiveau = () => {
+      box.textContent = '';
+      const prop = S.profil && S.profil.age === age ? S.profil.niveau : niveauPropose(age);
+      box.append(h('div', { class: 'tete' }, h('button', { class: 'bt', onclick: etapeAge }, FJ.icone('prec'), h('span', null, age === 16 ? '16 ans et plus' : age + ' ans'))));
+      box.append(h('h2', { class: 'grandeq' }, 'Et la science, pour toi ?', boutonEcouter(() => 'Et la science, pour toi ? ' + NIVEAUX.map((n) => n.nom + '. ' + n.sous).join(' '))));
+      const g = h('div', { class: 'niveaux' }); box.append(g);
+      for (const n of NIVEAUX) {
+        g.append(h('button', { class: 'niveau' + (n.n === prop ? ' propose' : ''), onclick: () => {
+          const avant = palier();
+          enregistrerProfil({ age, niveau: n.n }); son('scene'); ecran(null);
+          // les colonnes ont changé de taille : si l'enfant n'a encore rien fait, on recrée la machine à l'identique pour que la scène tienne entre elles
+          if (palier() !== avant && !S.touche && S.def) ouvrir(S.id, { etat: etatCourant() }); else rendre();
+          if (palier() === 1 && S.meta) bulle('Touche l’écran !');
+        } },
+          FJ.icone(n.icone), h('b', null, n.nom), h('span', null, n.sous)));
+      }
+      box.append(h('p', { class: 'petit' }, 'Le niveau entouré est proposé pour ton âge, mais c’est toi qui choisis. La science reste exacte à tous les niveaux : seuls la quantité de détails et le vocabulaire changent.'));
+    };
+    if (age) etapeNiveau(); else etapeAge();
+  }
 
   /* ───────── les fiches ───────── */
   // une machine sans fiche reçoit une fiche minimale tirée de ses propres réglages (rubrique des scènes)
@@ -24517,7 +24662,8 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   const dprCap = (id) => (id && dprMap[id]) || 2;
   function colonnes() {
     const g = $('colG'), d = $('colD');
-    return { g: g ? g.offsetWidth : 0, d: d ? d.offsetWidth : 0 };
+    const w = (el) => (el ? el.getBoundingClientRect().width : 0);
+    return { g: w(g), d: w(d) };
   }
   function nouvelEnv(def) {
     const W = Math.max(320, window.innerWidth), H = Math.max(320, window.innerHeight);
@@ -24601,7 +24747,13 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   function outilsVisibles() {
     const sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
     const ids = (sc && sc.outils) || S.meta.outilsMontres || null;
-    return S.def.tools.filter((t) => !ids || ids.includes(t.id));
+    let vis = S.def.tools.filter((t) => !ids || ids.includes(t.id));
+    if (palier() === 1 && vis.length > 2) {   // 5-6 ans : le geste de la scène, plus un seul autre
+      const pref = (sc && sc.outil) || S.meta.outil;
+      const tri = vis.filter((t) => t.id === pref).concat(vis.filter((t) => t.id !== pref && t.id !== 'observer' && t.id !== 'regarder'));
+      vis = (tri.length ? tri : vis).slice(0, 2);
+    }
+    return vis;
   }
   function outilDefaut() {
     const sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
@@ -24866,6 +25018,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     rendreTiroir(); rendreDroite(); son('tiroir');
   }
   function fermerTiroir() {
+    voix.taire();
     S.tiroir = null; const t = $('tiroir'); if (t) { t.hidden = true; t.textContent = ''; }
     app.classList.remove('tiroir-ouvert'); if (S.def) rendreDroite();
   }
@@ -24882,7 +25035,10 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   /* Bidouiller : les leviers parlants, les recettes, la vitesse, puis le Labo (tous les vrais réglages) */
   function exposes() {
     const sc = S.scene && S.meta.scenes[S.scene];
-    return (sc && sc.exposes) || S.meta.exposes || [];
+    let ks = ((sc && sc.exposes) || S.meta.exposes || []).slice();
+    if (niveau() >= 3) for (const k of Object.keys(S.meta.leviers || {})) if (!ks.includes(k)) ks.push(k);
+    const max = palier() === 1 ? 2 : palier() === 2 ? 3 : 99;
+    return ks.slice(0, max);
   }
   function rendreBidouiller(corps) {
     const box = h('div', { class: 'leviers' }); corps.append(box);
@@ -24902,7 +25058,8 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     outils.append(h('button', { class: 'bt', onclick: epingler }, FJ.icone('epingle'), h('span', null, 'Épingler ce moment')));
     outils.append(h('button', { class: 'bt', onclick: () => { fermerTiroir(); spectacle(true); } }, FJ.icone('spectacle'), h('span', null, 'Spectacle')));
     outils.append(boutonMaintenu('Tout recommencer', 'recommencer', () => { fermerTiroir(); ouvrir(S.id, { etat: { scene: S.scene, inst: null, outil: S.outil } }); bulle('La machine repart de zéro.'); }));
-    // le Labo
+    // le Labo (caché pour les moins de 10 ans, sauf s'ils veulent tous les détails)
+    if (palier() <= 2 && niveau() < 3) return;
     const lab = h('details', { class: 'labo', open: laboOuvert || null, ontoggle: (e) => { laboOuvert = e.target.open; if (laboOuvert) remplirLabo(); } },
       h('summary', null, FJ.icone('labo'), h('span', null, 'Le Labo : tous les vrais réglages')));
     corps.append(lab);
@@ -24937,9 +25094,13 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
       const inp = h('input', { type: 'range', min: lo, max: hi, step: c.step || (hi - lo) / 200, 'aria-label': nom });
       inp.value = c.value;
       inp.addEventListener('input', () => { pilote.set(l.chemin, parseFloat(inp.value)); S.touche = true; });
-      const el = h('label', { class: 'levier' }, h('span', { class: 'nom' }, nom), inp,
+      const vrai = niveau() >= 4 ? h('span', { class: 'vrai' }) : null;   // niveau 4 : le vrai nom et la vraie valeur
+      const majVrai = () => { if (!vrai) return; const rr = pilote.get(l.chemin); if (rr) vrai.textContent = rr.c.label + ' = ' + (rr.c.fmt ? rr.c.fmt(rr.c.value) : fr(rr.c.value, 2)); };
+      inp.addEventListener('input', majVrai);
+      const el = h('label', { class: 'levier' }, h('span', { class: 'nom' }, nom, vrai), inp,
         h('span', { class: 'bouts' }, h('span', null, (l.bouts && l.bouts[0]) || ''), h('span', null, (l.bouts && l.bouts[1]) || '')));
-      return { el, maj() { const rr = pilote.get(l.chemin); if (rr && document.activeElement !== inp) inp.value = rr.c.value; } };
+      majVrai();
+      return { el, maj() { const rr = pilote.get(l.chemin); if (rr && document.activeElement !== inp) inp.value = rr.c.value; majVrai(); } };
     }
     if (r.kind === 'toggle') {
       const b = h('button', { class: 'bascule', onclick: () => { const rr = pilote.get(l.chemin); pilote.set(l.chemin, !(rr && rr.c.value)); S.touche = true; maj(); setTimeout(remplirLeviers, 0); } }, h('i'), h('span', null, nom));
@@ -25042,20 +25203,29 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   function rendrePourquoi(corps) {
     const m = S.meta, P = m.pourquoi || {};
     const sc = S.scene && m.scenes[S.scene];
-    if (m.question) corps.append(h('p', { class: 'question' }, m.question));
-    if (P.etincelle) corps.append(h('p', { class: 'etincelle' }, P.etincelle));
+    const niv = niveau(), pal = palier();
     const ess = (sc && sc.essaie) || S.meta.essaie;   // une machine sans scènes peut avoir son « essaie » à elle
+    // la phrase des plus jeunes : « petit » si la fiche l'a, sinon l'étincelle
+    const court = (niv === 1 && P.petit) || P.etincelle;
+    const aDire = [m.question, court, ess ? 'Essaie ça : ' + ess : ''].filter(Boolean).join(' ');
+    if (m.question) corps.append(h('p', { class: 'question' }, m.question, (pal <= 2 || niv === 1) ? boutonEcouter(aDire) : null));
+    if (court) corps.append(h('p', { class: 'etincelle' }, court));
     if (ess) corps.append(h('div', { class: 'essaie' }, h('b', null, 'Essaie ça'), h('span', null, ess)));
-    if (P.texte) corps.append(h('div', { class: 'texte' }, ...String(P.texte).split('\n\n').map((p) => h('p', null, ...texteRiche(p)))));
-    const etsi = (m.etsi || []).filter((e) => !e.scene || e.scene === S.scene || !m.scenes[e.scene]);
+    if (P.texte) {
+      const txt = h('div', { class: 'texte' }, ...String(P.texte).split('\n\n').map((p) => h('p', null, ...texteRiche(p))));
+      if (niv === 1) corps.append(h('details', { class: 'curieux' }, h('summary', null, 'Lire la suite'), txt, boutonEcouter(String(P.texte))));
+      else { corps.append(txt); if (pal <= 2) { const b = boutonEcouter(String(P.texte)); if (b) corps.append(b); } }
+    }
+    const etsi = pal === 1 && niv === 1 ? [] : (m.etsi || []).filter((e) => !e.scene || e.scene === S.scene || !m.scenes[e.scene]);
     if (etsi.length) {
       corps.append(h('h3', null, 'Et si… ?'));
       for (const e of etsi) corps.append(carteEtSi(e));
     }
-    if (P.vraie) corps.append(h('div', { class: 'histoire' }, h('b', null, 'Une histoire vraie'), h('p', null, P.vraie)));
+    if (P.vraie && niv >= 2) corps.append(h('div', { class: 'histoire' }, h('b', null, 'Une histoire vraie'), h('p', null, P.vraie)));
     const about = S.def.about || [];
-    if (P.curieux || about.length) {
-      corps.append(h('details', { class: 'curieux' }, h('summary', null, 'Pour les curieux'),
+    if ((P.curieux || about.length || (niv >= 4 && S.def.intro)) && niv >= 2) {
+      corps.append(h('details', { class: 'curieux', open: niv >= 3 || null }, h('summary', null, niv >= 4 ? 'Le texte de la version adulte' : 'Pour les curieux'),
+        ...(niv >= 4 && S.def.intro ? [h('p', null, S.def.intro)] : []),
         ...(P.curieux ? [h('p', null, P.curieux)] : []), ...about.map((p) => h('p', null, p))));
     }
     if (!m.question && !P.texte) corps.append(h('p', { class: 'etincelle' }, S.def.intro || ''));
@@ -25214,6 +25384,8 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${S.vus.size} / ${defs.length} découvertes`),
       h('button', { class: 'bt', onclick: () => { ecran(null); aller(sac.suivant()); } }, FJ.icone('encore'), h('span', null, 'Au hasard')),
       h('button', { class: 'bt', onclick: () => ouvrirCarnet() }, FJ.icone('carnet'), h('span', null, 'Mon carnet')),
+      h('button', { class: 'bt profil', onclick: ouvrirAccueil }, FJ.icone((NIVEAUX[niveau() - 1] || NIVEAUX[1]).icone),
+        h('span', null, S.profil ? (S.profil.age >= 16 ? '16 ans et +' : S.profil.age + ' ans') + ' · ' + NIVEAUX[niveau() - 1].nom : 'Mon âge')),
       h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer'))));
     for (const m of FJ.MONDES) {
       const sec = h('section', { class: 'monde', style: '--c:' + m.couleur });
@@ -25233,7 +25405,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   }
   function ecran(nom) {
     S.ecran = nom;
-    for (const k of ['carte', 'carnet', 'parents']) $(k).hidden = k !== nom;
+    for (const k of ['carte', 'carnet', 'parents', 'accueil']) $(k).hidden = k !== nom;
     app.classList.toggle('ecran-ouvert', !!nom);
     if (nom) { fermerTiroir(); $('pastille').hidden = true; } else last = 0;
   }
@@ -25252,12 +25424,14 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
       const b = h('button', { class: 'bascule' + (S.prefs[k] ? ' on' : ''), onclick: () => { S.prefs[k] = !S.prefs[k]; store.set('fj-prefs', JSON.stringify(S.prefs)); b.classList.toggle('on', S.prefs[k]); app.classList.toggle('calme', S.prefs.calme); } }, h('i'), h('span', null, txt));
       box.append(b, h('p', { class: 'petit' }, aide));
     };
+    box.append(h('h3', null, 'Âge et niveau'), h('p', { class: 'petit' }, S.profil ? `${S.profil.age >= 16 ? '16 ans et plus' : S.profil.age + ' ans'} · ${NIVEAUX[niveau() - 1].nom}. L’âge règle la taille des boutons, le nombre de gestes et de réglages ; le niveau règle la profondeur des explications.` : 'Pas encore choisi.'),
+      h('button', { class: 'bt', onclick: ouvrirAccueil }, FJ.icone('pousse'), h('span', null, 'Changer l’âge ou le niveau')));
     pref('doux', 'Flashs adoucis', 'Atténue les éclairs et les scintillements rapides (photosensibilité). Recommandé.');
     pref('calme', 'Moins d’animations dans l’interface', 'Pas de main qui montre les gestes, transitions réduites.');
     box.append(h('h3', null, 'Le carnet'), h('button', { class: 'bt', onclick: async () => { if (confirm('Effacer tout le carnet (photos, épingles, paris) ?')) { await carnet.effacer(); bulle('Carnet effacé.'); } } }, FJ.icone('gomme'), h('span', null, 'Effacer le carnet')));
     box.append(h('button', { class: 'bt', onclick: () => { S.vus = new Set(); store.set('fj-vus', '[]'); S.etsiVu = new Set(); store.set('fj-etsi', '[]'); bulle('Découvertes remises à zéro.'); } }, FJ.icone('recommencer'), h('span', null, 'Oublier les découvertes')));
     box.append(h('button', { class: 'bt', onclick: () => { dprMap = {}; store.set('fj-dpr', '{}'); bulle('Résolution maximale rétablie pour toutes les machines.'); } }, FJ.icone('spectacle'), h('span', null, 'Rétablir la pleine résolution')));
-    box.append(h('h3', null, 'À propos'), h('p', { class: 'petit' }, 'Fascinations Labo : 32 machines de science à toucher, pour les 10-14 ans (et les autres). Tout fonctionne hors ligne ; rien ne sort de l’appareil. Les simulations sont simplifiées et souvent accélérées : les textes « Pourquoi ? » disent ce qui est vrai, ce qui est simplifié et ce que les scientifiques ne savent pas encore.'));
+    box.append(h('h3', null, 'À propos'), h('p', { class: 'petit' }, 'Fascinations Labo : 32 machines de science à toucher, de 5 ans à l’âge adulte : l’interface s’adapte à l’âge et au niveau choisis. Tout fonctionne hors ligne ; rien ne sort de l’appareil. Les simulations sont simplifiées et souvent accélérées : les textes « Pourquoi ? » disent ce qui est vrai, ce qui est simplifié et ce que les scientifiques ne savent pas encore.'));
   }
 
   /* ───────── le son, la pause, le spectacle ───────── */
@@ -25289,6 +25463,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     audio = new FK.SoundKit();
     sac = FJ.Sac(ids, store);
     app.classList.toggle('calme', S.prefs.calme);
+    appliquerProfil(); laboOuvert = niveau() >= 4;
     $('bCarte').append(FJ.icone('carte'), h('span', null, 'Carte'));
     $('bPrec').append(FJ.icone('prec')); $('bSuiv').append(FJ.icone('suiv'));
     $('bPourquoi').append(FJ.icone('pourquoi'), h('span', null, 'Pourquoi ?'));
@@ -25317,9 +25492,11 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     raf = requestAnimationFrame(boucle);
     const voulu = (location.hash || '').replace('#', '');
     aller(defs.some((d) => d.id === voulu) ? voulu : sac.suivant());
+    // première ouverture : la machine tourne déjà derrière, on demande l'âge puis le niveau
+    if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }
   if (TEST) {
-    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre };
+    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, ouvrirAccueil, exposes, outilsVisibles };
   }
   init();
 })();

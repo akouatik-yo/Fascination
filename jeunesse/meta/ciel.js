@@ -58,6 +58,7 @@ FJ.fiche('ciel', {
   ],
   pourquoi: {
     etincelle: 'L’air éparpille le bleu de la lumière du soleil bien plus que le rouge : le ciel est bleu, le couchant rouge.',
+    petit: 'L’air éparpille surtout le bleu du soleil : le ciel est bleu. Le soir, la lumière traverse beaucoup d’air, et il lui reste surtout le rouge.',
     texte: 'La lumière du soleil est blanche : c’est un mélange de toutes les couleurs. En traversant l’air, elle heurte des milliards de molécules minuscules. Elles renvoient la lumière dans tous les sens, mais bien plus le bleu que le rouge. Ce bleu éparpillé t’arrive de partout : le ciel est bleu. C’est la **diffusion de Rayleigh**.\n\nLe soir, la lumière traverse beaucoup plus d’air pour arriver jusqu’à toi. Le bleu a été éparpillé en route : il reste l’orange et le rouge. Sur la Lune, sans air, le ciel reste noir en plein jour. Dans la machine, le ciel de Mars est un modèle approché.',
     vraie: 'En 2015, le robot Curiosity photographie un coucher de soleil sur Mars : autour du soleil, le ciel est bleuté, alors qu’il est couleur caramel le reste de la journée. D’autres robots l’avaient déjà vu avant lui. La poussière martienne, très fine, renvoie le bleu surtout vers l’avant.',
   },

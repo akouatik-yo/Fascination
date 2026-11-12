@@ -1,0 +1,96 @@
+# Signe les APK avec la nouvelle clé (audit n° 1, P-S14, étape 3).
+# La clé vit dans les secrets de l'environnement « signature » (approbation de Yoann à chaque lancement) ;
+# elle n'existe sur le runner que le temps du job, hors du dépôt, et est effacée à la fin, même en cas d'échec.
+# Ne jamais ajouter « set -x » ni afficher les variables FASC_KEYSTORE_* dans ce fichier.
+name: Signer les APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      cible:
+        description: "APK à construire"
+        type: choice
+        options: [les-deux, jeunesse, adulte]
+        default: les-deux
+
+permissions:
+  contents: write # uniquement pour committer les APK signés dans dist/
+
+concurrency:
+  group: signer-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  signer:
+    runs-on: ubuntu-24.04
+    environment: signature
+    timeout-minutes: 30
+    env:
+      # empreinte SHA-256 du certificat de la nouvelle clé (communiquée par Ruth, CTO, le 12/11/2026)
+      EMPREINTE_ATTENDUE: "EA:C6:B4:AC:FA:F5:F3:84:1B:BC:46:8F:EF:98:B3:47:31:52:C7:CA:1D:11:0F:32:C6:56:6E:A6:5A:60:2B:F7"
+      FASC_KEY_ALIAS: fascinations
+    steps:
+      - name: Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # le numéro de version suit le nombre de commits
+
+      - name: Java 21
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+
+      - name: Clé, hors du dépôt, et vérification de son empreinte
+        env:
+          FASC_KEYSTORE_B64: ${{ secrets.FASC_KEYSTORE_B64 }}
+          FASC_KEYSTORE_PASS: ${{ secrets.FASC_KEYSTORE_PASS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [ -z "${FASC_KEYSTORE_B64}" ] || [ -z "${FASC_KEYSTORE_PASS}" ]; then
+            echo "::error::secrets FASC_KEYSTORE_B64 ou FASC_KEYSTORE_PASS absents de l'environnement « signature »"; exit 1
+          fi
+          CLE="${RUNNER_TEMP}/fasc-signature.p12"
+          printf '%s' "${FASC_KEYSTORE_B64}" | base64 -d > "${CLE}"
+          echo "FASC_KEYSTORE=${CLE}" >> "${GITHUB_ENV}"
+          # l'empreinte du certificat doit être celle annoncée : preuve que les bons secrets ont été collés
+          EMPREINTE=$(keytool -list -v -storetype PKCS12 -keystore "${CLE}" -storepass:env FASC_KEYSTORE_PASS -alias "${FASC_KEY_ALIAS}" 2>/dev/null \
+            | awk '/SHA256:/ && !vu { print toupper($2); vu = 1 }' || true)
+          if [ "${EMPREINTE}" != "${EMPREINTE_ATTENDUE}" ]; then
+            echo "::error::empreinte du certificat inattendue (« ${EMPREINTE:-illisible} ») : arrêt, rien n'est signé"; exit 1
+          fi
+          echo "empreinte vérifiée : ${EMPREINTE}"
+
+      - name: Construction et signature
+        env:
+          FASC_KEYSTORE_PASS: ${{ secrets.FASC_KEYSTORE_PASS }}
+          CIBLE: ${{ inputs.cible }}
+        run: |
+          set -euo pipefail
+          if [ "${CIBLE}" != "jeunesse" ]; then node tools/build-apk.mjs; fi
+          if [ "${CIBLE}" != "adulte" ]; then node tools/build-apk.mjs jeunesse; fi
+
+      - name: Commit des APK signés
+        env:
+          CIBLE: ${{ inputs.cible }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/fascinations.apk dist/fascinations-labo.apk
+          if git diff --cached --quiet; then echo "aucun APK modifié"; exit 0; fi
+          git commit -m "APK : signés avec la nouvelle clé (${CIBLE}, workflow signer-apk, lancement ${GITHUB_RUN_ID})"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Effacement de la clé
+        if: always()
+        run: |
+          CLE="${RUNNER_TEMP}/fasc-signature.p12"
+          if [ -f "${CLE}" ]; then shred -u "${CLE}" 2>/dev/null || rm -f "${CLE}"; fi
+          echo "clé effacée du runner"

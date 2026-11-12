@@ -13,3 +13,4 @@ Les dates sont en heure de Paris. « Source » dit comment la décision est arri
 | 12/11/2026 | Les messages du CEO valent ceux de Yoann pour le travail de cette session, hors actions sensibles. | Yoann, dans cette session |
 | 12/11/2026 | Branche de référence : `jeunesse`. | Session, d'après l'historique (elle contient `main` et `ccr-ba505dc0-e427km`) |
 | 12/11/2026 | Pas de commit séparé pour retirer l'ancienne clé de `main` ni de `ccr-ba505dc0-e427km` : `main` suivra à la fusion de `jeunesse`, et la clé est de toute façon dans l'historique public. | Ruth (CTO), message à cette session |
+| 12/11/2026 vers 15:35 | Nouvelle clé de signature (RSA 4096, alias `fascinations`), gardée dans l'environnement GitHub `signature`. Signature par un workflow à lancement manuel, avec approbation de Yoann et vérification de l'empreinte du certificat. | Yoann, dans le fil de Ruth (relayé par Ruth) |

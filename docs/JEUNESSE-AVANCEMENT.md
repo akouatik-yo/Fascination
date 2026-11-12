@@ -20,10 +20,5 @@
 - **Photo dans l'artefact claude.ai** : le téléchargement n'y est pas permis, mais la photo est bien rangée dans le Carnet. Dans l'APK, elle va dans Images/Fascinations.
 - **Rien n'a été essayé sur un vrai appareil**, et les sons n'ont pas été écoutés.
 
-## En attente (point de reprise au 11/11)
-- **Branches** : `jeunesse` (399cd30 et suivants) porte la version jeunesse ; `ccr-ba505dc0-e427km` (92d7b6c, APK adulte 0.1.33) est la branche de session d'origine. Aucune n'est fusionnée dans `main`, et Yoann décide de la fusion.
-- **Ce qui attend Yoann** :
-  - ses retours de test sur tablette des deux APK 0.1.65 (version adulte et Labo) ;
-  - sa réponse sur la passe de tutoiement des textes des machines (le CEO de l'organisation doit la lui poser) ;
-  - la reprise visuelle de certaines machines, mise en attente jusqu'après l'audit du 11/11.
-- **Engagement en cours** : aucun. Rien n'est lancé ; on attend que Yoann ait lu le rapport d'audit.
+## En attente
+Le point de reprise est tenu dans [`etat.md`](../etat.md), à la racine du dépôt ; les décisions sont dans [`decisions.md`](../decisions.md).

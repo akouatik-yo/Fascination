@@ -4,8 +4,11 @@
      dx (com.jakewharton.android.repackaged:dalvik-dx) pour le code Dalvik ;
      android.jar de l'API 16 (com.google.android:android) pour compiler ;
      apksig (com.android.tools.build:apksig) pour signer (schémas v1 et v2).
-   Il faut Java (javac, keytool) et ImageMagick n'est pas nécessaire (les icônes sont dans android/res).
-   Usage : node tools/build-apk.mjs   (la clé de signature est android/fascinations.p12) */
+   Il faut Java (javac) et ImageMagick n'est pas nécessaire (les icônes sont dans android/res).
+   Usage : FASC_KEYSTORE=/chemin/hors/du/depot/cle.p12 FASC_KEYSTORE_PASS=… node tools/build-apk.mjs [jeunesse]
+   La clé de signature (PKCS12) n'est jamais dans le dépôt : l'ancienne android/fascinations.p12, publiée avec son mot de passe,
+   est compromise (audit n° 1, P-S14). Le script refuse de signer si la clé manque ou si elle se trouve sous la racine du dépôt.
+   FASC_KEY_ALIAS (facultatif) donne l'alias de la clé, « fascinations » par défaut. */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,7 +28,17 @@ const TOOLS = {
   android: `${M}/com/google/android/android/4.1.1.4/android-4.1.1.4.jar`,
   apksig: `${M}/com/android/tools/build/apksig/2.3.0/apksig-2.3.0.jar`,
 };
-const KEY = { file: path.join(AND, 'fascinations.p12'), alias: 'fascinations', pass: 'fascinations' };
+/* 0. la clé de signature, lue hors du dépôt : on vérifie avant tout le reste pour ne rien construire en vain */
+const stop = (msg) => { console.error('✗ ' + msg); process.exit(1); };
+const KEY = { file: process.env.FASC_KEYSTORE || '', alias: process.env.FASC_KEY_ALIAS || 'fascinations' };
+if (!KEY.file) stop('FASC_KEYSTORE manque : donnez le chemin de la clé de signature (hors du dépôt).');
+if (!process.env.FASC_KEYSTORE_PASS) stop('FASC_KEYSTORE_PASS manque : donnez le mot de passe de la clé dans cette variable d’environnement.');
+if (!fs.existsSync(KEY.file)) stop(`clé introuvable : ${KEY.file} (le script ne crée plus de clé lui-même).`);
+{
+  const reel = fs.realpathSync(path.resolve(KEY.file)), racine = fs.realpathSync(ROOT);
+  const rel = path.relative(racine, reel);
+  if (rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))) stop(`la clé est dans le dépôt (${rel}) : déplacez-la hors de ${racine}.`);
+}
 
 const run = (cmd, args, opt = {}) => execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'inherit'], ...opt }).toString();
 const log = (s) => console.log('· ' + s);
@@ -98,18 +111,15 @@ run('zip', ['-q', '-j', UNSIGNED, path.join(DEX, 'classes.dex')]);
 /* 5. alignement sur 4 octets des fichiers non compressés (exigé pour resources.arsc à partir d'Android 11) puis signature */
 const ALIGNED = path.join(W, 'aligned.apk');
 run('python3', ['-I', path.join(ROOT, 'tools/zipalign.py'), UNSIGNED, ALIGNED]);
-if (!fs.existsSync(KEY.file)) {
-  log('création de la clé de signature android/fascinations.p12');
-  run('keytool', ['-genkeypair', '-keystore', KEY.file, '-storetype', 'PKCS12', '-storepass', KEY.pass, '-keypass', KEY.pass, '-alias', KEY.alias, '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10000', '-dname', 'CN=Fascinations, O=Fascinations, C=FR']);
-}
 log('signature (apksig, schéma v2 : suffisant dès Android 7)');
 const SIGNER = path.join(W, 'sign'); fs.mkdirSync(SIGNER);
 fs.writeFileSync(path.join(SIGNER, 'Sign.java'), `
 import com.android.apksig.*;
 import java.io.*; import java.security.*; import java.security.cert.X509Certificate; import java.util.*;
 public class Sign { public static void main(String[] a) throws Exception {
-  KeyStore ks = KeyStore.getInstance("PKCS12"); try (InputStream in = new FileInputStream(a[2])) { ks.load(in, a[4].toCharArray()); }
-  PrivateKey k = (PrivateKey) ks.getKey(a[3], a[4].toCharArray()); X509Certificate c = (X509Certificate) ks.getCertificate(a[3]);
+  char[] pw = System.getenv("FASC_KEYSTORE_PASS").toCharArray();
+  KeyStore ks = KeyStore.getInstance("PKCS12"); try (InputStream in = new FileInputStream(a[2])) { ks.load(in, pw); }
+  PrivateKey k = (PrivateKey) ks.getKey(a[3], pw); X509Certificate c = (X509Certificate) ks.getCertificate(a[3]);
   ApkSigner.SignerConfig sc = new ApkSigner.SignerConfig.Builder("FASCINAT", k, Collections.singletonList(c)).build();
   new ApkSigner.Builder(Collections.singletonList(sc)).setInputApk(new File(a[0])).setOutputApk(new File(a[1])).setMinSdkVersion(24).setV1SigningEnabled(false).setV2SigningEnabled(true).build().sign();
   ApkVerifier.Result r = new ApkVerifier.Builder(new File(a[1])).setMinCheckedPlatformVersion(24).build().verify();
@@ -119,7 +129,7 @@ public class Sign { public static void main(String[] a) throws Exception {
 } }`);
 run('javac', ['-nowarn', '-cp', jar.apksig, '-d', SIGNER, path.join(SIGNER, 'Sign.java')]);
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
-process.stdout.write(run('java', ['-Dstdout.encoding=UTF-8', '--add-exports=java.base/sun.security.x509=ALL-UNNAMED', '--add-exports=java.base/sun.security.pkcs=ALL-UNNAMED', '--add-exports=java.base/sun.security.util=ALL-UNNAMED', '-cp', `${jar.apksig}:${SIGNER}`, 'Sign', ALIGNED, OUT, KEY.file, KEY.alias, KEY.pass]));
+process.stdout.write(run('java', ['-Dstdout.encoding=UTF-8', '--add-exports=java.base/sun.security.x509=ALL-UNNAMED', '--add-exports=java.base/sun.security.pkcs=ALL-UNNAMED', '--add-exports=java.base/sun.security.util=ALL-UNNAMED', '-cp', `${jar.apksig}:${SIGNER}`, 'Sign', ALIGNED, OUT, KEY.file, KEY.alias]));
 run('python3', ['-I', path.join(ROOT, 'tools/zipalign.py'), '--check', OUT]);
 log(`${path.relative(ROOT, OUT)} : ${(fs.statSync(OUT).size / 1048576).toFixed(2)} Mo`);
 process.stdout.write(run(AAPT2, ['dump', 'badging', OUT]).split('\n').filter((l) => /^(package|minSdkVersion|sdkVersion|targetSdkVersion|application-label|launchable)/.test(l)).join('\n') + '\n');

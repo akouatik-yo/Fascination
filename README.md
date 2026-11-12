@@ -1,5 +1,7 @@
 # Fascinations
 
+**Branche de référence : `jeunesse`** (elle contient `main` et la branche de session `ccr-ba505dc0-e427km`, plus la version Labo). Point de reprise : [`etat.md`](etat.md) ; décisions : [`decisions.md`](decisions.md).
+
 Vingt-six « machines à fascination » : des simulations contemplatives et interactives, ancrées dans la science et la biologie, à regarder comme un feu de cheminée et à manipuler du doigt. Interface en français.
 
 ## Ouvrir l'application
@@ -49,7 +51,8 @@ node tools/smoke.mjs        # parcourt les 26 machines, teste le Feu et les brui
 - `android/` : une coquille minimale (une activité WebView plein écran, `MainActivity.java`), le manifeste, les icônes et les polices ;
 - l'application web est assemblée en un seul fichier (`tools/build.mjs`), les polices y sont intégrées : tout fonctionne hors ligne ;
 - aucun SDK Android n'est nécessaire : aapt2 (dans apktool), dx, android.jar et apksig sont pris sur Maven Central et mis en cache dans `~/.cache/fascinations-apk` ; il faut Java (JDK 17 ou plus) et Python 3 ;
-- `tools/zipalign.py` aligne les fichiers non compressés ; la signature (schéma v2) utilise `android/fascinations.p12` (mot de passe `fascinations`). Cette clé est volontairement dans le dépôt : sans elle, une nouvelle version ne pourrait pas s'installer par-dessus l'ancienne. Elle ne convient qu'à une diffusion privée, pas à un magasin d'applications.
+- `tools/zipalign.py` aligne les fichiers non compressés ; la signature (schéma v2) utilise une clé PKCS12 gardée **hors du dépôt** : son chemin dans `FASC_KEYSTORE`, son mot de passe dans `FASC_KEYSTORE_PASS` (alias facultatif dans `FASC_KEY_ALIAS`, « fascinations » par défaut). Le script refuse de signer si l'une manque ou si la clé est sous la racine du dépôt, et ne crée plus de clé lui-même.
+- **Ancienne clé compromise** : `android/fascinations.p12` et son mot de passe ont été publiés dans ce dépôt du 08/10/2026 au 12/11/2026 ; ils restent lisibles dans l'historique. Les APK de `dist/` (jusqu'à la version 0.1.65) sont signés avec elle. Une APK signée avec la nouvelle clé ne s'installera pas par-dessus : il faudra désinstaller l'application une fois.
 - Le numéro de version suit le nombre de commits.
 
 Installation : copier l'APK sur l'appareil, l'ouvrir, autoriser l'installation d'applications de cette source. Sur l'appareil, l'application mémorise par machine une résolution réduite si l'animation n'arrive pas à suivre (clé `fasc-dpr` du stockage local).

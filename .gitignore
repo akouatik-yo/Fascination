@@ -1,2 +1,8 @@
 tools/out/
 node_modules/
+
+# clés de signature : jamais dans le dépôt (audit n° 1, P-S14)
+*.p12
+*.jks
+*.keystore
+*.b64

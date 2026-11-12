@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FKR · banc d'essai du rendu commun</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05050a; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  nav { position: fixed; left: 12px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; font: 500 13px system-ui, sans-serif; z-index: 2; }
+  nav a { color: #e8e4f0; background: rgba(10, 10, 20, .6); border: 1px solid rgba(255, 255, 255, .15); border-radius: 999px; padding: 5px 11px; text-decoration: none; }
+  nav a.on { background: rgba(255, 190, 120, .25); border-color: rgba(255, 190, 120, .6); }
+  #info { position: fixed; left: 12px; bottom: 10px; color: rgba(232, 228, 240, .75); font: 12px ui-monospace, monospace; z-index: 2; max-width: 92vw; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<nav id="nav"></nav>
+<div id="info"></div>
+<script src="../app/js/fk.js"></script>
+<script src="../app/js/fkgl.js"></script>
+<script src="../app/js/fkrendu.js"></script>
+<script>
+/* Banc d'essai de FKR (app/js/fkrendu.js). Chaque scène montre une brique de la bibliothèque :
+   #nebuleuse   passe plein écran (bruits, palette de raies, poussière) + étoiles de Moffat et pointes de diffraction
+   #lucioles    pont 2D : décor peint en canvas 2D, éclairé par les lueurs (éclairage) ; bandes de bioluminescence
+   #spectres    planche des couleurs physiques : corps noir (GLSL), raies des éléments, bioluminescence (JS)
+   #traits      lignes lumineuses (harmonographe amorti) et traînées
+   Paramètres : ?tons=film|aces|lupton|reinhard  ?expo=1  ?t=secondes (temps figé, pour les tests)  ?dpr=1 */
+(function () {
+  const Q = new URLSearchParams(location.search);
+  const SCENES = ['nebuleuse', 'lucioles', 'spectres', 'traits'];
+  const scene = SCENES.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'nebuleuse';
+  const nav = document.getElementById('nav');
+  for (const s of SCENES) { const a = document.createElement('a'); a.href = '#' + s; a.textContent = s; if (s === scene) a.className = 'on'; a.onclick = () => setTimeout(() => location.reload(), 0); nav.append(a); }
+  const info = document.getElementById('info');
+  window.DEMO = { ok: false, erreurs: [], images: 0, scene };
+  window.addEventListener('error', (e) => window.DEMO.erreurs.push(String(e.message)));
+
+  const canvas = document.getElementById('cv');
+  const W = window.innerWidth, H = window.innerHeight, dpr = +(Q.get('dpr') || Math.min(2, window.devicePixelRatio || 1));
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const env = { ctx, canvas, w: W, h: H, dpr };
+  const { couleur: C, palette: P } = window.FKR;
+  const tons = Q.get('tons') || null, expo = Q.get('expo') ? +Q.get('expo') : null;
+  const fige = Q.get('t') != null ? +Q.get('t') : null;
+  const regl = (o) => Object.assign(o, tons ? { tons } : {}, expo ? { expo } : {});
+  let alea = 12345; const rnd = () => ((alea = (alea * 1664525 + 1013904223) >>> 0) / 4294967296);
+
+  const S = {};
+  /* ───────── nébuleuse ───────── */
+  S.nebuleuse = () => {
+    const R = FKR.cabine(env, regl({ plafond: 1, halo: 0.6, rayon: 0.78, expo: 1, saturation: 1 }));
+    const pal = R.lut(P.nebuleuse());
+    // une région H II : un amas de jeunes étoiles chaudes (en haut à droite du centre) ionise le gaz et creuse une cavité ;
+    // le bord de la cavité (front d'ionisation) brille ; le gaz loin de l'amas est moins excité, donc plus rouge
+    const neb = R.K.program(FKR.fs(['bruit', 'couleur'], `
+uniform vec2 uRes; uniform float uT; uniform sampler2D uPal; out vec4 o;
+void main(){
+  vec2 p = (vUv - .5) * vec2(uRes.x / uRes.y, 1.) * 2.4;
+  float t = uT * .008;
+  vec2 q = gauchir(p * 1.05 + vec2(t, -t * .5), 1.15, 4);
+  float d = fbmG(q * 1.25, 6) * .5 + .5;
+  float gaz = smoothstep(.4, .82, d); gaz *= gaz;
+  float fil = strie(q * 2.1 + 3.1, 5);
+  gaz *= .25 + 1.5 * fil * fil * fil;
+  vec2 c0 = vec2(.32, .12); vec2 dp = p - c0; float r = length(dp * vec2(1., 1.25));
+  float rb = .62 + .12 * fbmG(vec2(atan(dp.y, dp.x) * 1.7, 0.) + 3., 3);
+  float cav = smoothstep(rb - .3, rb, r), bord = exp(-pow((r - rb) / .1, 2.));
+  float flux = 1. / (1. + r * r * 2.2);
+  gaz *= cav * (1. + 3.5 * bord);
+  float exc = clamp(flux * 1.25 + fbmG(q * 2.7, 3) * .12 - .05, 0., 1.);
+  vec3 em = texture(uPal, vec2(exc, .5)).rgb * gaz * (.25 + 2.6 * flux);
+  em += texture(uPal, vec2(1., .5)).rgb * exp(-r * r * 5.) * .2 * smoothstep(.3, .8, d) * (.4 + fil);
+  // poussière : elle absorbe, davantage dans le bleu (rougissement interstellaire)
+  float pous = smoothstep(.56, .76, fbmG(gauchir(p * 1.6 + 7.7, .9, 3), 5) * .5 + .5);
+  em *= exp(-pous * vec3(2.4, 3., 3.8));
+  o = vec4(em, 1.);
+}`));
+    // un champ d'étoiles : beaucoup de faibles, quelques géantes
+    const etoiles = R.lot({ forme: 'moffat', mode: 'flux', beta: 2.6 });
+    const brillantes = R.lot({ forme: 'etoile', mode: 'flux', beta: 2.6, pointes: 1.3, angle: 0.52 });
+    const cls = ['M', 'K', 'K', 'G', 'G', 'F', 'A', 'B', 'B', 'O'];
+    for (let i = 0; i < 1400; i++) {
+      const c = C.etoile(cls[(rnd() * cls.length) | 0]), f = 1.2 * Math.pow(10, -rnd() * 2.2);
+      etoiles.point(rnd() * W, rnd() * H, 0.9 + rnd() * 0.5, c[0] * f * 6, c[1] * f * 6, c[2] * f * 6);
+    }
+    for (let i = 0; i < 7; i++) {
+      const c = C.etoile(['B', 'A', 'O', 'G', 'K', 'B', 'A'][i]), f = 60 + rnd() * 160;
+      brillantes.point(W * (0.08 + rnd() * 0.84), H * (0.08 + rnd() * 0.84), 1.6, c[0] * f, c[1] * f, c[2] * f, true);
+    }
+    return (t) => {
+      R.debut();
+      neb.use().f('uRes', W, H).f('uT', t).t('uPal', pal);
+      R.passe(neb);
+      etoiles.dessiner(); brillantes.dessiner();
+      R.fin(1 / 60);
+      return `nébuleuse en émission : [S II]+[N II] → Hα → [O III] selon l'excitation · poussière rougissante · étoiles de Moffat · tons ${R.opt.tons}`;
+    };
+  };
+
+  /* ───────── lucioles (pont 2D) ───────── */
+  S.lucioles = () => {
+    const R = FKR.cabineOuRepli(env, regl({ eclairage: 18, ambiant: [0.05, 0.065, 0.11], halo: 0.8, rayon: 0.7, expo: 1.15 }));
+    const sc = R.calque('scene', { fixe: true }), g = sc.g;
+    // le décor est un albédo : ce qu'il réfléchit, pas ce qu'il émet ; ce sont les lumières qui le révèlent
+    const ciel = g.createLinearGradient(0, 0, 0, H * 0.62);
+    ciel.addColorStop(0, '#1b2a4a'); ciel.addColorStop(1, '#3b4c6e');
+    g.fillStyle = ciel; g.fillRect(0, 0, W, H * 0.62);
+    g.fillStyle = '#10140f';
+    g.beginPath(); g.moveTo(0, H * 0.62);
+    for (let x = 0; x <= W; x += 8) g.lineTo(x, H * 0.5 - Math.abs(Math.sin(x * 0.013) * Math.sin(x * 0.041 + 2)) * H * 0.16 - rnd() * 6);
+    g.lineTo(W, H * 0.62); g.fill();
+    const sol = g.createLinearGradient(0, H * 0.58, 0, H);
+    sol.addColorStop(0, '#2f4424'); sol.addColorStop(1, '#4d6a33');
+    g.fillStyle = sol; g.fillRect(0, H * 0.6, W, H * 0.4);
+    g.lineWidth = 1.2;
+    for (let i = 0; i < W * 1.6; i++) {
+      const x = rnd() * W, y = H * 0.6 + Math.pow(rnd(), 0.7) * H * 0.42, h = (6 + (y - H * 0.6) / H * 60) * (0.5 + rnd());
+      g.strokeStyle = `rgb(${60 + rnd() * 40 | 0},${95 + rnd() * 50 | 0},${40 + rnd() * 20 | 0})`;
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + (rnd() - 0.5) * 8, y - h * 0.6, x + (rnd() - 0.5) * 14, y - h); g.stroke();
+    }
+    g.fillStyle = '#5b4632'; g.beginPath(); g.moveTo(W * 0.18, H * 0.84); g.lineTo(W * 0.192, H * 0.25); g.lineTo(W * 0.206, H * 0.25); g.lineTo(W * 0.222, H * 0.84); g.fill();
+    for (let i = 0; i < 90; i++) { const a = rnd() * 6.283, d = Math.sqrt(rnd()); g.fillStyle = `rgb(${50 + rnd() * 30 | 0},${75 + rnd() * 40 | 0},${35 + rnd() * 15 | 0})`; g.beginPath(); g.arc(W * 0.2 + Math.cos(a) * d * W * 0.11, H * 0.24 + Math.sin(a) * d * H * 0.14, H * (0.02 + rnd() * 0.035), 0, 6.283); g.fill(); }
+    sc.marquer();
+    const L = R.lot({ forme: 'gauss' });
+    const cl = C.bande('luciole');
+    const F = Array.from({ length: 70 }, () => ({ x: rnd() * W, y: H * (0.35 + rnd() * 0.55), ph: rnd() * 5.5, v: 0.6 + rnd() * 0.8, s: rnd() * 100 }));
+    return (t, dt) => {
+      R.debut();
+      L.vider();
+      for (const f of F) {
+        const x = f.x + Math.sin(t * 0.21 * f.v + f.s) * 40 + Math.sin(t * 0.53 + f.s * 2) * 12;
+        const y = f.y + Math.sin(t * 0.17 * f.v + f.s * 3) * 22;
+        // Photinus pyralis : un éclair d'environ une demi-seconde toutes les 5 à 6 secondes
+        const k = Math.max(0, Math.sin(((t + f.ph) % 5.5) / 0.55 * Math.PI)) * ((t + f.ph) % 5.5 < 0.55 ? 1 : 0);
+        L.point(x, y, 1.7, cl[0] * (0.25 + 38 * k), cl[1] * (0.25 + 38 * k), cl[2] * (0.25 + 38 * k));
+      }
+      L.dessiner();
+      R.fin(dt);
+      return `pont 2D : décor peint (calque « scene », envoyé une fois) éclairé par ses lucioles (éclairage = ${R.opt.eclairage}) · luciférase de Photinus, pic 562 nm`;
+    };
+  };
+
+  /* ───────── planche des couleurs physiques ───────── */
+  S.spectres = () => {
+    const R = FKR.cabine(env, regl({ halo: 0.35, rayon: 0.6, vignetage: 0.2 }));
+    const bb = R.K.program(FKR.fs(['couleur'], `
+uniform vec4 uBox; uniform vec2 uRes; out vec4 o;
+void main(){
+  vec2 p = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  if (p.x < uBox.x || p.x > uBox.z || p.y < uBox.y || p.y > uBox.w) { o = vec4(0.); return; }
+  float u = (p.x - uBox.x) / (uBox.z - uBox.x), T = 800. * pow(12000. / 800., u);
+  // couleur exacte, éclat comprimé (sinon 800 K serait 10⁷ fois plus sombre que 6 000 K)
+  o = vec4(corpsNoir(T) * pow(eclatCorpsNoir(T) / eclatCorpsNoir(6500.), .22) * 1.6, 1.);
+}`));
+    const L = R.lot({ forme: 'gauss' });
+    const x0 = W * 0.08, x1 = W * 0.92, lx = (l) => x0 + (x1 - x0) * (l - 380) / 400;
+    const rangs = [['hydrogène (Balmer)', 'hydrogene'], ['oxygène III', 'oxygene3'], ['sodium', 'sodium'], ['mercure', 'mercure'], ['néon', 'neon'], ['aurore verte et rouge', [...C.MELANGES.aurore_verte, ...C.MELANGES.aurore_rouge]], ['aurore, bord bas (N₂⁺)', 'aurore_bleue']];
+    const y0 = H * 0.3, dy = Math.min(46, H * 0.075);
+    const bandes = ['luciole', 'mer', 'champignon', 'gfp', 'ver_rouge', 'dragon_rouge'];
+    return (t, dt) => {
+      R.debut();
+      bb.use().f('uBox', x0, H * 0.13, x1, H * 0.13 + 26).f('uRes', W, H);
+      R.passe(bb);
+      L.vider();
+      rangs.forEach(([nom, m], i) => {
+        const y = y0 + i * dy, lst = typeof m === 'string' ? C.MELANGES[m] : m, mx = Math.max(...lst.map((v) => v[1]));
+        for (let x = lx(380); x < lx(780); x += 3) L.point(x, y, 0.5, 0.004, 0.004, 0.006);
+        for (const [l, w] of lst) { const c = C.raie(l), k = 9 * w / mx; L.segment(lx(l), y - dy * 0.33, lx(l), y + dy * 0.33, 0.9, c[0] * k, c[1] * k, c[2] * k, 0); }
+      });
+      bandes.forEach((b, i) => { const c = C.bande(b); L.point(x0 + (i + 0.5) * (x1 - x0) / bandes.length, H * 0.9, 9, c[0] * 3, c[1] * 3, c[2] * 3); });
+      L.dessiner();
+      R.fin(dt);
+      ctx.save();
+      ctx.fillStyle = 'rgba(235,232,245,.85)'; ctx.font = '500 12px system-ui, sans-serif';
+      ctx.fillText('corps noir, de 800 K à 12 000 K (Planck × CIE 1931)', x0, H * 0.13 - 8);
+      ['1 000 K', '2 000 K', '3 000 K', '5 800 K (Soleil)', '10 000 K'].forEach((s, i) => { const T = [1000, 2000, 3000, 5800, 10000][i]; ctx.fillText(s, x0 + (x1 - x0) * Math.log(T / 800) / Math.log(15), H * 0.13 + 42); });
+      rangs.forEach(([nom], i) => ctx.fillText(nom, x0, y0 + i * dy - dy * 0.4));
+      for (let l = 400; l <= 750; l += 50) ctx.fillText(l + ' nm', lx(l) - 14, y0 + rangs.length * dy - dy * 0.35);
+      ctx.fillText('bioluminescence : luciole · plancton marin · champignon · GFP · ver rouge · poisson-dragon', x0, H * 0.9 - 26);
+      ctx.restore();
+      return `couleurs calculées depuis les spectres · tons ${R.opt.tons}`;
+    };
+  };
+
+  /* ───────── traits lumineux ───────── */
+  S.traits = () => {
+    const R = FKR.cabine(env, regl({ halo: 0.6, rayon: 0.7 }));
+    const L = R.lot({ forme: 'gauss' }), T = R.lot({ forme: 'gauss' });
+    const c1 = C.corpsNoir(3200), c2 = C.raie(486.13), c3 = C.melange('oxygene3').rgb;
+    const pts = [], N = 2600;
+    return (t, dt) => {
+      R.debut(); L.vider(); T.vider();
+      pts.length = 0;
+      const s = Math.min(W, H) * 0.36, ph = t * 0.05;
+      for (let i = 0; i < N; i++) {
+        const u = i * 0.02, a = Math.exp(-u * 0.012);
+        pts.push(W / 2 + s * a * (Math.sin(u * 2.01 + ph) * 0.7 + Math.sin(u * 3.0 + 1.3) * 0.3), H / 2 + s * a * (Math.sin(u * 3.02 + 0.4) * 0.7 + Math.sin(u * 2.0 + ph * 0.7) * 0.3));
+      }
+      L.ligne(pts, 0.8, c1[0] * 0.55, c1[1] * 0.55, c1[2] * 0.55);
+      for (let i = 0; i < 24; i++) {
+        const a = t * 0.9 + i * 0.26, r = s * (0.5 + 0.6 * ((i * 37) % 11) / 11);
+        const x = W / 2 + Math.cos(a) * r * 1.3, y = H / 2 + Math.sin(a) * r * 0.55;
+        const c = i % 2 ? c2 : c3;
+        T.trainee(x, y, -Math.sin(a) * r * 0.9 * 0.25, Math.cos(a) * r * 0.4 * 0.25, 1.4, c[0] * 2.5, c[1] * 2.5, c[2] * 2.5);
+      }
+      L.dessiner(); T.dessiner();
+      R.fin(dt);
+      return 'lignes lumineuses jointives (harmonographe amorti, 2 600 segments) et traînées de mouvement';
+    };
+  };
+
+  let rendre = null;
+  try { rendre = S[scene](); } catch (e) { window.DEMO.erreurs.push(String(e && e.message || e)); console.error(e); }
+  let t0 = performance.now(), last = t0;
+  function boucle(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const t = fige != null ? fige : (now - t0) / 1000;
+    if (rendre) {
+      try { const txt = rendre(t, fige != null ? 1 / 60 : dt); if (!window.DEMO.images) info.textContent = txt; window.DEMO.images++; window.DEMO.ok = true; }
+      catch (e) { window.DEMO.erreurs.push(String(e && e.message || e)); console.error(e); rendre = null; }
+    }
+    requestAnimationFrame(boucle);
+  }
+  requestAnimationFrame(boucle);
+})();
+</script>
+</body>
+</html>

@@ -30,9 +30,9 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 
 | # | Rendu A (`rendu-a`) | Rendu B (`rendu-b`) |
 |---|---|---|
-| 1 | Galaxie | (chaîne optique commune, `fkgl.js`) |
+| 1 | Lucioles | (chaîne optique commune, `fkgl.js`) |
 | 2 | Foudre | Couleurs du ciel |
-| 3 | Abysses (méduses) | Lucioles |
+| 3 | Abysses (méduses) | Galaxie |
 | 4 | Cristal | Bulles |
 | 5 | Lampe à lave | Murmuration |
 | 6 | Écoulement | Sable |
@@ -46,6 +46,13 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 | 14 | | Attracteur |
 | 15 | | Fractales |
 
+**Échange (13/11 vers 00 h 40)** : les Lucioles passent à rendu A, car c'est la machine d'accueil de l'application adulte, donc la plus vue. La Galaxie passe à rendu B : elle a déjà la chaîne de lumière du Feu, le gain y est moindre.
+
+**Fichiers communs** :
+- `app/js/fkcabine.js` (le développement de l'image : halo, ACES ou AgX, vignettage, grain, tramage) est écrit par rendu A sur `rendu-a` (79f63a2), et rendu A en reste propriétaire.
+- `app/js/fkgl.js` (le cœur WebGL) appartient à rendu B.
+- Personne ne duplique le post-traitement : rendu B utilise `fkcabine.js`.
+
 **Feu, Eau et Fourmilière : intouchables.** C'est une décision de Yoann du 10/11, confirmée par le CEO le 13/11 vers 00 h 25 : on n'y touche pas tant que Yoann n'en décide pas autrement. Pour rééquilibrer, l'Attracteur et les Fractales passent de A à B.
 
 **On ne touche pas au stimulus** des Illusions, du Moiré et des Illusions sonores : l'effet dépend du dessin exact. Seul le cadre autour peut être amélioré. Le Feu sert de référence et n'est pas touché.
@@ -54,10 +61,10 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 Chaque machine a trois lignes : **Vu** (ce qu'on observe), **Juste** (ce qu'il faut garder exact), **Stylisé** (ce qui est permis).
 
 ### Rendu A
-**Galaxie**
-- **Vu** : un bulbe central blanc-jaune (vieilles étoiles), des bras bleu-blanc semés de nébuleuses roses (hydrogène ionisé), et des bandes de poussière sombres sur le bord intérieur des bras. Les étoiles sont des points, pas des disques.
-- **Juste** : il faut 200 à 250 millions d'années pour un tour, et une collision dure des centaines de millions d'années. Les queues de marée sont bleutées, et des nœuds roses de formation d'étoiles s'y allument. Trou noir : une ombre d'environ 2,6 fois le rayon de l'horizon, un anneau de photons fin, un côté du disque plus brillant (effet Doppler) et les étoiles du fond déformées par la lentille.
-- **Stylisé** : le temps est énormément accéléré, et on peut le dire. Les couleurs de l'image du trou noir de l'EHT sont fausses (c'est de la radio) : prendre un disque orange-blanc, dans le style d'Interstellar mais avec l'asymétrie Doppler.
+**Lucioles**
+- **Vu** : des éclairs **jaune-vert** (vers 560 nm) de 0,1 à 0,5 s, dont le rythme dépend de l'espèce. On les voit comme de petits halos sur un paysage sombre au clair de lune.
+- **Juste** : Photinus carolinus fait des salves de 5 à 8 éclairs, puis plusieurs secondes de noir, avec des vagues de synchronisation. Les Pteroptyx des mangroves d'Asie du Sud-Est sont presque parfaitement synchrones.
+- **Stylisé** : la lune, la brume et la végétation. **Avec `env.doux`, les clignotements restent sous 3 Hz.**
 
 **Foudre**
 - **Vu** : un canal blanc éblouissant, teinté de violet ou de bleu par les raies de l'azote. Il tremble 3 à 4 fois (arcs en retour) en environ 0,2 s, puis laisse une image rémanente. Les ramifications du traceur sont à peine visibles. Le tonnerre arrive environ 3 s par kilomètre plus tard.
@@ -125,10 +132,10 @@ Chaque machine a trois lignes : **Vu** (ce qu'on observe), **Juste** (ce qu'il f
 - **Juste** : l'arc-en-ciel a un rayon de **42°** autour du point opposé au Soleil, le rouge à l'extérieur. Le ciel est plus clair à l'intérieur de l'arc, avec une bande sombre d'Alexandre entre les deux arcs. L'arc secondaire, à 51°, a ses couleurs inversées. Halos : un anneau de 22° et des parhélies à 22°, rouges côté Soleil, plus l'arc circumzénithal.
 - **Stylisé** : les nuages, le paysage et le grain.
 
-**Lucioles**
-- **Vu** : des éclairs **jaune-vert** (vers 560 nm) de 0,1 à 0,5 s, dont le rythme dépend de l'espèce. On les voit comme de petits halos sur un paysage sombre au clair de lune.
-- **Juste** : Photinus carolinus fait des salves de 5 à 8 éclairs, puis plusieurs secondes de noir, avec des vagues de synchronisation. Les Pteroptyx des mangroves d'Asie du Sud-Est sont presque parfaitement synchrones.
-- **Stylisé** : la lune, la brume et la végétation. **Avec `env.doux`, les clignotements restent sous 3 Hz.**
+**Galaxie**
+- **Vu** : un bulbe central blanc-jaune (vieilles étoiles), des bras bleu-blanc semés de nébuleuses roses (hydrogène ionisé), et des bandes de poussière sombres sur le bord intérieur des bras. Les étoiles sont des points, pas des disques.
+- **Juste** : il faut 200 à 250 millions d'années pour un tour, et une collision dure des centaines de millions d'années. Les queues de marée sont bleutées, et des nœuds roses de formation d'étoiles s'y allument. Trou noir : une ombre d'environ 2,6 fois le rayon de l'horizon, un anneau de photons fin, un côté du disque plus brillant (effet Doppler) et les étoiles du fond déformées par la lentille.
+- **Stylisé** : le temps est énormément accéléré, et on peut le dire. Les couleurs de l'image du trou noir de l'EHT sont fausses (c'est de la radio) : prendre un disque orange-blanc, dans le style d'Interstellar mais avec l'asymétrie Doppler.
 
 **Bulles**
 - **Vu** : les irisations sont des interférences en couches minces : magenta, vert et or, qui tourbillonnent. Ce n'est pas un arc-en-ciel régulier.

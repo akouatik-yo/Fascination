@@ -1,6 +1,6 @@
 # État — point de reprise
 
-maj : 12/11/2026 13:55 (heure de Paris, horloge de la session)
+maj : 12/11/2026 13:58 (heure de Paris, horloge de la session)
 
 ## Où en est le dépôt
 - **Branche de référence : `jeunesse`.** Elle contient `main` et `ccr-ba505dc0-e427km` (la branche de session d'origine, APK adulte 0.1.33). Rien n'est fusionné dans `main` : c'est Yoann qui décide de la fusion.
@@ -14,7 +14,7 @@ maj : 12/11/2026 13:55 (heure de Paris, horloge de la session)
 
 ## Ce qui attend
 - **Nouvelle clé de signature** : Ruth (CTO) la crée hors de tout dépôt, une fois que Maud et Yoann auront tranché. Ensuite seulement viendra un workflow `signer-apk.yml`, relu par Ruth. D'ici là, **aucune APK ne peut être construite**, et c'est voulu.
-- **Branches `main` et `ccr-ba505dc0-e427km`** : elles portent encore l'ancienne clé. Elles suivront à la fusion, ou plus tôt si Yoann ou Ruth le demandent.
+- **Branches `main` et `ccr-ba505dc0-e427km`** : elles portent encore l'ancienne clé, et on n'y fait pas de commit séparé (décision de Ruth, 12/11). `main` la perdra à la fusion de `jeunesse`. Le sort de `ccr-ba505dc0-e427km`, une branche d'essai, relève de l'élagage des branches (R22).
 - **Retours de Yoann** : ses tests sur tablette des deux APK 0.1.65.
 - **Tutoiement** : la passe sur les textes que les machines écrivent sur l'image attend la réponse de Yoann.
 - **Reprise visuelle** de certaines machines : en attente depuis l'audit du 11/11.

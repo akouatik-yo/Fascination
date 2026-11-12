@@ -30,7 +30,7 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 
 | # | Rendu A (`rendu-a`) | Rendu B (`rendu-b`) |
 |---|---|---|
-| 1 | Galaxie | Eau |
+| 1 | Galaxie | Eau (suspendue) |
 | 2 | Foudre | Couleurs du ciel |
 | 3 | Abysses (méduses) | Lucioles |
 | 4 | Cristal | Bulles |
@@ -39,11 +39,13 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 | 7 | Mycélium | Blob |
 | 8 | Monde quantique | Tunnel |
 | 9 | Cymatiques | Spirales |
-| 10 | Motifs de Turing | Fourmilière |
+| 10 | Motifs de Turing | Fourmilière (suspendue) |
 | 11 | Pendules | Harpe |
 | 12 | Harmonographe | Spectre |
 | 13 | Attracteur | Kaléidoscope |
 | 14 | Fractales | Jeu de la vie |
+
+**Eau et Fourmilière : suspendues.** Une décision de Yoann du 10/11, relayée par le CEO et signalée par chef-design, rend intouchables le feu, l'eau et les fourmis. On attend la confirmation du CEO avant d'y toucher. D'ici là, rendu B commence par le Ciel.
 
 **On ne touche pas au stimulus** des Illusions, du Moiré et des Illusions sonores : l'effet dépend du dessin exact. Seul le cadre autour peut être amélioré. Le Feu sert de référence et n'est pas touché.
 

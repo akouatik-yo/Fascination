@@ -572,9 +572,10 @@
     const port = H > W * 1.1;
     // dans la partie visible de l'écran (les panneaux latéraux cachent les bords)
     const V0 = env.view || { x0: 0, x1: W }, VW = V0.x1 - V0.x0;
-    const START = port ? [[0, 0.3, 0.2], [2, 0.72, 0.38], [1, 0.35, 0.62], [3, 0.72, 0.84]] : [[0, 0.22, 0.3], [2, 0.76, 0.28], [1, 0.4, 0.72], [3, 0.8, 0.76]];
-    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, 6);
-    for (let k = 0; k < 60; k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
+    const START = port ? [[0, 0.34, 0.26], [2, 0.66, 0.42], [1, 0.38, 0.6], [3, 0.66, 0.78]] : [[0, 0.3, 0.34], [2, 0.7, 0.3], [1, 0.42, 0.68], [3, 0.72, 0.72]];
+    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, 7);
+    // on part de colonies déjà étalées : le sujet occupe l'écran dès la première image (DA de Fausta)
+    for (let k = 0; k < 230; k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
     flush(); stainPaint();
     let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);
     quiet = false;
@@ -620,7 +621,7 @@
         ctx.drawImage(HL.c, 0, 0, W, H);
         ctx.drawImage(WL.c, 0, 0, W, H);
         ctx.globalCompositeOperation = 'lighter';
-        if (cfg.glow) { ctx.globalAlpha = 0.32; ctx.drawImage(GL.c, 0, 0, W, H); }
+        if (cfg.glow) { ctx.globalAlpha = 0.42; ctx.drawImage(GL.c, 0, 0, W, H); }
         for (let s = 0; s < 4; s++) {
           const spr = sprTip[s], z = 7 * kS;
           ctx.globalAlpha = 0.6;

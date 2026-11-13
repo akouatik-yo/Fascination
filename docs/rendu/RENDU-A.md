@@ -83,3 +83,10 @@ Brief de Kurt : « transparent, blanc par diffusion, avec des reflets ; fond som
 
 - **Avant** : des tubes roses et lisses avec de grands reflets blancs, comme du plastique moulé. **Après** (palettes sombres : corail, nacre, ambre, néon) : en lumière linéaire, développé par la cabine (courbe AgX, qui ne jaunit pas le corail). Lumière large et douce qui contourne les bords, creux moins éclairés (occlusion d'après les hauteurs voisines), ombre courte des crêtes, lumière qui ressort teintée du cœur des crêtes, reflet mouillé discret, gel du fond à peine visible. La hauteur reste la concentration de V : rien n'est inventé, tout est éclairé.
 - Modèle de Gray-Scott inchangé. L'encre sur papier, les pelages et le thème clair gardent leur rendu direct (la cabine grisait le papier et verdissait le guépard).
+
+## Le Mycélium (`s-myce.js`, scène « le combat »)
+
+Machine 2D héritée de `jeunesse` (réseau de filaments, diffusion de nutriments, graphe). Elle était juste, mais les quatre colonies, parties de points aux coins, restaient de minuscules étoiles dans un grand vide pendant la première minute — contre la règle de la DA (« le sujet à l'écran dès la première seconde »).
+
+- **Après** : les quatre colonies partent plus rapprochées et sont pré-développées (230 pas de croissance au chargement, contre 60) ; dès la première image, on voit de vrais réseaux mycéliens qui s'étalent, et le combat (les fronts qui se touchent, s'inhibent ou fusionnent selon l'espèce) s'engage vite. Le halo lumineux du réseau vivant est un peu renforcé.
+- La biologie ne change pas : mêmes espèces (Mucor, Laccaria, Penicillium, Fusarium), même croissance tropique vers les nutriments, même inhibition au contact. Les scènes « ronds de sorcières » et « réseau souterrain » gardent leur rendu.

@@ -1202,7 +1202,7 @@ void main(){
         const v = env.view || { x0: 0, x1: W }, lac = keep.auDecor === 'lac';
         const k = [keep.auRegard, keep.auDecor, W, H, v.x0, v.x1].join('|');
         // les rideaux ondulent : 24 images par seconde au plus, et jamais plus de 2,5 fois le coût mesuré d'un rendu
-        if (!cad.ok(force || k !== cle, 42)) return;
+        if (!cad.ok(force || k !== cle, 67)) return;   // 15 images par seconde suffisent : les rideaux bougent en quelques secondes
         force = false;
         if (k !== cle) {
           cle = k;

@@ -214,3 +214,23 @@ La neige et le Soleil ne sont plus moches, ni les ronds en 1280. Suite :
 
 - **L'étiquette du Soleil** se place tout entière au-dessus du cercle du toucher. Avec quatre lignes, elle le recouvrait, et sous le disque elle passait sous « Regarde ». Si elle heurterait la bande du haut, elle passe en dessous. La capture `lave-soleil-aureole-labo-tel.jpg`, prise avant le correctif de la ligne d'état, est refaite. Nouvelle capture : `lave-soleil-sous-disque-labo-tel.jpg`.
 - **Ronds en 390, « des bandes douces »** : j'ai essayé une rampe de teinte plus raide sur l'azote. Les anneaux sont devenus plus sombres et boueux, pas plus nets : essai retiré. La douceur vient du modèle. L'azote libéré persiste environ 1,3 an derrière le front, d'où une bande large au bord intérieur flou. Les bandes vert sombre des vrais ronds font plutôt 10 à 30 cm, soit une persistance d'environ 0,5 à 1 an à 25 cm par an. Proposé à Kurt, pas fait.
+
+## Arrêt demandé par Yoann (13/11, nuit) : point de reprise
+
+Tout est poussé sur `rendu-a` (dernier commit 76e9960). Rien n'est en cours.
+
+**Commits depuis la pause de 16 h** :
+- b57b07b : ronds de sorcières en vue de drone, front indépendant de l'échelle, diamètre mesuré ; « à l'œil nu » pour l'auréole ;
+- 22ee8e8 : « Au-dessus des orages » au clair de lune (Lune, Voie lactée, mer de nuages) ; orage au repos en portrait ;
+- 47e38d7 : ronds nets et champignons visibles sur téléphone, neige percée par les anneaux ; étiquette et aide du Soleil en 390 ;
+- b31a11e : règle des altitudes dilatée sous 20 km (×1,8), graduée en vraies valeurs (accord de Kurt) ;
+- 76e9960 : étiquette du Soleil au-dessus du cercle du toucher.
+
+**Reste à faire sur le lot A** :
+1. **Ronds en 390** (« bandes douces », moche de justesse) : en attente de Kurt sur la persistance de l'azote derrière le front (1,3 an → environ 0,7 an, pour des bandes de 10 à 30 cm comme dans la nature).
+2. **« Au-dessus des orages »** : recontrôle de Constance sur b31a11e à attendre, puis retour dans le parcours par Kurt. Le carton du début, qui couvre les orages, relève du shell (Kurt).
+3. **Orage au repos en 390** (moche de justesse, très sombre entre deux lueurs) : pas de levier honnête trouvé. Pistes : lueurs intranuages un peu plus fréquentes en portrait, halo de la ville sur l'air sous la base.
+4. **Lampe à lave en 390** : une flaque plate au fond à t1.
+5. **Atlas de Turing** : les étiquettes « f 0,08 » et « f 0,02 » sont cachées sous les barres.
+6. **Mycélium, combat** : encore quatre îlots dans le noir (le sol est trop sombre) ; la pousse est à voir sur tablette.
+7. **Lignes d'état** cachées par les boutons du bas (toutes les machines) : marge basse dans `env.view` côté shell (Kurt). Recontrôle dans app-unique une fois intégré (bande de 28 px).

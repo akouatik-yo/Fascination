@@ -1222,7 +1222,15 @@ void main(){
           ctx.fillText('ZÉNITH', C.cx, C.cy - 6); ctx.fillText('NORD', C.cx, C.cy + C.rf + 16); ctx.fillText('SUD', C.cx, C.cy - C.rf - 8); ctx.textAlign = 'left';
         }
         // en photo : la couleur selon l'altitude (FKR.palette.aurore), du bord inférieur violet au rouge du sommet
-        if (!oeil) {
+        if (!oeil && v.x1 - v.x0 < 640) {
+          const lx = v.x0 + 16, ly = (v.y0 || 0) + 34, lw = Math.min(200, v.x1 - v.x0 - 40);
+          const gr = ctx.createLinearGradient(lx, 0, lx + lw, 0);
+          for (const [tt, css] of palCss) gr.addColorStop(tt, css);
+          ctx.fillStyle = 'rgba(6,8,16,.55)'; ctx.fillRect(lx - 8, ly - 22, lw + 16, 50);
+          ctx.fillStyle = gr; ctx.fillRect(lx, ly, lw, 7);
+          ctx.fillStyle = 'rgba(236,240,250,.85)';
+          ctx.fillText('ALTITUDE', lx, ly - 8); ctx.fillText('90 KM', lx, ly + 20); ctx.textAlign = 'right'; ctx.fillText('300 KM', lx + lw, ly + 20); ctx.textAlign = 'left';
+        } else if (!oeil) {
           const lx = v.x1 - 54, ly0 = (v.y0 || 0) + 40, ly1 = ly0 + Math.min(220, H * 0.3);
           const gr = ctx.createLinearGradient(0, ly1, 0, ly0);
           for (const [tt, css] of palCss) gr.addColorStop(tt, css);

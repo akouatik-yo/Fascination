@@ -14,7 +14,7 @@
   const { TAU, clamp, rnd } = window.FK;
   const FKR = window.FKR;
   const fr = (x, d = 1) => x.toFixed(d).replace('.', ',');
-  const MAXB = 12, MAXV = 8; // MAXV : bulles à l'écran au plus (plafond de coût)
+  const MAXB = 12, MAXV = 8, NB = 5, MAXG = 90; // MAXV : bulles à l'écran au plus ; NB : bulles vivantes, toujours ; MAXG : gouttelettes au plus (coût constant)
   const LUTN = 2048; // table du film : un texel par nanomètre de chemin optique e·cos θt, de 0 à 2 048 nm
 
   // ── la table des couleurs du film (filmMince de FKR), calculée une fois ──
@@ -392,6 +392,7 @@ void main(){
       b.pop = 0.001; b.px = clamp((x - b.x) / b.r, -0.9, 0.9); b.py = clamp((y - b.y) / b.r, -0.9, 0.9);
       // gouttelettes projetées par le bord qui se rétracte
       for (let i = 0; i < 18; i++) { const a = rnd(TAU); drops.push({ x: b.x + Math.cos(a) * b.r, y: b.y + Math.sin(a) * b.r, vx: Math.cos(a) * rnd(260, 80), vy: Math.sin(a) * rnd(260, 80), life: rnd(0.5, 0.2), teinte: Math.random() < 0.3 ? LAMPE_N : BLANC }); }
+      if (drops.length > MAXG) drops.splice(0, drops.length - MAXG);   // réserve plafonnée : les plus anciennes sont recyclées
       if (snd()) { au.noise(0.05, 0.12, 3500, 1.2, 'bandpass'); au.noise(0.12, 0.05, 900, 1, 'lowpass'); }
     }
     let wind = [];
@@ -418,9 +419,15 @@ void main(){
       for (const d of drops) { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 600 * dt; d.life -= dt; }
       drops = drops.filter((d) => d.life > 0);
       wind = wind.filter((w) => (w.t -= dt) > 0);
-      if (cfg.auto && B.length < 5 && Math.random() < dt * 0.6) addBubble(v.x0 + rnd(v.w * 0.8, v.w * 0.2), H * rnd(0.9, 0.6));
+      // coût constant : toujours NB bulles vivantes, et la même surface couverte (une bulle qui éclate est remplacée aussitôt)
+      if (cfg.auto) {
+        const vives = B.filter((b) => !b.pop);
+        if (vives.length < NB) { const m = Math.min(v.w, H), reste = aire() - vives.reduce((a, b) => a + b.r * b.r, 0); addBubble(v.x0 + rnd(v.w * 0.8, v.w * 0.2), H * rnd(0.9, 0.6), clamp(Math.sqrt(Math.max(reste, 0)), m * 0.06, m * 0.16)); }
+      }
     }
     const thick = (b) => b.d0 * Math.max(0.03, 1 - (b.age / b.life) * 0.97);
+    // surface visée (somme des r²) : NB fois la moyenne de r² pour r tiré entre 0,06 et 0,16 fois la taille de la vue
+    const aire = () => { const m = Math.min(view().w, H); return NB * 0.01293 * m * m; };
 
     /* ───────── film dans un cadre ───────── */
     let filmAge = 0, vort = [];
@@ -545,7 +552,13 @@ void main(){
 
     function setScene(id) {
       cfg.scene = id; label = null;
-      if (id === 'bulles' && !B.length) { const v = view(); for (let i = 0; i < 5; i++) addBubble(v.x0 + rnd(v.w * 0.85, v.w * 0.15), H * rnd(0.85, 0.25)); B.forEach((b) => (b.age = rnd(b.life * 0.6))); }
+      if (id === 'bulles' && !B.length) {
+        // départ au régime : NB bulles, à la surface visée dès la première image
+        const v = view(), m = Math.min(v.w, H);
+        for (let i = 0; i < NB; i++) addBubble(v.x0 + rnd(v.w * 0.85, v.w * 0.15), H * rnd(0.85, 0.25));
+        const k = Math.sqrt(aire() / B.reduce((a, b) => a + b.r * b.r, 0));
+        B.forEach((b) => { b.age = rnd(b.life * 0.6); b.r = clamp(b.r * k, m * 0.06, m * 0.16); });
+      }
       if (id === 'cadre') { filmAge = 0; vort = []; }
       if (id === 'cate') { cat.broke = false; }
     }

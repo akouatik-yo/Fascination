@@ -8,8 +8,9 @@
   - certaines machines écrivent encore à l'écran des légendes techniques (en petites capitales monospace), même pour les 5 ans ;
   - en rendu logiciel, le Feu démarre en braises. À vérifier sur ta tablette.
 
-**Machines refaites et intégrées** : les **Lucioles** (vraies couleurs, mode doux) et le **Cristal** (flocon transparent). Les autres attendent :
-- le **Ciel** et les **Bulles** sont justes en science, mais trop lents (leur vitesse chute après quelques secondes) ;
+**Machines refaites et intégrées** : les **Lucioles** (vraies couleurs, mode doux), le **Cristal** (flocon transparent) et le **Ciel** (ajouté vers 13 h 30, vitesse stable). Les autres attendent :
+- les **Bulles** sont justes en science, mais encore trop lentes ;
+- l'**Eau** est relue, avec deux corrections demandées ;
 - la **Lampe à lave avec les volcans** attend deux corrections ;
 - la **Danse des abeilles** attend ses mesures.
 

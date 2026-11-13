@@ -7,6 +7,7 @@
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2);
@@ -24,8 +25,8 @@ async function serie(racine) {
   const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
   const errs = []; p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 160)); });
   await p.addInitScript(() => {
-    // compteur d'images (requestAnimationFrame) pour mesurer les i/s
-    window.__img = 0; const f = () => { window.__img++; requestAnimationFrame(f); }; requestAnimationFrame(f);
+    // horodatage de chaque image (requestAnimationFrame) : on mesure les i/s sur les 2 dernières secondes
+    window.__img = []; const f = (t) => { window.__img.push(t); if (window.__img.length > 4000) window.__img.splice(0, 2000); requestAnimationFrame(f); }; requestAnimationFrame(f);
   });
   await p.goto('file://' + path.join(racine, 'jeunesse/index.html') + '?test');
   await p.waitForTimeout(2500);
@@ -34,14 +35,17 @@ async function serie(racine) {
     if (scene) { try { await T.changerScene(scene); } catch (e) { return { err: String(e) }; } }
     return { scene: T.S.scene, nom: T.S.nom };
   }, { id, scene, graine });
-  const t0 = Date.now(), n0 = await p.evaluate(() => window.__img);
+  const t0 = Date.now();
   const shots = [];
   for (const s of SECS) {
     const attente = t0 + s * 1000 - Date.now();
     if (attente > 0) await p.waitForTimeout(attente);
     await p.evaluate(() => { for (const k of ['carton', 'bulle']) { const c = document.getElementById(k); if (c) c.hidden = true; } });
-    const n = await p.evaluate(() => window.__img), ips = (n - n0) / ((Date.now() - t0) / 1000);
-    shots.push({ s, ips: +ips.toFixed(1), png: (await p.screenshot({ type: 'jpeg', quality: 80, timeout: 180000 })).toString('base64') });
+    // i/s sur une fenêtre glissante de 2 s (et non depuis l'ouverture), et charge de la machine : sur un hôte partagé,
+    // une baisse peut venir des autres processus, pas de la machine mesurée
+    const ips = await p.evaluate(() => { const a = window.__img, t = a[a.length - 1], k = a.filter((x) => x > t - 2000).length; return (k - 1) / 2; });
+    const charge = +os.loadavg()[0].toFixed(1);
+    shots.push({ s, ips: +ips.toFixed(1), charge, png: (await p.screenshot({ type: 'jpeg', quality: 80, timeout: 180000 })).toString('base64') });
   }
   await p.close();
   return { info, shots, errs };
@@ -49,7 +53,7 @@ async function serie(racine) {
 const av = fs.existsSync(path.join(AVANT, 'jeunesse/index.html')) ? await serie(AVANT) : null;
 if (!av) console.log('pas de racine « avant » : ' + AVANT + ' (git worktree add ' + AVANT + ' <référence> --detach)');
 const ap = await serie(ROOT);
-const cellule = (r, k, titre) => r ? `<div class="c"><img src="data:image/jpeg;base64,${r.shots[k].png}"><span>${titre} · ${r.shots[k].s} s · ${r.shots[k].ips} i/s simulés</span></div>` : '<div class="c vide">—</div>';
+const cellule = (r, k, titre) => r ? `<div class="c"><img src="data:image/jpeg;base64,${r.shots[k].png}"><span>${titre} · ${r.shots[k].s} s · ${r.shots[k].ips} i/s simulés (2 s) · charge ${r.shots[k].charge}/${os.cpus().length}</span></div>` : '<div class="c vide">—</div>';
 const q = await b.newPage({ viewport: { width: 1284, height: 820 * SECS.length / 2 + 40 } });
 await q.setContent(`<style>body{margin:0;background:#000;font:12px monospace;color:#ddd}.g{display:grid;grid-template-columns:640px 640px;gap:4px}
 .c{position:relative;width:640px;height:400px}.c img{width:640px;height:400px;display:block}.c span{position:absolute;left:6px;bottom:4px;background:#000b;padding:2px 5px}
@@ -58,4 +62,4 @@ h1{font:600 13px system-ui;margin:6px 8px}</style><h1>${id}${scene ? ' · ' + sc
 const nom = `${id}${scene ? '-' + scene : ''}-avant-apres.jpg`;
 await q.screenshot({ path: path.join(OUT, nom), type: 'jpeg', quality: 82, fullPage: true });
 await b.close();
-console.log(JSON.stringify({ planche: path.relative(ROOT, path.join(OUT, nom)), avant: av && { scene: av.info.scene, ips: av.shots.map((x) => x.ips), erreurs: av.errs }, apres: { scene: ap.info.scene, ips: ap.shots.map((x) => x.ips), erreurs: ap.errs } }));
+console.log(JSON.stringify({ planche: path.relative(ROOT, path.join(OUT, nom)), avant: av && { scene: av.info.scene, ips: av.shots.map((x) => x.ips), charge: av.shots.map((x) => x.charge), erreurs: av.errs }, apres: { scene: ap.info.scene, ips: ap.shots.map((x) => x.ips), charge: ap.shots.map((x) => x.charge), erreurs: ap.errs } }));

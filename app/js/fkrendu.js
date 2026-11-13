@@ -495,7 +495,8 @@ vec3 traverse(vec3 sigma, float d){ return exp(-sigma * max(d, 0.)); }
     courbe: { contraste: 1.25, epaule: 0.97, milieu: 0.18, sortie: 0.2, max: 24 },
     blanc: 2,                // tons 'film' : les lumières plus fortes que ceci commencent à pâlir vers le blanc (blanc complet à courbe.max)
     lupton: { q: 8, etirement: 0.5 },
-    saturation: 1,           // dans OkLab, après la courbe
+    saturation: 1.12,        // dans OkLab, après la courbe : étire la chroma sans toucher la teinte, comme un tirage photo ;
+                             // la même partout, plafonnée à 1,12 (Kurt, 13/11) ; jamais sur les Illusions ni le Moiré
     contraste: 1,            // autour du gris moyen, en espace d'affichage
     teinte: [1, 1, 1],       // balance des blancs (× la lumière, avant la courbe)
     releve: [0, 0, 0],       // relevé des noirs (ajouté avant la courbe)
@@ -512,6 +513,7 @@ vec3 traverse(vec3 sigma, float d){ return exp(-sigma * max(d, 0.)); }
     gain2D: 4,               // calque 2D des lumières : un blanc pur y vaut cette luminance
   };
   const TONS = { film: 0, aces: 1, lupton: 2, reinhard: 3, agx: 4 };
+  const SAT_MAX = 1.12;       // plafond de la saturation au tirage (Kurt, 13/11)
   function courbeLottes(o) {
     const a = o.contraste, d = o.epaule, mi = o.milieu, mo = o.sortie, hm = o.max, P = Math.pow, ad = a * d;
     const b = (-P(mi, a) + P(hm, a) * mo) / ((P(hm, ad) - P(mi, ad)) * mo);
@@ -817,7 +819,7 @@ void main(){
         const k = courbeLottes(opt.courbe);
         pg.tirage.use().t('uLum', lum).t('uLum2', c2 ? c2.tex : noir).t('uScene', cS ? cS.tex : sceneGL || noir).t('uHalo', halo).t('uIllum', illum)
           .f('uGain2', g2).f('uScMode', scMode).f('uForce', opt.halo).f('uNH', 1 / somme(n)).f('uNI', 1 / somme(n - ji)).f('uEcl', opt.eclairage)
-          .f('uExpo', opt.expo).f('uTon', TONS[opt.tons] != null ? TONS[opt.tons] : 0).f('uBlanc', Math.log2(opt.blanc), 1 / Math.max(0.1, Math.log2(opt.courbe.max / opt.blanc))).f('uSat', opt.saturation)
+          .f('uExpo', opt.expo).f('uTon', TONS[opt.tons] != null ? TONS[opt.tons] : 0).f('uBlanc', Math.log2(opt.blanc), 1 / Math.max(0.1, Math.log2(opt.courbe.max / opt.blanc))).f('uSat', Math.min(SAT_MAX, opt.saturation))
           .f('uVig', opt.vignetage).f('uGrain', opt.grain).f('uTemps', temps % 1000).f('uAspect', W / H)
           .f('uFond', opt.fond[0], opt.fond[1], opt.fond[2]).f('uAmb', opt.ambiant[0], opt.ambiant[1], opt.ambiant[2])
           .f('uCon', opt.contraste).f('uGrainN', opt.grainNoir).f('uTeinte', opt.teinte[0], opt.teinte[1], opt.teinte[2]).f('uReleve', opt.releve[0], opt.releve[1], opt.releve[2])

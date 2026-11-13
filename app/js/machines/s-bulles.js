@@ -327,7 +327,7 @@ void main(){
     /* ───────── la cabine FKR : lumière HDR, halo, AgX, grain ───────── */
     let R, P, lutT, marT, gouttes;
     function construire() {
-      R = FKR.cabine(env, { halo: 0.06, rayon: 0.7, saturation: 1.12 });
+      R = FKR.cabine(env, { halo: 0.06, rayon: 0.7 });
       const K = R.K, gl = R.gl;
       P = { lut: K.program(FS_LUT), marbre: K.program(FS_MARBRE), bub: K.program(FS_BUB), frame: K.program(FS_FRAME), cat: K.program(FS_CAT) };
       lutT = K.target(LUTN, 1);

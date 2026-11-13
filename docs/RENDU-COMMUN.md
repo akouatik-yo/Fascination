@@ -105,7 +105,7 @@ function frame(t, dt) {
 | `courbe` | `{ contraste: 1.25, epaule: 0.97, milieu: 0.18, sortie: 0.2, max: 24 }` | courbe filmique : 0,18 → 0,2 et 24 → blanc |
 | `blanc` | 2 | les lumières plus fortes que ceci pâlissent vers le blanc, jusqu'au blanc complet à `courbe.max` |
 | `lupton` | `{ q: 8, etirement: 0.5 }` | réglages de l'étirement asinh |
-| `saturation` | 1 | dans OkLab, après la courbe |
+| `saturation` | 1,12 | dans OkLab, après la courbe : étire la chroma sans toucher la teinte, comme le tirage d'une photo. La même partout, **plafonnée à 1,12** (Kurt, 13/11) ; on ne la règle pas machine par machine, et jamais sur les Illusions ni le Moiré. |
 | `contraste` | 1 | autour du gris moyen, en espace d'affichage |
 | `teinte`, `releve` | `[1, 1, 1]`, `[0, 0, 0]` | balance des blancs (×) et relevé des noirs (+), avant la courbe |
 | `halo` | 0,06 | force du halo (DA : de 0,04 à 0,08 ; le Feu est beaucoup plus fort, vers 1) |
@@ -188,6 +188,7 @@ Une palette est une fonction `t ∈ [0, 1] → [r, g, b]`. Pour en faire une tex
 `FKR.fs(['bruit', 'tons'], corps)` assemble la tête (`#version 300 es`, précisions, `in vec2 vUv`), les morceaux et leurs dépendances. Aucun nom n'est commun avec `FKGL.HEAD` : on peut inclure les deux.
 
 - **couleur** : `luminance`, `versLineaire`, `versSrgb`, `oklab`, `deOklab`, `saturer`, `corpsNoir(T)` (ajustement < 0,8 %), `eclatCorpsNoir(T)`, `cmfRGB(nm)`, `couleurRaie(nm)`, `filmMince(e_nm, n, cosθ)` (bulles, huile ; la lame très fine est noire), `eauTransmission(m)`.
+  - **Films épais, un choix de rendu** (Bulles, validé par Kurt) : au-delà d'environ 1 à 2 µm, les couleurs d'ordre élevé se brouillent en teintes pâles puis en blanc, sous une lumière blanche étendue. On moyenne sur ±3 % d'épaisseur, puis on passe progressivement au blanc entre 1,5 et 2 µm.
 - **bruit** :
   - hachages : `alea`, `alea2`, `alea3` (PCG entier, robustes loin de l'origine) ;
   - `ign` (tramage) ;

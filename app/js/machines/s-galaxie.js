@@ -319,21 +319,44 @@ void main(){
     // le halo de la cabine (DA : 0,04 à 0,08) ; le réglage « Halo lumineux » garde son échelle (0,7 par défaut)
     const haloDe = (b) => b * 0.09;
 
-    function initGL() {
-      const Q = QUAL[cfg.q];
-      const C = FKR.cabine(env, { echelle: Q.ech, fond: FKR.fond('cosmos'), halo: haloDe(cfg.bloom), tons: 'agx', grain: 0.05 });
+    // prec : la cabine précédente, dont on garde le contexte WebGL (repli léger) : programmes, étoiles de la spirale,
+    // positions et vitesses de la collision restent sur la carte graphique, rien de la simulation n'est refait
+    function initGL(prec) {
+      const Q = QUAL[cfg.q], f = leger ? LEGER : 1;
+      const reg = { echelle: Q.ech * f, fond: FKR.fond('cosmos'), halo: haloDe(cfg.bloom), tons: 'agx', grain: 0.05 };
+      if (prec) {
+        // même règle que la cabine (plafond 1,25 px par px css), sur le canevas existant
+        const cs = Math.min(env.dpr || 1, FKR.DEFAUTS.plafond) * Q.ech * f;
+        prec.K.canvas.width = Math.max(2, Math.round(W * cs)); prec.K.canvas.height = Math.max(2, Math.round(H * cs));
+        reg.K = prec.K;
+      }
+      const C = FKR.cabine(env, reg);
       const K = C.K, gl = C.gl, cw = C.cw, ch = C.ch;
       const r = {
-        C, K, gl, Q, cw, ch,
-        pg: { spi: K.program(FS_DIFF, VS_SPI), spiNet: K.program(FS_NET, VS_SPI), nbP: K.program(FS_DIFF, VS_NB), nbNet: K.program(FS_NET, VS_NB), nb: K.program(FS_NB), blur: K.program(FS_BLUR), comp: K.program(FS_COMP), bh: K.program(FS_BH), copie: K.program(FS_COPIE), encre: K.program(FS_ENCRE) },
+        C, K, gl, Q, cw, ch, maitre: prec ? prec.maitre : C,   // maitre : la cabine qui possède le contexte (détruite à la fin)
+        pg: prec ? prec.pg : { spi: K.program(FS_DIFF, VS_SPI), spiNet: K.program(FS_NET, VS_SPI), nbP: K.program(FS_DIFF, VS_NB), nbNet: K.program(FS_NET, VS_NB), nb: K.program(FS_NB), blur: K.program(FS_BLUR), comp: K.program(FS_COMP), bh: K.program(FS_BH), copie: K.program(FS_COPIE), encre: K.program(FS_ENCRE) },
         D: K.target(cw >> 1, ch >> 1), Dt: K.target(cw >> 1, ch >> 1), D2: K.target(cw >> 1, ch >> 1),
         BH: K.target(Math.max(32, Math.round(cw * Q.bh)), Math.max(32, Math.round(ch * Q.bh))),
-        lut: C.lut(FKR.palette.carte('inferno')),
+        lut: prec ? prec.lut : C.lut(FKR.palette.carte('inferno')),
         lots: { etoiles: C.lot({ forme: 'moffat', mode: 'flux' }), eclat: C.lot({ forme: 'etoile', mode: 'flux', pointes: 1.2 }), loin: C.lot({ forme: 'gauss', mode: 'flux' }), noyau: C.lot({ forme: 'moffat', mode: 'flux', beta: 2.2 }) },
         dyn: 1, ft: 30, last: 0,
       };
       return r;
     }
+    // repli automatique (FKR.veille, demande du CEO) : si l'appareil reste sous 24 i/s, la résolution de travail baisse
+    // (× 0,6) par une seule reconstruction de la cabine sur le même contexte ; la galaxie, la collision en cours et les
+    // réglages continuent sans remise à zéro
+    const LEGER = 0.6;
+    let leger = false;
+    function passerLeger() {
+      if (leger || !R || R.C.perdu) return;
+      leger = true;
+      const old = R;
+      R = initGL(old);
+      for (const t of [old.D, old.Dt, old.D2, old.BH]) { old.gl.deleteTexture(t.tex); old.gl.deleteFramebuffer(t.fb); }
+    }
+    const veille = FKR.veille ? FKR.veille({ id: 'galaxie', seuil: 24, auRepli: () => passerLeger() }) : null;
+    if (veille && veille.deja) leger = true;
     R = initGL();
     const tex32 = (w, h, data) => { const gl = R.gl, t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, data); for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); return t; };
 
@@ -607,7 +630,7 @@ void main(){
     }
     let pending = false, dtRendu = 1 / 60;
     function render() {
-      if (R.C.perdu) { if (R.gl.isContextLost()) return; const old = R; R = initGL(); old.C.detruire(); SP = null; NB = null; setScene(cfg.scene); }
+      if (R.C.perdu) { if (R.gl.isContextLost()) return; const old = R; R = initGL(); old.maitre.detruire(); SP = null; NB = null; setScene(cfg.scene); }
       R.C.regler({ halo: haloDe(cfg.bloom) });
       if (cfg.scene === 'spirale') renderSpiral(dtRendu);
       else if (cfg.scene === 'collision') renderColl(dtRendu);
@@ -625,6 +648,7 @@ void main(){
       ctx.fillText(s, v.x0 + 16, H - 16); ctx.restore();
     }
     function frame(t, dt) {
+      if (veille) veille.image(performance.now());
       if (dt > 0) { update(dt); dtRendu = dt; }
       if (!pending) { pending = true; queueMicrotask(() => { pending = false; render(); }); }
     }
@@ -687,7 +711,7 @@ void main(){
       ctx.restore();
     }
 
-    if (window.FASC_DEBUG) window.FASC_DEBUG.gal = { cfg, setScene, buildColl, get NB() { return NB; }, get R() { return R; }, run(n, h) { for (let i = 0; i < n; i++) update(h); render(); }, traceBH };
+    if (window.FASC_DEBUG) window.FASC_DEBUG.gal = { cfg, setScene, buildColl, get NB() { return NB; }, get R() { return R; }, get T() { return T; }, get leger() { return leger; }, passerLeger, run(n, h) { for (let i = 0; i < n; i++) update(h); render(); }, traceBH };
 
     setScene('spirale');
     let drag = null;
@@ -713,7 +737,7 @@ void main(){
       },
       up() { drag = null; },
       clear() { if (cfg.scene === 'collision') buildColl(); else T = 0; },
-      dispose() { if (drone) drone.stop(); R.C.detruire(); },
+      dispose() { if (drone) drone.stop(); R.maitre.detruire(); },
       ui() {
         const L = [{ type: 'section', label: 'Scènes' }];
         L.push({ type: 'buttons', items: [
@@ -753,7 +777,8 @@ void main(){
         }
         L.push({ type: 'section', label: 'Calcul et rendu' });
         L.push({ type: 'slider', label: 'Halo lumineux', min: 0, max: 1.5, step: 0.01, value: cfg.bloom, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { cfg.bloom = x; } });
-        L.push({ type: 'choice', label: 'Définition', value: cfg.q, set: (x) => { if (x === cfg.q) return; cfg.q = x; const old = R; R = initGL(); old.C.detruire(); SP = null; NB = null; setScene(cfg.scene); }, options: [{ id: 'legere', label: 'Légère' }, { id: 'normale', label: 'Normale' }, { id: 'haute', label: 'Haute' }] });
+        L.push({ type: 'choice', label: 'Définition', value: cfg.q, set: (x) => { if (x === cfg.q) return; cfg.q = x; const old = R; R = initGL(); old.maitre.detruire(); SP = null; NB = null; setScene(cfg.scene); }, options: [{ id: 'legere', label: 'Légère' }, { id: 'normale', label: 'Normale' }, { id: 'haute', label: 'Haute' }] });
+        if (leger) L.push({ type: 'note', text: 'Mode léger : cet appareil ne suivait pas, l’image est calculée en plus basse résolution (la simulation n’a pas changé).' });
         return L;
       },
     };

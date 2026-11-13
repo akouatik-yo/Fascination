@@ -97,7 +97,8 @@
   function devenir(p) {
     const avant = palier();
     enregistrerProfil(p); son('scene'); ecran(null);
-    if (palier() !== avant && !S.touche && S.def) ouvrir(S.id, { etat: etatCourant() }); else if (S.def) rendre();
+    // rien n'a encore été touché : on retire l'arrivée au sort dans les chapitres que ce niveau ouvre (et à la bonne taille)
+    if (!S.touche && S.def) ouvrir(S.id, { q: S.q }); else if (S.def) rendre();
   }
   const avatar = (i, grand) => { const a = AVATARS[i % AVATARS.length] || AVATARS[0]; return h('span', { class: 'avatar' + (grand ? ' grand' : ''), style: '--c:' + a[1] }, FJ.icone(a[0])); };
   // lecture à voix haute (synthèse de l'appareil, en français ; le bouton est caché si l'appareil n'a pas de voix française)
@@ -144,11 +145,15 @@
       box.textContent = '';
       box.append(tete(S.profils.length ? etapeQui : null), titre('Quel âge as-tu ?'));
       const g = h('div', { class: 'ages' }); box.append(g);
+      let g2 = null;
       for (const a of AGES) {
+        if (a === 10) { g2 = h('div', { class: 'ages grands' }); box.append(g2); }
         // des bougies comme sur un gâteau : un enfant se reconnaît sans lire
         const bougies = a <= 9 ? h('span', { class: 'bougies' + (a >= 7 ? ' deux' : ''), 'aria-hidden': 'true' }, ...Array.from({ length: a }, () => h('i'))) : null;
-        g.append(h('button', { class: 'age', 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
+        // une couleur par âge (du chaud au froid), les petits en grand sur la première rangée
+        g.append(h('button', { class: 'age' + (a <= 9 ? ' petit' : ' grand'), style: '--h:' + Math.round(20 + (a - 5) * 26) , 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
           bougies, h('b', null, a === 16 ? '16 +' : String(a))));
+        if (g2) { g2.append(g.lastChild); }
       }
     };
     const etapeSigne = () => {
@@ -567,11 +572,10 @@
   function carton(t) {
     const c = $('carton'); c.textContent = '';
     const sc = S.scene && S.meta.scenes[S.scene];
-    c.append(h('b', null, nomMachine()));
-    if (S.nom) c.append(h('span', { class: 'graine' }, '✦ ' + S.nom));
-    else if (sc && sc.nom && Object.keys(S.meta.scenes).length > 1) c.append(h('span', { class: 'graine' }, sc.nom));
+    c.append(h('b', null, (sc && sc.nom) || nomMachine()));
+    if (S.nom && palier() > 1) c.append(h('span', { class: 'graine' }, '✦ ' + S.nom));
     const q = questionParId(S.q);
-    if (q || S.meta.question) c.append(h('i', null, q ? q.q : S.meta.question));
+
     c.hidden = false; c.classList.remove('part'); void c.offsetWidth; c.classList.add('vient');
     clearTimeout(cartonT); cartonT = setTimeout(effacerCarton, 4200);
   }
@@ -933,7 +937,7 @@
   /* la pastille « Et si… ? » : discrète, seulement après un moment de jeu, jamais deux fois la même */
   let pastilleFaite = '';
   function pastilleEtSi(now) {
-    if (S.tiroir || S.spectacle || !S.meta.etsi || !S.meta.etsi.length) return;
+    if (S.tiroir || S.spectacle || !S.meta.etsi || !S.meta.etsi.length || (palier() === 1 && niveau() === 1)) return;
     if (now - S.ouverture < 40000 || !S.touche) return;
     const k = S.id + ':' + S.scene;
     if (pastilleFaite === k) return;
@@ -1175,7 +1179,10 @@
     $('chargement').hidden = true;
     raf = requestAnimationFrame(boucle);
     const voulu = (location.hash || '').replace('#', '');
-    aller(defs.some((d) => d.id === voulu) ? voulu : sac.suivant());
+    // la toute première arrivée (et chaque ouverture sans lien) commence par une vitrine : une machine belle dès la première seconde,
+    // jamais une qui démarre vide (mycélium, blob, jeu de la vie…)
+    const VITRINE = ['feu', 'lucioles', 'galaxie', 'bulles', 'eau', 'foudre', 'cristal', 'meduses', 'ciel', 'fluide'].filter((id) => defs.some((d) => d.id === id));
+    aller(defs.some((d) => d.id === voulu) ? voulu : VITRINE[Math.floor(Math.random() * VITRINE.length)] || sac.suivant());
     // première ouverture : la machine tourne déjà derrière, on demande l'âge puis le niveau
     if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }

@@ -297,15 +297,17 @@ void main(){
         if (o.sonde === false && this.der) return this.der;
         uni(CP, NP, NP, P, s, o); K.run(PS, PR);
         gl.bindFramebuffer(gl.FRAMEBUFFER, PR.fb); gl.readPixels(0, 0, NP, NP, gl.RGBA, gl.FLOAT, buf);
-        const E = [0, 0, 0], F = C.F, cc = Math.cos(o.cone || 1);
+        const E = [0, 0, 0], F = C.F, cc = Math.cos(o.cone || 1), lums = [];
         let sl = 0, n = 0;
         for (let k = 0; k < dirs.length; k++) {
           const q = dirs[k]; if (!q) continue;
           const o4 = k * 4, w = q[2] * q[3];
           E[0] += buf[o4] * w; E[1] += buf[o4 + 1] * w; E[2] += buf[o4 + 2] * w;
-          if (C.fish || q[0] * F[0] + q[1] * F[1] + q[2] * F[2] > cc) { sl += Math.log(1e-7 + 0.2126 * buf[o4] + 0.7152 * buf[o4 + 1] + 0.0722 * buf[o4 + 2]); n++; }
+          if (C.fish || q[0] * F[0] + q[1] * F[1] + q[2] * F[2] > cc) { const l = 0.2126 * buf[o4] + 0.7152 * buf[o4 + 1] + 0.0722 * buf[o4 + 2]; sl += Math.log(1e-7 + l); n++; lums.push(l); }
         }
-        return (this.der = { E, moy: n ? Math.exp(sl / n) : 1e-7 });
+        // le ciel le plus lumineux du champ (98e centile) : la lueur de l'horizon au couchant, le ciel près du soleil
+        lums.sort((a, b) => a - b);
+        return (this.der = { E, moy: n ? Math.exp(sl / n) : 1e-7, haut: lums.length ? lums[Math.min(lums.length - 1, Math.floor(lums.length * 0.98))] : 1e-7 });
       },
     };
   }
@@ -567,7 +569,9 @@ void main(){
       // exposition automatique : on vise une luminance moyenne du ciel vu, plus sombre la nuit
       // soleil bas : l'horizon orangé est très lumineux ; exposé plus bas, il reste hors de l'épaule d'AgX (qui le pâlirait) et le zénith reste bleu profond
       const bas = 0.42 + 0.58 * smoothstep(4, 20, keep.el), target = keep.el > 0 ? 0.24 * bas : 0.24 * 0.42 * Math.exp(keep.el / 5);
-      expo = clamp(target / Math.max(1e-7, r.moy), 0.05, keep.planet === 'lune' ? 1 : 5e4);
+      // et le ciel le plus lumineux reste sous 1,2 (hors de l'épaule d'AgX, qui pâlirait l'orangé et le rose)
+      const kh = 1.2 * Math.pow(10, smoothstep(6, 20, keep.el));   // de jour, le ciel près du soleil peut blanchir : le plafond s'efface
+      expo = clamp(Math.min(target / Math.max(1e-7, r.moy), kh / Math.max(1e-9, r.haut)), 0.05, keep.planet === 'lune' ? 1 : 5e4);
       atmo.exposer(expo);
       info = {
         P, s, Ec: r.E, ext: extinction(P, hz), Es0: eclat(sunColor(P, keep.el, alt)), Es1: eclat(sunColor(P, keep.el, alt + 1.2)),

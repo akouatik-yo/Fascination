@@ -96,6 +96,49 @@ void main(){
   o = vec4(col, 1.);
 }`;
 
+  /* Le flocon en lumière linéaire, développé par la cabine (brief de Kurt) : transparent, blanc par diffusion, avec des reflets ;
+     posé sur une étoffe sombre comme sur les photographies de flocons ; des irisations là où la lame de glace est très mince
+     (interférences, comme sur une bulle de savon) ; aucune lueur bleue intérieure. */
+  const FS_FLAKE_HDR = () => HEAD + (window.FKR ? window.FKR.glsl('couleur') : '') + `
+uniform sampler2D uS; uniform int uN; uniform vec2 uRes, uC; uniform float uCell, uTime, uStep, uRot;
+out vec4 o;
+float sAt(vec2 a){
+  vec2 f = a + float(uN / 2) - .5; vec2 i = floor(f), t = f - i; ivec2 b = ivec2(i);
+  float s00 = texelFetch(uS, b, 0).r, s10 = texelFetch(uS, b + ivec2(1,0), 0).r, s01 = texelFetch(uS, b + ivec2(0,1), 0).r, s11 = texelFetch(uS, b + ivec2(1,1), 0).r;
+  return mix(mix(s00, s10, t.x), mix(s01, s11, t.x), t.y);
+}
+float gAt(vec2 a){ vec2 f = a + float(uN / 2) - .5; return texelFetch(uS, ivec2(floor(f + .5)), 0).g; }
+vec2 axial(vec2 p){ float r = p.y * 1.1547005; return vec2(p.x - r * .5, r); }
+void main(){
+  vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  vec2 p = (px - uC) / uCell;
+  float cs = cos(uRot), sn = sin(uRot); p = mat2(cs, -sn, sn, cs) * p;
+  vec2 a = axial(p);
+  float s = sAt(a);
+  float e = .7;
+  float sx = sAt(axial(p + vec2(e, 0.))) - sAt(axial(p - vec2(e, 0.)));
+  float sy = sAt(axial(p + vec2(0., e))) - sAt(axial(p - vec2(0., e)));
+  float ice = smoothstep(.985, 1.02, s), th = clamp((s - 1.) * 1.6, 0., 1.);
+  vec2 g = vec2(sx, sy) * 1.4;
+  float edge = clamp(length(g) * 1.2, 0., 1.);
+  // le fond : une étoffe sombre et floue, des fibres de laine
+  vec2 q = px / uRes.y;
+  float fib = fbm(vec2(q.x * 38. + fbm(q * 5.) * 3., q.y * 8.));
+  vec3 bg = vec3(.0055, .0065, .01) * (.65 + .7 * fib) * (1. - .45 * min(1., length(px - uC) / uRes.y));
+  // la glace : on voit l'étoffe au travers ; elle diffuse en blanc sur ses arêtes et là où elle est épaisse ; deux lumières s'y reflètent
+  vec3 n = normalize(vec3(-g, 1.));
+  vec3 h1 = normalize(normalize(vec3(-.45, .55, .7)) + vec3(0., 0., 1.)), h2 = normalize(normalize(vec3(.6, -.35, .7)) + vec3(0., 0., 1.));
+  float sp1 = pow(max(dot(n, h1), 0.), 140.), sp2 = pow(max(dot(n, h2), 0.), 90.);
+  vec3 iceC = bg * .85 + vec3(.85, .9, 1.) * (.01 + .32 * edge * edge + .04 * th) * .42 + vec3(1., .98, .95) * sp1 * 3. + vec3(.9, .95, 1.) * sp2 * .6;
+  // irisations : interférences dans les lames les plus minces
+  float ep = 160. + 700. * th + 140. * (vnoise(p * .8) - .5);
+  iceC += filmMince(ep, 1.31, .92) * (1. - th) * (.3 + 1.6 * sp1 + .8 * edge) * .9;
+  // cernes de croissance : les conditions changent pendant la chute du flocon
+  float age = gAt(a), ring = .5 + .5 * sin(age * .025);
+  iceC *= .9 + .12 * ring;
+  o = vec4(mix(bg, iceC, ice), 1.);
+}`;
+
   /* ───────── champ de phase (Kobayashi) ───────── */
   const FS_PF1 = HEAD + `
 uniform sampler2D uS; uniform vec2 uPx; uniform float uDx, uEps, uDel, uJ; out vec4 o;
@@ -266,6 +309,7 @@ void main(){
       const K = GLKit(Math.round(W), Math.round(H));
       const gl = K.gl, N = gl.NEAREST, Lf = gl.LINEAR;
       const r = { K, Q, pg: { r1: K.program(FS_R1), r2: K.program(FS_R2), flake: K.program(FS_FLAKE), pf1: K.program(FS_PF1), pf2: K.program(FS_PF2), pfr: K.program(FS_PFR) } };
+      if (window.FKGL.cabine && window.FKR) { try { r.pg.flakeH = K.program(FS_FLAKE_HDR()); r.cab = window.FKGL.cabine(K); } catch (e) { console.warn('Le Cristal : rendu simple', e); r.cab = null; } }
       r.FN = Q.flake;
       r.F = K.double(r.FN, r.FN, 'f32', N); r.UV = K.target(r.FN, r.FN, 'f32', N);
       r.PW = Q.pf; r.PH = Math.max(64, Math.round((Q.pf * H) / W));
@@ -448,8 +492,14 @@ void main(){
       if (cfg.scene === 'flocon') {
         const v = view(), size = Math.min(v.w, H) * 0.92;
         const cell = size / (2 * Rmax() * 0.9);
+        if (!bare && R.cab) {
+          pg.flakeH.use().t('uS', R.F.r).i('uN', R.FN).f('uRes', W, H).f('uC', v.cx, H / 2).f('uCell', cell).f('uTime', VT).f('uStep', fl.step).f('uRot', fl.rot);
+          K.run(pg.flakeH, R.cab.scene);
+          R.cab.finish({ expo: 1.45, bloom: 0.75, thr: 1.0, knee: 0.5, radius: 0.75, vig: 0.4, grain: 0.03, grainBlack: 0.35 });
+        } else {
         pg.flake.use().t('uS', R.F.r).i('uN', R.FN).f('uRes', W, H).f('uC', v.cx, H / 2).f('uCell', cell).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uTime', VT).f('uStep', fl.step).f('uRot', fl.rot);
         K.run(pg.flake, null);
+        }
       } else {
         const P = PF[cfg.scene];
         const mode = cfg.scene === 'givre' ? (cfg.pol ? 1 : 0) : P.mode;

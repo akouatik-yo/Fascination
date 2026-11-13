@@ -49,3 +49,10 @@ Cadrage de Kurt (REFONTE-PEDAGOGIQUE.md § 2) : von Frisch, prix Nobel 1973 ; su
 - **Rendu** : rayon, carte et abeilles en WebGL2 (abeilles dessinées en GLSL : tête, thorax velu, abdomen rayé avec un reflet sur la chitine, ailes irisées, ombres portées), développé par la cabine ; repli 2D sans WebGL2.
 - **Chemins pour la fiche du Labo** : `scenes/la danse fretillante`, `scenes/la danse en rond`, `scenes/toute une journee` ; `les fleurs/distance` (0,03 à 5 km), `les fleurs/direction depuis la ruche` (0 à 359°, nord = 0), `les fleurs/heure` (6 à 20), `les fleurs/le temps passe` ; `la danse/secondes de fretillement par kilometre` (0,6 à 1,4), `la danse/montrer la trace`, `la danse/montrer les angles`. Outils : `observer`, `fleurs` (toucher la carte place la source).
 - **Inscrite** dans `app/index.html`, `jeunesse/index.html` et `app/sw.js` ; pas encore dans les mondes du Labo (`jeunesse/js/mondes.js`), que Kurt regroupe.
+
+## Le Cristal (`s-cristal.js`) : le flocon
+
+Brief de Kurt : « transparent, blanc par diffusion, avec des reflets ; fond sombre ; pas de lueur bleue intérieure ».
+
+- **Avant** : disques bleus concentriques (le champ de vapeur et une lueur bleue au centre), flocon bleuté. **Après** : en lumière linéaire, développé par la cabine. Le flocon est posé sur une étoffe sombre et floue, comme sur les photographies de flocons. La glace est transparente (on voit l'étoffe au travers) ; elle diffuse en blanc sur ses arêtes ; deux lumières s'y reflètent, et les reflets scintillent quand le flocon tourne lentement. Dans les lames les plus minces, des irisations d'interférence (`filmMince` de FKR, indice 1,31). Les cernes de croissance restent.
+- La science ne change pas : automate de Reiter, conditions du diagramme de Nakaya, « Voyage dans le nuage ». Les scènes Givre, Surfusion et Chaufferette gardent leur rendu (prochaine étape), comme le mode sans décor.

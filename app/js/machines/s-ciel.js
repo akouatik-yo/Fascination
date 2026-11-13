@@ -16,6 +16,7 @@
     look: 'soleil', planet: 'terre', haze: 1, ozone: true, alt: 0, nuages: 0.25,
     view: 'ciel', drop: 0.35, refl: 1, rbEl: 12,
     hEl: 18, mix: { plaques: 0.5, colonnes: 0.25, desordre: 0.5 }, proj: 'soleil', guides: true,
+    auVision: 'photo', auForce: 0.55, auRegard: 'nord', auDecor: 'neige',
   };
 
   /* ─ couleur : fonctions colorimétriques CIE 1931 (ajustement de Wyman, Sloan et Shirley, 2013) ─ */
@@ -96,6 +97,7 @@
       'Le bleu du ciel au crépuscule doit beaucoup à l’ozone (Edward Hulburt, 1953) : quand le soleil est sous l’horizon, la lumière qui éclaire le zénith a traversé la couche d’ozone en biais, et l’ozone absorbe l’orangé (bandes de Chappuis). Sans ozone, le zénith du crépuscule serait grisâtre. Dos au soleil, juste après le coucher : la bande sombre bleutée au-dessus de l’horizon est l’ombre de la Terre projetée sur l’atmosphère, surmontée d’une frange rose, la ceinture de Vénus.',
       'L’arc-en-ciel : René Descartes (1637) trace des milliers de rayons à travers une goutte et remarque qu’ils s’accumulent vers 42° : c’est l’angle de déviation minimale. Isaac Newton y ajoute la dispersion : le violet dévie un peu plus que le rouge. L’arc secondaire (deux réflexions dans la goutte) est à 51°, couleurs inversées ; entre les deux, la bande sombre d’Alexandre d’Aphrodise. Les arcs surnuméraires, de fines franges roses et vertes sous l’arc, sont des interférences : George Airy (1838) les a expliqués par l’optique ondulatoire. Ils n’apparaissent qu’avec de petites gouttes toutes semblables ; avec des gouttelettes de brouillard, les franges s’élargissent tant que les couleurs se mêlent : l’arc devient blanc.',
       'Les halos naissent dans les cirrus et le brouillard glacé, où flottent des prismes hexagonaux de glace. Deux faces latérales non voisines forment un prisme de 60° : la lumière y est déviée d’au moins 22°, d’où le halo de 22°. Une face latérale et une base forment un prisme de 90° : halo de 46°. Les plaquettes tombent à plat comme des feuilles : elles produisent les parhélies (les « faux soleils », à gauche et à droite du soleil) et l’arc circumzénithal, un arc-en-ciel à l’envers près du zénith, qui n’existe que si le soleil est à moins de 32° de hauteur. Les colonnes tombent couchées : arcs tangents. Ici, chaque image est faite de millions de rayons lancés au hasard à travers des cristaux orientés au hasard.',
+      'Les aurores polaires : des particules du vent solaire, guidées par le champ magnétique de la Terre, frappent la haute atmosphère autour des pôles (l’ovale auroral), entre 100 et 300 km d’altitude, bien au-dessus des nuages. L’oxygène y émet le vert (557,7 nm), vers 100 à 250 km, et le rouge (630 nm) plus haut ; l’azote donne le bleu-violet du bord inférieur. Les rideaux ondulent en quelques secondes. À l’œil nu, une aurore faible paraît grise ou vert pâle : la vision de nuit voit mal les couleurs. L’appareil photo, en pose longue, accumule la lumière et en montre bien plus.',
       'Le disque du Soleil est montré trois fois plus grand que nature pour qu\'on le voie (en vrai : un demi-degré, la largeur de ton petit doigt à bout de bras).',
     ],
     tools: [{ id: 'soleil', label: 'soleil', desc: 'Glissez de haut en bas pour déplacer le soleil (la marche automatique s’arrête).' }],
@@ -109,7 +111,7 @@
 
   function makeCiel(env) {
     let w = build(env);
-    function build(e) { return keep.scene === 'arc' ? arc(e) : keep.scene === 'halos' ? halos(e) : ciel(e); }
+    function build(e) { return keep.scene === 'arc' ? arc(e) : keep.scene === 'halos' ? halos(e) : keep.scene === 'aurores' ? aurores(e) : ciel(e); }
     const rebuild = () => { try { w.dispose && w.dispose(); } catch (e) { /* rien */ } w = build(env); };
     const api = {
       livePaused: true,
@@ -121,6 +123,7 @@
           { label: 'Le ciel', act: () => { keep.scene = 'ciel'; rebuild(); } },
           { label: 'L’arc-en-ciel', act: () => { keep.scene = 'arc'; rebuild(); } },
           { label: 'Les halos', act: () => { keep.scene = 'halos'; rebuild(); } },
+          { label: 'Les aurores polaires', act: () => { keep.scene = 'aurores'; rebuild(); } },
         ] }];
         return L.concat(w.ui ? w.ui() : []);
       },
@@ -1078,6 +1081,163 @@ void main(){
         ] });
         L.push({ type: 'toggle', label: 'Repères à 22° et 46°', value: keep.guides, set: (v) => { keep.guides = v; } });
         L.push({ type: 'note', text: 'Rien n’est dessiné à la main : chaque point de lumière est un rayon qui a traversé un cristal de glace hexagonal tiré au hasard (réfraction, réflexions, et la part de lumière réfléchie donnée par les formules de Fresnel). Montez le soleil : les parhélies s’écartent du halo de 22°, l’arc circumzénithal pâlit puis disparaît à 32°. Les cristaux en désordre donnent le halo de 22°, avec son bord intérieur rouge et net : aucun rayon ne peut être dévié de moins de 22°.' });
+        return L;
+      },
+    };
+  }
+
+  /* ═════════ scène 4 : les aurores polaires ═════════ */
+  const NU_VIDE = 'out vec4 o;\nvoid main(){ o = vec4(0.); }';
+  // l'aurore, au quart de la résolution de travail : émission volumique de rideaux (nappes plissées le long du champ
+  // magnétique, presque verticales près du pôle), sans tracé de rayons
+  const AUR_FS = `
+uniform float uT, uForce, uOeilNu, uI;
+uniform vec3 uCv, uCr, uCb;
+out vec4 o;
+float pli(float x, float k){ return 70. * bruitG(vec2(x / 230. + k * 3.7, uT * .025 + k * 1.3)); }
+// un rideau, à environ Y km au nord : l'émission des trois raies (vert, rouge, bleu-violet) dans la direction d
+vec3 rideau(vec3 d, float Y, float k){
+  float lh = length(d.xy);
+  vec2 u = d.xy / max(lh, 1e-4);
+  if (u.x < .05) return vec3(0.);
+  float te = d.z / max(lh, 1e-4);
+  float t = (Y + pli(Y / u.x * u.y, k)) / u.x;     // distance horizontale de la nappe (le pli est doux : une itération suffit)
+  float h = t * te + t * t / 12742.;               // altitude du point visé (km), courbure de la Terre comprise
+  if (h < 85. || h > 330.) return vec3(0.);
+  float xe = t * u.y, f = pli(xe, k), pente = (pli(xe + 4., k) - f) / 4.;
+  // vu par la tranche, le rideau paraît plus lumineux : la ligne de visée y fait plus de chemin
+  float chemin = min(sqrt(1. + pente * pente) / max(abs(u.x - u.y * pente), .02), mix(9., 4., uOeilNu));
+  float hb = 100. + 9. * bruitG(vec2(xe / 60. + k, uT * .03));
+  // des stries le long des lignes du champ ; l'œil nu en voit moins le détail
+  float st = mix(.45 + .55 * (.5 + .5 * bruitG(vec2(xe / 3.5 + k * 9., uT * .12))), 1., .6 * uOeilNu);
+  float st2 = .65 + .35 * bruitG(vec2(xe / 22. + k * 5., uT * .05));
+  float lon = smoothstep(-.15, .35, bruitG(vec2(xe / 170. + k * 2.1, uT * .015 + k)) + (uForce - .5) * 1.1);   // une aurore faible se morcelle
+  float g = smoothstep(hb - 5., hb + 4., h) * exp(-max(h - hb - 12., 0.) / 45.);                           // oxygène, vert (557,7 nm) : de 100 à 250 km
+  float r = smoothstep(hb + 70., hb + 140., h) * exp(-max(h - 250., 0.) / 50.) * (.1 + .4 * uForce);     // oxygène, rouge (630 nm) : plus haut, plus faible
+  float b = exp(-pow((h - hb) / 5., 2.)) * .55 * uForce;                                                   // azote, bleu-violet : le bord inférieur
+  return vec3(g, r, b) * chemin * st * st2 * lon;
+}
+void main(){
+  bool ok; vec3 d = viewDir(ok);
+  if (!ok || d.z < -.03){ o = vec4(0.); return; }
+  // trois rideaux, de 280 à 800 km au nord : ils occupent le ciel du nord, de 7 à 47° de hauteur ; au-dessus, la nuit étoilée
+  vec3 e = rideau(d, 280., 0.) + rideau(d, 480., 1.) * smoothstep(.1, .45, uForce) * .8 + rideau(d, 800., 2.) * smoothstep(.35, .75, uForce) * .7;
+  // la lueur de l'air (stylisée) : le ciel de nuit n'est jamais tout à fait noir, un peu plus clair vers l'horizon
+  vec3 air = vec3(.0006, .0009, .0016) * (1. + 2. * exp(-max(d.z, 0.) * 8.));
+  vec3 L = (e.x * uCv + e.y * uCr * .45 + e.z * uCb * .9) * uI + air;
+  if (uOeilNu > .5){
+    // à l'œil nu : la vision de nuit (bâtonnets) voit la luminance seule ou presque, légèrement bleutée ; une aurore faible paraît grise ou vert pâle
+    float sc = dot(e, vec3(.42, .006, .2)) * uI + dot(air, vec3(.05, .55, .45));
+    L = mix(sc * vec3(.82, .9, 1.08), L * .45, .14 + .3 * smoothstep(.4, 1., uForce));
+  }
+  o = vec4(L, 0.);
+}`;
+  // la lumière à la résolution de travail : le ciel (l'aurore), le paysage qu'elle éclaire, le lac qui la reflète
+  const AURL_FS = `
+uniform float uOeilNu;
+out vec4 o;
+vec3 scoto(vec3 c){ return dot(c, vec3(.05, .55, .45)) * vec3(.82, .9, 1.08); }
+void main(){
+  bool ok; vec3 d = viewDir(ok);
+  ivec2 px = ivec2(gl_FragCoord.xy);
+  vec4 g0 = texelFetch(uG0, px, 0);
+  if (!ok || g0.a < -.5){ o = vec4(uFondE, 0.); return; }
+  vec3 L; float a = 0.;
+  if (g0.a > 1.9){
+    vec4 g1 = texelFetch(uG1, px, 0);
+    vec2 p = d.xy * g1.w;
+    vec3 g = bruitGd(p * 160. - vec2(uT * .1, 0.));
+    vec3 nw = normalize(vec3(g.yz * .008, 1.));
+    vec3 rr = reflect(d, nw); rr.z = max(rr.z, .001);
+    float F = fresnelDielectrique(clamp(dot(-d, nw), 0., 1.), 1.333);
+    ivec2 pr = pixDe(projUv(rr)); vec4 r0 = texelFetch(uG0, pr, 0);
+    vec3 refl = r0.a > .5 ? decorEclaire(r0, texelFetch(uG1, pr, 0), rr) : cielDir(rr);
+    if (uOeilNu > .5 && r0.a > .5) refl = scoto(refl);
+    L = voile(refl * F + uEc * vec3(.004, .009, .011) * (1. - F), d, g1.w);
+  } else if (g0.a > .5){ L = decorEclaire(g0, texelFetch(uG1, px, 0), d); if (uOeilNu > .5) L = scoto(L); }
+  else { L = cielA(vUv).rgb; a = 1.; }
+  o = vec4(L + uFondE, a);
+}`;
+
+  function aurores(env) {
+    const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const K = R.K, dec = decor(R, NU_VIDE);
+    const AUR = K.target(Math.max(2, R.cw >> 1), Math.max(2, R.ch >> 1));
+    const PA = K.program(FKR.fs(['bruit'], camGLSL + AUR_FS));
+    const PL = K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + AURL_FS));
+    const lueurs = R.lot({ forme: 'gauss' }), cad = cadence();
+    // les raies (FKR) : oxygène vert et rouge, azote bleu-violet ; la palette d'altitude pour la légende
+    const cv = FKR.couleur.melange('aurore_verte').rgb, cr = FKR.couleur.melange('aurore_rouge').rgb, cb = FKR.couleur.melange('aurore_bleue').rgb;
+    const pal = FKR.palette.aurore(), palCss = [0, 0.2, 0.35, 0.5, 0.7, 0.85, 1].map((t) => [t, FKR.couleur.css(pal(t))]);
+    const stars = Array.from({ length: 520 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), Math.pow(Math.random(), 3) * 1.4 + 0.25]; });
+    let C = null, cle = '', T = 0, y0 = 0, f0 = 0, force = true;
+    const drones = [];
+    if (au) drones.push(au.drone(73.4, 'sine', 0.008));
+    const nomForce = (v) => (v < 0.3 ? 'faible' : v < 0.7 ? 'moyenne' : 'forte (orage magnétique)');
+    const regle = (f) => (v) => { f(v); force = true; };
+    return {
+      R,
+      frame(t, dt) {
+        T += dt * (env.doux ? 0.7 : 1);   // tout reste lent ; aucune pulsation
+        const v = env.view || { x0: 0, x1: W }, lac = keep.auDecor === 'lac';
+        const k = [keep.auRegard, keep.auDecor, W, H, v.x0, v.x1].join('|');
+        // les rideaux ondulent : 24 images par seconde au plus, et jamais plus de 2,5 fois le coût mesuré d'un rendu
+        if (!cad.ok(force || k !== cle, 42)) return;
+        force = false;
+        if (k !== cle) {
+          cle = k;
+          C = keep.auRegard === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: 22 * D2R, vfov: 80 });
+          dec.calc(C, W, H, { oeil: 0.004, sol: lac ? SOLS.terre : SOLS.neige, lac: lac ? 1 : 0, yaw: 0, rangs: lac ? RANGS.ciel : RANGS.halos, diam: 2 * RAYON.terre });
+        }
+        const oeil = keep.auVision === 'oeil' ? 1 : 0, a = keep.auForce, I = (0.12 + 0.6 * a) * 0.45;
+        // le paysage n'est éclairé que par l'aurore (surtout son vert) et par la lueur du ciel
+        const Ec = [0, 1, 2].map((q) => (cv[q] * 0.8 + cr[q] * 0.1 * a) * I * 0.7 + [0.003, 0.0035, 0.005][q]);
+        R.regler({ expo: 1 }).debut(dt);
+        lueurs.vider();
+        for (const st of stars) { const p = C.proj(st); if (!p) continue; const e = 1.1 * st[3] * (1 + 0.08 * Math.sin(T * 1.3 + st[3] * 57)); lueurs.point(p[0], p[1], 0.5 + 0.25 * st[3], e * (oeil ? 0.85 : 0.95), e * (oeil ? 0.92 : 0.97), e); }
+        lueurs.dessiner();
+        PA.use(); setCam(PA, C, W, H).f('uT', T).f('uForce', a).f('uOeilNu', oeil).f('uI', I).f('uCv', ...cv).f('uCr', ...cr).f('uCb', ...cb);
+        K.run(PA, AUR);
+        PL.use(); setCam(PL, C, W, H);
+        setLum(PL, { s: [0, 0, -1], Es0: [0, 0, 0], Es1: [0, 0, 0], Ec, ext: extinction(PLANETS.terre, 1), oeil: 0.004, T, expo: 1, diam: 2 * RAYON.terre }).t('uCiel', AUR);
+        dec.lier(PL).f('uOeilNu', oeil);
+        passeCiel(R, PL);   // les étoiles déjà posées restent visibles à travers l'aurore (elle est transparente), cachées par le relief
+        R.fin(dt);
+        ctx.font = '500 10px "JetBrains Mono", monospace';
+        if (C.fish) {
+          ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(C.cx, C.cy, C.rf, 0, TAU); ctx.stroke();
+          ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(236,240,250,.7)';
+          ctx.fillText('ZÉNITH', C.cx, C.cy - 6); ctx.fillText('NORD', C.cx, C.cy + C.rf + 16); ctx.fillText('SUD', C.cx, C.cy - C.rf - 8); ctx.textAlign = 'left';
+        }
+        // en photo : la couleur selon l'altitude (FKR.palette.aurore), du bord inférieur violet au rouge du sommet
+        if (!oeil) {
+          const lx = v.x1 - 54, ly0 = (v.y0 || 0) + 40, ly1 = ly0 + Math.min(220, H * 0.3);
+          const gr = ctx.createLinearGradient(0, ly1, 0, ly0);
+          for (const [tt, css] of palCss) gr.addColorStop(tt, css);
+          ctx.fillStyle = 'rgba(6,8,16,.55)'; ctx.fillRect(lx - 30, ly0 - 22, 76, ly1 - ly0 + 44);
+          ctx.fillStyle = gr; ctx.fillRect(lx, ly0, 8, ly1 - ly0);
+          ctx.fillStyle = 'rgba(236,240,250,.85)';
+          ctx.fillText('300 KM', lx - 26 + 38, ly0 + 4); ctx.fillText('90 KM', lx - 26 + 38, ly1 + 4); ctx.fillText('ALTITUDE', lx - 26, ly0 - 8);
+        }
+        const x0 = v.x0 + 16;
+        ctx.font = '500 11px "JetBrains Mono", monospace';
+        let y = H - 18;
+        txtLine(ctx, x0, y, `AURORE ${nomForce(a).toUpperCase()} · ${oeil ? 'À L’ŒIL NU' : 'EN PHOTO (POSE LONGUE)'} · ENTRE 100 ET 300 KM D’ALTITUDE, BIEN AU-DESSUS DES NUAGES`, 'rgba(255,236,200,.95)'); y -= 20;
+        txtLine(ctx, x0, y, oeil ? 'LA VISION DE NUIT VOIT MAL LES COULEURS : UNE AURORE FAIBLE PARAÎT GRISE OU VERT PÂLE' : 'VERT : OXYGÈNE (557,7 NM) · ROUGE, PLUS HAUT : OXYGÈNE (630 NM) · BORD INFÉRIEUR VIOLET : AZOTE');
+        cad.fait();
+      },
+      // glisser de haut en bas : l'aurore s'intensifie ou s'apaise
+      down(p) { y0 = p.y; f0 = keep.auForce; },
+      move(p) { if (!p.down) return false; keep.auForce = clamp(f0 + (y0 - p.y) * 0.004, 0, 1); force = true; return true; },
+      dispose() { drones.forEach((d) => d.stop()); R.detruire(); },
+      ui() {
+        const L = [{ type: 'section', label: 'Les aurores polaires' }];
+        L.push({ type: 'choice', label: 'Vision', value: keep.auVision, options: [{ id: 'oeil', label: 'À l’œil nu' }, { id: 'photo', label: 'En photo (pose longue)' }], set: regle((v) => { keep.auVision = v; }) });
+        L.push({ type: 'slider', label: 'Intensité de l’aurore', min: 0, max: 1, step: 0.02, value: keep.auForce, fmt: nomForce, set: regle((v) => { keep.auForce = v; }) });
+        L.push({ type: 'choice', label: 'Regard', value: keep.auRegard, options: [{ id: 'nord', label: 'Vers le nord' }, { id: 'zenith', label: 'Tout le ciel' }], set: regle((v) => { keep.auRegard = v; }) });
+        L.push({ type: 'choice', label: 'Paysage', value: keep.auDecor, options: [{ id: 'neige', label: 'Neige' }, { id: 'lac', label: 'Lac' }], set: regle((v) => { keep.auDecor = v; }) });
+        L.push({ type: 'note', text: 'Les particules du vent solaire, guidées par le champ magnétique, frappent la haute atmosphère autour des pôles (l’ovale auroral), entre 100 et 300 km d’altitude. L’oxygène émet le vert (557,7 nm) vers 100 à 250 km, et le rouge (630 nm) plus haut ; l’azote, le bleu-violet du bord inférieur. Comparez « à l’œil nu » et « en photo » : la vision de nuit voit mal les couleurs, l’appareil photo en pose longue en montre bien plus. Le paysage et les étoiles sont stylisés.' });
         return L;
       },
     };

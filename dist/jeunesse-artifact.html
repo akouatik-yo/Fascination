@@ -369,7 +369,7 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 @media (max-width: 640px) {
   #carton { top: calc(14px + var(--rond) + 92px); }
   .ecran > .tete { gap: 8px; padding: 10px 0; }
-  .ecran > .tete .bt span { display: none; }
+  .ecran > .tete .bt span:not(.avatar) { display: none; }
   .logo b { font-size: 21px; }
   .ages .age { width: 92px; min-height: 112px; }
   .ages .age b { font-size: 40px; }
@@ -392,6 +392,10 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 
 /* pendant l'accueil, seule la vitrine est derrière : les commandes de la machine s'effacent */
 #fj.accueil-ouvert .grappe, #fj.accueil-ouvert #haut, #fj.accueil-ouvert #scenes, #fj.accueil-ouvert #actions, #fj.accueil-ouvert #carton, #fj.accueil-ouvert #bulle, #fj.accueil-ouvert #main { visibility: hidden; }
+
+/* le fil garde son en-tête visible quand il défile ; au téléphone, le carton tient sur une ligne */
+#fil .tete { position: sticky; top: -12px; z-index: 1; background: var(--verre-fort); margin: -12px -16px 0; padding: 12px 16px 6px; border-radius: 20px 20px 0 0; }
+@media (max-width: 640px) { #carton { max-width: calc(100% - 2 * var(--bord)); } #carton b { font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; } }
 
 </style>
 <div id="fj">
@@ -25094,12 +25098,12 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     clearTimeout(mainChapT);
     const sim0 = S.sim, cle = S.id + '/' + S.scene;
     mainChapT = setTimeout(() => {
-      if (S.sim !== sim0 || S.tiroir || S.ecran || S.spectacle || !S.outil || S.outilsMontres.has(cle)) return;
+      if (S.sim !== sim0 || S.tiroir || S.ecran || S.spectacle || !S.outil || S.outilsMontres.has(cle) || !$('fil').hidden) return;
       S.outilsMontres.add(cle); montrerMain(S.outil);
     }, 1800);
   }
   setInterval(() => {
-    if (!S.sim || S.tiroir || S.ecran || S.spectacle || !S.outil) return;
+    if (!S.sim || S.tiroir || S.ecran || S.spectacle || !S.outil || !$('fil').hidden) return;
     if (performance.now() - dernierContact > 20000) { dernierContact = performance.now(); montrerMain(S.outil); }
   }, 1000);
 
@@ -25355,7 +25359,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     if (filCran < mx.length - 1) pied.append(h('button', { class: 'bt grand', onclick: () => { filCran++; rendreFil(); son('outil'); } }, FJ.icone('suiv'), h('span', null, 'encore')));
     if (niveau() >= 2 || filCran >= mx.length - 1) pied.append(h('button', { class: 'bt doux', onclick: () => { fermerFil(); ouvrirTiroir('pourquoi'); } }, FJ.icone('pourquoi'), h('span', null, niveau() >= 2 ? 'Pour les curieux' : 'Tout lire')));
     const crans = f.querySelectorAll('.cran'), dernier = crans[crans.length - 1];
-    if (dernier) { dernier.classList.add('neuf'); if (filCran > 0) f.scrollTop = f.scrollHeight; }
+    if (dernier) { dernier.classList.add('neuf'); if (filCran > 0) { try { dernier.scrollIntoView({ block: 'nearest' }); } catch (e) { /* rien */ } } }
   }
 
   /* ───────── les tiroirs ───────── */

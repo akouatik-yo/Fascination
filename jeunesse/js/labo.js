@@ -378,12 +378,12 @@
     clearTimeout(mainChapT);
     const sim0 = S.sim, cle = S.id + '/' + S.scene;
     mainChapT = setTimeout(() => {
-      if (S.sim !== sim0 || S.tiroir || S.ecran || S.spectacle || !S.outil || S.outilsMontres.has(cle)) return;
+      if (S.sim !== sim0 || S.tiroir || S.ecran || S.spectacle || !S.outil || S.outilsMontres.has(cle) || !$('fil').hidden) return;
       S.outilsMontres.add(cle); montrerMain(S.outil);
     }, 1800);
   }
   setInterval(() => {
-    if (!S.sim || S.tiroir || S.ecran || S.spectacle || !S.outil) return;
+    if (!S.sim || S.tiroir || S.ecran || S.spectacle || !S.outil || !$('fil').hidden) return;
     if (performance.now() - dernierContact > 20000) { dernierContact = performance.now(); montrerMain(S.outil); }
   }, 1000);
 
@@ -639,7 +639,7 @@
     if (filCran < mx.length - 1) pied.append(h('button', { class: 'bt grand', onclick: () => { filCran++; rendreFil(); son('outil'); } }, FJ.icone('suiv'), h('span', null, 'encore')));
     if (niveau() >= 2 || filCran >= mx.length - 1) pied.append(h('button', { class: 'bt doux', onclick: () => { fermerFil(); ouvrirTiroir('pourquoi'); } }, FJ.icone('pourquoi'), h('span', null, niveau() >= 2 ? 'Pour les curieux' : 'Tout lire')));
     const crans = f.querySelectorAll('.cran'), dernier = crans[crans.length - 1];
-    if (dernier) { dernier.classList.add('neuf'); if (filCran > 0) f.scrollTop = f.scrollHeight; }
+    if (dernier) { dernier.classList.add('neuf'); if (filCran > 0) { try { dernier.scrollIntoView({ block: 'nearest' }); } catch (e) { /* rien */ } } }
   }
 
   /* ───────── les tiroirs ───────── */

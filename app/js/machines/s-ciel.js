@@ -16,7 +16,7 @@
     look: 'soleil', planet: 'terre', haze: 1, ozone: true, alt: 0, nuages: 0.25,
     view: 'ciel', drop: 0.35, refl: 1, rbEl: 12,
     hEl: 18, mix: { plaques: 0.5, colonnes: 0.25, desordre: 0.5 }, proj: 'soleil', guides: true,
-    auVision: 'photo', auForce: 0.55, auRegard: 'nord', auDecor: 'neige',
+    auVision: 'oeil', auForce: 0.85, auRegard: 'nord', auDecor: 'neige',
   };
 
   /* ─ couleur : fonctions colorimétriques CIE 1931 (ajustement de Wyman, Sloan et Shirley, 2013) ─ */
@@ -1139,7 +1139,7 @@ void main(){
   if (uOeilNu > .5){
     // à l'œil nu : la vision de nuit (bâtonnets) voit la luminance seule ou presque, légèrement bleutée ; une aurore faible paraît grise ou vert pâle
     float sc = dot(e, vec3(.42, .006, .2)) * uI + dot(air, vec3(.05, .55, .45));
-    L = mix(sc * vec3(.82, .9, 1.08), L * .45, .14 + .3 * smoothstep(.4, 1., uForce));
+    L = mix(sc * vec3(.82, .9, 1.08), L * .6, .08 + .72 * smoothstep(.45, .95, uForce));   // une aurore forte garde ses couleurs à l'œil nu
   }
   o = vec4(L, 0.);
 }`;
@@ -1203,7 +1203,8 @@ void main(){
         }
         const oeil = keep.auVision === 'oeil' ? 1 : 0, a = keep.auForce, I = (0.12 + 0.6 * a) * 0.45;
         // le paysage n'est éclairé que par l'aurore (surtout son vert) et par la lueur du ciel
-        const Ec = [0, 1, 2].map((q) => (cv[q] * 0.8 + cr[q] * 0.1 * a) * I * 0.7 + [0.003, 0.0035, 0.005][q]);
+        // la neige : éclairée surtout par le ciel de nuit (bleuté), avec un reflet vert discret de l'aurore
+        const Ec = [0, 1, 2].map((q) => (cv[q] * 0.8 + cr[q] * 0.1 * a) * I * 0.12 + [0.006, 0.008, 0.015][q]);
         R.regler({ expo: 1 }).debut(dt);
         lueurs.vider();
         for (const st of stars) { const p = C.proj(st); if (!p) continue; const e = 1.1 * st[3] * (1 + 0.08 * Math.sin(T * 1.3 + st[3] * 57)); lueurs.point(p[0], p[1], 0.5 + 0.25 * st[3], e * (oeil ? 0.85 : 0.95), e * (oeil ? 0.92 : 0.97), e); }
@@ -1243,7 +1244,7 @@ void main(){
         ctx.font = '500 11px "JetBrains Mono", monospace';
         let y = H - 18;
         txtLine(ctx, x0, y, `AURORE ${nomForce(a).toUpperCase()} · ${oeil ? 'À L’ŒIL NU' : 'EN PHOTO (POSE LONGUE)'} · ENTRE 100 ET 300 KM D’ALTITUDE, BIEN AU-DESSUS DES NUAGES`, 'rgba(255,236,200,.95)'); y -= 20;
-        txtLine(ctx, x0, y, oeil ? 'LA VISION DE NUIT VOIT MAL LES COULEURS : UNE AURORE FAIBLE PARAÎT GRISE OU VERT PÂLE' : 'VERT : OXYGÈNE (557,7 NM) · ROUGE, PLUS HAUT : OXYGÈNE (630 NM) · BORD INFÉRIEUR VIOLET : AZOTE');
+        txtLine(ctx, x0, y, oeil ? (a > 0.6 ? 'À L’ŒIL NU, UNE AURORE FORTE GARDE SES COULEURS ; FAIBLE, ELLE PARAÎT GRISE OU VERT PÂLE' : 'LA VISION DE NUIT VOIT MAL LES COULEURS : UNE AURORE FAIBLE PARAÎT GRISE OU VERT PÂLE') : 'VERT : OXYGÈNE (557,7 NM) · ROUGE, PLUS HAUT : OXYGÈNE (630 NM) · BORD INFÉRIEUR VIOLET : AZOTE');
         cad.fait();
       },
       // glisser de haut en bas : l'aurore s'intensifie ou s'apaise

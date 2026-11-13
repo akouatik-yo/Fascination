@@ -2,6 +2,15 @@
 
 `app/js/fkrendu.js` expose `window.FKR`, la bibliothèque de rendu partagée par les branches de reprise visuelle (`rendu-a`, `rendu-b`). Elle généralise ce qui rend le Feu beau, pour que toutes les machines parlent la même langue visuelle.
 
+- **Une seule bibliothèque**, par décision du CEO (13/11, 0 h 55) : FKR. Rendu B en est propriétaire ; pour une demande, s'adresser à elle.
+- **Réglages par défaut** : ceux de la direction artistique de Fausta (`design/fascinations/DA-rendu.md`, dépôt Lbxp, 059035f) :
+  - AgX ;
+  - halo à seuil 1,0 et d'intensité 0,06 ;
+  - fond `#05060A` ;
+  - grain animé de 2 à 3 % ;
+  - coins assombris d'environ 25 %.
+- **La cabine de rendu A** (`fkcabine.js`, 79f63a2) est portée à l'identique : `FKGL.cabine(K, opt)` a la même API et les mêmes calculs. Une machine qui l'utilisait peut charger `fkrendu.js` à la place, sans rien changer.
+
 - **Banc d'essai** : `tools/demo-rendu.html` (scènes `#nebuleuse`, `#lucioles`, `#spectres`, `#traits`, `#matiere`).
 - **Test** : `node tools/test-rendu.mjs` vérifie dix couleurs physiques, puis rend chaque scène dans Chromium sans écran. Les captures vont dans `tools/out/rendu/`.
 - **Captures de référence** : `docs/rendu/fkr-*.jpg`.
@@ -89,27 +98,31 @@ function frame(t, dt) {
 |---|---|---|
 | `plafond` | 1,25 | densité de pixels maximale du tampon HDR |
 | `echelle` | 1 | fraction supplémentaire de la résolution |
-| `fond` | `[0.0015, 0.0016, 0.003]` | le vide (linéaire) |
+| `fond` | `FKR.fond('defaut')` = `#05060A` | le vide, linéaire ; aussi `FKR.fond('eau')` = `#04080C` et `FKR.fond('cosmos')` = `#07050A` (DA) |
 | `expo` | 1 | exposition |
-| `tons` | `'film'` | `'film'` (Lottes 2016, teinte conservée), `'aces'` (celui du Feu), `'lupton'` (asinh, images du Sloan Digital Sky Survey), `'reinhard'` |
+| `tons` | `'agx'` | `'agx'` (DA, Wrensch 2023), `'film'` (Lottes 2016, teinte conservée), `'aces'` (celui du Feu), `'lupton'` (asinh, images du Sloan Digital Sky Survey), `'reinhard'` |
 | `courbe` | `{ contraste: 1.25, epaule: 0.97, milieu: 0.18, sortie: 0.2, max: 24 }` | courbe filmique : 0,18 → 0,2 et 24 → blanc |
 | `blanc` | 2 | les lumières plus fortes que ceci pâlissent vers le blanc, jusqu'au blanc complet à `courbe.max` |
 | `lupton` | `{ q: 8, etirement: 0.5 }` | réglages de l'étirement asinh |
-| `saturation` | 1,06 | dans OkLab, après la courbe |
-| `halo` | 0,7 | force du halo |
+| `saturation` | 1 | dans OkLab, après la courbe |
+| `contraste` | 1 | autour du gris moyen, en espace d'affichage |
+| `teinte`, `releve` | `[1, 1, 1]`, `[0, 0, 0]` | balance des blancs (×) et relevé des noirs (+), avant la courbe |
+| `halo` | 0,06 | force du halo (DA : de 0,04 à 0,08 ; le Feu est beaucoup plus fort, vers 1) |
 | `rayon` | 0,72 | étendue du halo (0 : serré ; 1 : très large) |
-| `seuil`, `genou` | 0, 0,5 | seuil doux du halo (0 = physique) |
-| `niveaux` | 6 | étages de la pyramide |
+| `seuil`, `genou` | 1, 0,5 | seuil doux du halo, sur le canal le plus fort (DA : seul ce qui dépasse le blanc diffuse ; 0 = tout bave, comme le Feu) |
+| `niveaux` | 5 | étages de la pyramide, depuis la demi-résolution |
 | `eclairage` | 0 | les lumières éclairent la scène : `scène × (ambiant + eclairage × lumière floutée)` |
 | `ambiant` | `[1, 1, 1]` | éclairage de base de la scène |
-| `vignetage` | 0,35 | cos⁴ ; 0,35 assombrit les coins d'environ 20 % |
-| `grain` | 0,02 | grain argentique, surtout dans les tons moyens |
+| `vignetage` | 0,39 | cos⁴ ; coins assombris d'environ 25 % |
+| `grain`, `grainNoir` | 0,05, 0,25 | grain argentique animé (± 2,5 % dans les tons moyens), et sa part dans les noirs |
+| `remanence` | 0 | phosphore : part de la trace gardée par image à 60 i/s (DA : 0,90 à 0,97) ; voir `phosphore()` |
 | `gain2D` | 4 | luminance d'un blanc pur dans le calque 2D des lumières |
 | `K` | — | un `GLKit` existant à partager |
 | `copie` | — | `false` : ne pas copier dans `env.ctx` (le résultat reste dans `R.K.canvas`) |
 
 Méthodes :
-- `debut()`, `fin(dt)` ;
+- `debut(dt)`, `fin(dt)` ;
+- `phosphore()` : une cible persistante qui décroît selon `remanence`, ajoutée à la lumière au tirage. Les traits mathématiques y deviennent de la lumière accumulée (DA, règle 4), par exemple `lot.dessiner(R.phosphore())` ;
 - `lot(o)` ;
 - `calque(nom, o)` ;
 - `scene()` : la cible WebGL de l'albédo, si la machine peint son décor en WebGL ;
@@ -146,6 +159,8 @@ Les couleurs sont renvoyées en sRGB linéaire, normalisées au maximum = 1. Les
 - `eau(m)` : renvoie `{ rgb, Y }`, la lumière du jour après m mètres d'eau pure (Pope et Fry 1997).
 - `rayleigh()` : le bleu du ciel.
 - `etoile('O'…'M' | T)` : la couleur d'une étoile.
+- `son(hz)` : l'**échelle commune du son** (DA). 55 Hz donne 700 nm (rouge), 3 520 Hz donne 400 nm (violet). Spectre, Harpe, Pendules et Illusions sonores l'utilisent tous.
+- `bande('phosphore')` : le vert P31 des oscilloscopes.
 - `spectre(fn)` : n'importe quel spectre.
 - Outils :
   - `css(rgbLin)` → `'#rrggbb'`, pour les légendes de l'interface ;
@@ -162,7 +177,8 @@ Une palette est une fonction `t ∈ [0, 1] → [r, g, b]`. Pour en faire une tex
 - `eau(profMax)`
 - `nebuleuse(rougi)` : t = excitation, de [S II] et [N II] à Hα puis [O III].
 - `aurore()` : t = altitude.
-- `rampe(['#hex', …] | [[t, '#hex'], …])` : interpolée dans OkLab, pour les champs abstraits (probabilité quantique, concentration…).
+- `carte('viridis' | 'magma' | 'inferno' | 'cividis' | 'twilight' | 'mako' | 'rocket')` : les cartes perceptivement uniformes demandées par la DA, pour une concentration, une densité, une énergie ou une itération. On n'utilise jamais `jet`. La légende de la machine nomme la carte, par exemple « couleurs : concentration de l'activateur, échelle *mako* ». Les 33 ancres sont interpolées dans OkLab, à moins de 0,006 des tables de matplotlib et seaborn.
+- `rampe(['#hex', …] | [[t, '#hex'], …])` : interpolée dans OkLab, pour une palette dessinée à la main.
 
 ### `FKR.GLSL` et `FKR.glsl(…)` : morceaux de GLSL ES 3.00
 
@@ -174,11 +190,13 @@ Une palette est une fonction `t ∈ [0, 1] → [r, g, b]`. Pour en faire une tex
   - `ign` (tramage) ;
   - bruits : `bruitV`, `bruitG`, `bruitGd` (avec dérivées), `bruitG3` ;
   - fractales : `fbmG(p, n)`, `fbmG3`, `strie` (filaments) ;
-  - `boucle(p, n)` (curl, sans divergence), `voronoi` (F1, F2), `gauchir` (déformation de domaine).
-- **tons** : `tonFilm`, `courbeFilm`, `tonACES`, `tonLupton`, `tonReinhard`.
+  - `boucle(p, n)` (curl, sans divergence), `voronoi` (F1, F2), `voronoiT(p, t)` (germes mobiles), `gauchir` (déformation de domaine) ;
+  - `caustique(p, t)` : un réseau de caustiques procédural, quand il n'y a pas de surface simulée.
+- **tons** : `tonAgX`, `tonFilm`, `courbeFilm`, `tonACES`, `tonLupton`, `tonReinhard`.
 - **lumiere** :
   - profils : `gauss`, `halo` (lorentzien), `moffat` ;
-  - surfaces : `schlick`, `enveloppe` (éclairage enveloppant), `normaleHauteur` ;
+  - surfaces : `schlick`, `fresnelDielectrique(cosθ, n)` (exact : l'eau renvoie 2 % de la lumière vue d'en haut et devient un miroir en vue rasante), `enveloppe` (éclairage enveloppant), `normaleHauteur` ;
+  - caustiques : `caustiqueJacobien(∇²h, profondeur, n)`, l'éclairement du fond sous une surface simulée (1/|det J|) ;
   - milieux : `phaseHG`, `phaseRayleigh`, `beer`, `brouillard`.
 - **formes** : `sdCercle`, `sdBoite`, `sdSegment`, `sminP`, `rot2`.
 - **matiere** : de quoi donner du corps à un champ 2D (motif de Turing, lave, fluide, gel, cire…).

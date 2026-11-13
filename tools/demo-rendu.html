@@ -146,7 +146,7 @@ void main(){
 
   /* ───────── planche des couleurs physiques ───────── */
   S.spectres = () => {
-    const R = FKR.cabine(env, regl({ halo: 0.35, rayon: 0.6, vignetage: 0.2 }));
+    const R = FKR.cabine(env, regl({ halo: 0.06, rayon: 0.6, vignetage: 0.2 }));
     const bb = R.K.program(FKR.fs(['couleur'], `
 uniform vec4 uBox; uniform vec2 uRes; out vec4 o;
 void main(){
@@ -159,8 +159,9 @@ void main(){
     const L = R.lot({ forme: 'gauss' });
     const x0 = W * 0.08, x1 = W * 0.92, lx = (l) => x0 + (x1 - x0) * (l - 380) / 400;
     const rangs = [['hydrogène (Balmer)', 'hydrogene'], ['oxygène III', 'oxygene3'], ['sodium', 'sodium'], ['mercure', 'mercure'], ['néon', 'neon'], ['aurore verte et rouge', [...C.MELANGES.aurore_verte, ...C.MELANGES.aurore_rouge]], ['aurore, bord bas (N₂⁺)', 'aurore_bleue']];
-    const y0 = H * 0.3, dy = Math.min(46, H * 0.075);
+    const y0 = H * 0.27, dy = Math.min(40, H * 0.06);
     const bandes = ['luciole', 'mer', 'champignon', 'gfp', 'ver_rouge', 'dragon_rouge'];
+    const cartes = FKR.palette.CARTES, yc = y0 + rangs.length * dy + 4, hc = Math.min(9, H * 0.012);
     return (t, dt) => {
       R.debut();
       bb.use().f('uBox', x0, H * 0.13, x1, H * 0.13 + 26).f('uRes', W, H);
@@ -172,6 +173,9 @@ void main(){
         for (const [l, w] of lst) { const c = C.raie(l), k = 9 * w / mx; L.segment(lx(l), y - dy * 0.33, lx(l), y + dy * 0.33, 0.9, c[0] * k, c[1] * k, c[2] * k, 0); }
       });
       bandes.forEach((b, i) => { const c = C.bande(b); L.point(x0 + (i + 0.5) * (x1 - x0) / bandes.length, H * 0.9, 9, c[0] * 3, c[1] * 3, c[2] * 3); });
+      // cartes perceptives (DA, règle 3) et échelle commune du son (55 Hz → 3 520 Hz)
+      cartes.forEach((nom, j) => { const f = FKR.palette.carte(nom), y = yc + 20 + j * (hc + 7); for (let k = 0; k < 64; k++) { const c = f(k / 63), xa = x0 + (x1 - x0) * 0.5 * k / 64; L.segment(xa, y, xa + (x1 - x0) * 0.5 / 64, y, hc * 0.3, c[0] * 0.9, c[1] * 0.9, c[2] * 0.9, 0); } });
+      for (let k = 0; k <= 48; k++) { const hz = 55 * Math.pow(2, k / 8), c = C.son(hz), xa = x0 + (x1 - x0) * (0.56 + 0.44 * k / 48); L.point(xa, yc + 30, 2.2, c[0] * 2, c[1] * 2, c[2] * 2); }
       L.dessiner();
       R.fin(dt);
       ctx.save();
@@ -181,6 +185,8 @@ void main(){
       rangs.forEach(([nom], i) => ctx.fillText(nom, x0, y0 + i * dy - dy * 0.4));
       for (let l = 400; l <= 750; l += 50) ctx.fillText(l + ' nm', lx(l) - 14, y0 + rangs.length * dy - dy * 0.35);
       ctx.fillText('bioluminescence : luciole · plancton marin · champignon · GFP · ver rouge · poisson-dragon', x0, H * 0.9 - 26);
+      ctx.fillText('cartes perceptives : ' + cartes.join(' · '), x0, yc + 8);
+      ctx.fillText('échelle du son : 55 Hz (rouge) → 3 520 Hz (violet)', x0 + (x1 - x0) * 0.56, yc + 8);
       ctx.restore();
       return `couleurs calculées depuis les spectres · tons ${R.opt.tons}`;
     };
@@ -188,28 +194,31 @@ void main(){
 
   /* ───────── traits lumineux ───────── */
   S.traits = () => {
-    const R = FKR.cabine(env, regl({ halo: 0.6, rayon: 0.7 }));
+    // DA, règle 4 : un trait mathématique devient de la lumière accumulée dans un phosphore qui s'éteint lentement
+    const R = FKR.cabine(env, regl({ remanence: 0.992, halo: 0.08 }));
+    const pho = R.phosphore();
     const L = R.lot({ forme: 'gauss' }), T = R.lot({ forme: 'gauss' });
-    const c1 = C.corpsNoir(3200), c2 = C.raie(486.13), c3 = C.melange('oxygene3').rgb;
-    const pts = [], N = 2600;
+    const cp = C.bande('phosphore'), c2 = C.raie(486.13), c3 = C.melange('oxygene3').rgb;
+    const s = Math.min(W, H) * 0.36, pos = (u, ph) => { const a = Math.exp(-u * 0.012); return [W / 2 + s * a * (Math.sin(u * 2.01 + ph) * 0.7 + Math.sin(u * 3.0 + 1.3) * 0.3), H / 2 + s * a * (Math.sin(u * 3.02 + 0.4) * 0.7 + Math.sin(u * 2.0 + ph * 0.7) * 0.3)]; };
+    let u0 = 0, prime = true;
     return (t, dt) => {
-      R.debut(); L.vider(); T.vider();
-      pts.length = 0;
-      const s = Math.min(W, H) * 0.36, ph = t * 0.05;
-      for (let i = 0; i < N; i++) {
-        const u = i * 0.02, a = Math.exp(-u * 0.012);
-        pts.push(W / 2 + s * a * (Math.sin(u * 2.01 + ph) * 0.7 + Math.sin(u * 3.0 + 1.3) * 0.3), H / 2 + s * a * (Math.sin(u * 3.02 + 0.4) * 0.7 + Math.sin(u * 2.0 + ph * 0.7) * 0.3));
-      }
-      L.ligne(pts, 0.8, c1[0] * 0.55, c1[1] * 0.55, c1[2] * 0.55);
+      R.debut(dt); L.vider(); T.vider();
+      // la plume avance : on dépose le chemin parcouru depuis l'image précédente (au premier passage, toute la courbe)
+      const u1 = prime ? 52 : u0 + dt * 6, pts = [];
+      for (let u = u0; u <= u1; u += 0.02) pts.push(...pos(u, 0));
+      prime = false; u0 = u1 > 160 ? 0 : u1;
+      L.ligne(pts, 0.75, cp[0] * 0.9, cp[1] * 0.9, cp[2] * 0.9);
+      L.dessiner(pho);
+      const [px, py] = pos(u1, 0); T.point(px, py, 2.2, cp[0] * 12, cp[1] * 12, cp[2] * 12);
       for (let i = 0; i < 24; i++) {
         const a = t * 0.9 + i * 0.26, r = s * (0.5 + 0.6 * ((i * 37) % 11) / 11);
         const x = W / 2 + Math.cos(a) * r * 1.3, y = H / 2 + Math.sin(a) * r * 0.55;
         const c = i % 2 ? c2 : c3;
         T.trainee(x, y, -Math.sin(a) * r * 0.9 * 0.25, Math.cos(a) * r * 0.4 * 0.25, 1.4, c[0] * 2.5, c[1] * 2.5, c[2] * 2.5);
       }
-      L.dessiner(); T.dessiner();
+      T.dessiner();
       R.fin(dt);
-      return 'lignes lumineuses jointives (harmonographe amorti, 2 600 segments) et traînées de mouvement';
+      return 'phosphore (P31, 527 nm) : la trace s’accumule et s’éteint lentement (rémanence 0,992 par image) · traînées de mouvement';
     };
   };
 

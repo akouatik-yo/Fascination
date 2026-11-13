@@ -24,7 +24,7 @@
       { color: '#7fb2ff', name: 'Apis mellifera', role: 'la danseuse · marquée à la peinture', desc: 'Une butineuse de retour, marquée d’un point de peinture sur le thorax, comme le faisait Karl von Frisch pour suivre chaque abeille. Elle danse en huit : une course frétillante, puis un demi-tour, à gauche puis à droite.' },
       { color: '#ffd27a', name: 'Apis mellifera', role: 'les suiveuses, puis les recrues', desc: 'Elles suivent la danseuse au contact, antennes contre son corps : la ruche est sombre, elles sentent la danse plus qu’elles ne la voient. Elles sentent aussi l’odeur du nectar rapporté. Après quelques tours, elles partent.' },
       { color: '#e8a83c', name: 'Le rayon', role: 'cire · miel, pain d’abeille, couvain', desc: 'Des cellules hexagonales de cire : du miel en haut, du pollen (le « pain d’abeille ») autour, le couvain au centre. La danse a lieu près de l’entrée, sur la « piste de danse ».' },
-      { color: '#ffe080', name: 'Le soleil', role: 'la référence de la danse', desc: 'Dehors, l’angle se mesure par rapport au soleil ; dans la ruche, par rapport à la verticale. Le soleil tourne d’environ 15° par heure : la danse tourne avec lui.' },
+      { color: '#ffe080', name: 'Le soleil', role: 'la référence de la danse', desc: 'Dehors, l’angle se mesure par rapport au soleil ; dans la ruche, par rapport à la verticale. Le soleil tourne dans le ciel (lentement le matin et le soir, vite vers midi) : la danse tourne avec lui.' },
     ],
     about: [
       'Karl von Frisch a décodé la danse des abeilles à partir de 1945, en marquant les abeilles et en déplaçant des sources de sucre. Il a reçu le prix Nobel en 1973, avec Konrad Lorenz et Nikolaas Tinbergen.',
@@ -53,12 +53,16 @@
         return { comb: { x: v.x0, y: y0, w, h: h - mh - 24 }, map: { x: v.x0 + (w - mw) / 2, y: H - mh - 12, w: mw, h: mh } };
       }
       let G0 = geo();
-      const kS = clamp(Math.min(W, H) / 800, 0.7, 1.3), BEE = 38 * kS;        // longueur d'une abeille (px) : environ 2,2 cellules
+      // on regarde de près la piste de danse (zoom ×2) : des abeilles plus grandes, moins nombreuses à l'écran
+      const ZB = 2, kS = clamp(Math.min(W, H) / 800, 0.7, 1.3), BEE = 38 * kS * ZB;   // longueur d'une abeille (px) : environ 2,2 cellules
       const CELL = BEE / 3.6;                                                   // rayon d'une cellule hexagonale (px)
 
       /* ───────── le soleil et la source ───────── */
-      // azimut du soleil (rad, depuis le nord, sens horaire) : environ 15° par heure, plein sud vers 13 h (heure d'été)
-      const sunAz = () => ((180 + (cfg.heure - 13) * 15) * Math.PI) / 180;
+      // azimut du soleil (rad, depuis le nord, sens horaire), calculé pour 48° de latitude nord le 21 juin (déclinaison 23,44°),
+      // midi solaire vers 13 h 50 (heure d'été, en France). L'angle horaire tourne de 15° par heure ; l'azimut, lui, avance
+      // lentement le matin et le soir, et vite autour de midi.
+      const LAT = (48 * Math.PI) / 180, DEC = (23.44 * Math.PI) / 180;
+      const sunAz = () => { const Hh = ((cfg.heure - 13.83) * 15 * Math.PI) / 180; return Math.PI + Math.atan2(Math.sin(Hh), Math.cos(Hh) * Math.sin(LAT) - Math.tan(DEC) * Math.cos(LAT)); };
       const foodAz = () => (cfg.cap * Math.PI) / 180;
       const alpha = () => wrap(foodAz() - sunAz());                             // angle de la source par rapport au soleil (horaire)
       const ronde = () => cfg.dist < 0.09;
@@ -72,7 +76,7 @@
         B.push(b);
         return b;
       }
-      const N = Math.round((mobile ? 50 : 80) * clamp((G0.comb.w * G0.comb.h) / 600000, 0.5, 1.4));
+      const N = Math.round(((mobile ? 50 : 80) * clamp((G0.comb.w * G0.comb.h) / 600000, 0.5, 1.4)) / (ZB * ZB));
       for (let i = 0; i < N; i++) bee('ouvriere');
       const dancer = bee('danseuse');
       // la danse : un huit autour de son centre, sur la « piste de danse » près de l'entrée (en bas du rayon)
@@ -174,7 +178,7 @@
         const K = FG.GLKit(cw, ch), gl = K.gl, cab = FG.cabine(K);
         // le rayon : hexagones de cire ; miel en haut, pain d'abeille, couvain operculé ou ouvert, cellules vides sur la piste de danse ; et, à part, la carte du dehors
         const pFond = K.program(FG.HEAD + `
-uniform vec2 uRes; uniform vec4 uComb, uMap; uniform float uCell, uT, uSun, uFood, uDist;
+uniform vec2 uRes; uniform vec4 uComb, uMap; uniform float uCell, uT, uSun, uFood, uDist; uniform vec3 uSpot;
 out vec4 o;
 vec2 hexc(vec2 p, float R){
   vec2 s = vec2(1.7320508, 1.) * R * 2.;
@@ -217,6 +221,9 @@ void main(){
     col = mix(c, waxc, wall) * lum;
     col += vec3(.4, .25, .08) * .08 * smoothstep(0., -uCell * .1, d) * smoothstep(-uCell * .25, -uCell * .1, d);    // la cire translucide s'éclaire sur l'arête
     col *= smoothstep(0., uCell * 4., min(min(px.x - uComb.x, uComb.x + uComb.z - px.x), min(px.y - uComb.y, uComb.y + uComb.w - px.y)) + uCell);
+    // la piste de danse dans la lumière, le reste du rayon dans la pénombre de la ruche
+    float sp = exp(-dot(px - uSpot.xy, px - uSpot.xy) / (uSpot.z * uSpot.z));
+    col *= (.16 + .84 * sp) * mix(vec3(1.), vec3(1.15, 1.05, .9), sp) * 1.15;
   }
   // la carte du dehors : une prairie vue du ciel, le soleil, la source
   vec2 m = (px - uMap.xy) / uMap.zw;
@@ -246,10 +253,12 @@ void main(){
         const VS = `#version 300 es
 precision highp float;
 layout(location = 0) in vec4 aA; layout(location = 1) in vec4 aB; layout(location = 2) in vec2 aQ;
-uniform vec2 uRes; uniform float uOmb;
-out vec2 vQ; out vec4 vB;
+uniform vec2 uRes; uniform float uOmb; uniform vec3 uSpot; uniform vec2 uDan;
+out vec2 vQ; out vec4 vB; out float vS;
 void main(){
   float L = aA.z, a = aA.w;
+  float sp = exp(-dot(aA.xy - uDan, aA.xy - uDan) / (uSpot.z * uSpot.z * .36));
+  vS = aB.y > .5 ? 1.25 : .16 + .84 * sp;
   vec2 q = aQ * vec2(1., .62);
   vec2 d = vec2(cos(a), sin(a)), n = vec2(-d.y, d.x);
   vec2 pos = aA.xy + (d * q.x + n * q.y) * L * .62 + uOmb * vec2(2.5, 4.);
@@ -257,7 +266,7 @@ void main(){
   gl_Position = vec4(pos.x / uRes.x * 2. - 1., 1. - pos.y / uRes.y * 2., 0., 1.);
 }`;
         const pBee = K.program(FG.HEAD.replace('in vec2 vUv;', '') + `
-in vec2 vQ; in vec4 vB; uniform float uOmb, uT; out vec4 o;
+in vec2 vQ; in vec4 vB; in float vS; uniform float uOmb, uT; out vec4 o;
 float el(vec2 p, vec2 c, vec2 r){ return length((p - c) / r) - 1.; }
 void main(){
   vec2 p = vQ;                          // x : de la queue (-1) à la tête (+1)
@@ -267,12 +276,12 @@ void main(){
   vec2 pw = vec2(p.x - .18, abs(p.y) - .2); pw = mat2(.9, -.44, .44, .9) * pw;
   float dw = el(pw, vec2(-.12, .1), vec2(.42 + .1 * fly, .13));
   float body = min(dh, min(dt, da));
-  if (uOmb > .5){ float s = smoothstep(.35, -.4, body); o = vec4(0., 0., 0., s * .35); return; }
+  if (uOmb > .5){ float s = smoothstep(.35, -.4, body); o = vec4(0., 0., 0., s * .35 * min(vS, 1.)); return; }
   vec4 c = vec4(0.);
   // ailes : à peine visibles, irisées sur le bord ; floues quand elle vole
   float wa = smoothstep(.02, -.05, dw) * (.22 - .1 * fly);
   vec3 wc = vec3(.35, .38, .42) + .08 * vec3(sin(p.x * 20.), sin(p.x * 20. + 2.), sin(p.x * 20. + 4.));
-  if (body > 0.){ o = vec4(wc * wa, wa); return; }
+  if (body > 0.){ o = vec4(wc * wa * vS, wa); return; }
   vec3 col;
   if (da <= 0. && dt > 0. && dh > 0.){
     float band = smoothstep(.45, .55, fract((p.x + .76) * 4.2));
@@ -287,7 +296,8 @@ void main(){
   } else col = vec3(.02, .014, .01) * (.6 + .6 * sqrt(clamp(-dh, 0., 1.)));
   col = mix(col, wc, wa * .6);
   float edge = smoothstep(0., -.08, body);
-  o = vec4(col * edge, edge);
+  if (vB.y > .5) col += vec3(1., .82, .5) * .22 * smoothstep(-.3, -.02, body);   // la danseuse : un liseré de lumière
+  o = vec4(col * edge * vS, edge);
 }`, VS);
         const qBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, qBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
         const MAX = 512, data = new Float32Array(MAX * 8), ib = gl.createBuffer();
@@ -297,13 +307,23 @@ void main(){
         for (let l = 0; l < 2; l++) { gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 32, l * 16); gl.vertexAttribDivisor(l, 1); }
         gl.bindBuffer(gl.ARRAY_BUFFER, qBuf); gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(2, 0);
         gl.bindVertexArray(null);
+        const bgT = K.target(cw, ch, 'f16', gl.NEAREST);
+        const pCopy = K.program(FG.HEAD + `
+uniform sampler2D uB; out vec4 o;
+void main(){ o = texture(uB, vUv); }`);
+        let bgKey = '';
         const Gx = { lost: false };
         K.canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); Gx.lost = true; });
         Gx.draw = function () {
           const g = geo();
-          pFond.use().f('uRes', cw, ch).f('uComb', g.comb.x * cs, g.comb.y * cs, g.comb.w * cs, g.comb.h * cs).f('uMap', g.map.x * cs, g.map.y * cs, g.map.w * cs, g.map.h * cs)
-            .f('uCell', CELL * cs).f('uT', VT).f('uSun', sunAz()).f('uFood', foodAz()).f('uDist', cfg.dist);
-          K.run(pFond, cab.scene);
+          const R = BEE * 2.8 * cs, key = [g.comb.x, g.comb.y, g.comb.w, g.comb.h, g.map.x, g.map.y, g.map.w, sunAz().toFixed(2), cfg.cap, cfg.dist, Math.round(D.cx), Math.round(D.cy)].join(',');
+          if (key !== bgKey) {
+            bgKey = key;
+            pFond.use().f('uRes', cw, ch).f('uComb', g.comb.x * cs, g.comb.y * cs, g.comb.w * cs, g.comb.h * cs).f('uMap', g.map.x * cs, g.map.y * cs, g.map.w * cs, g.map.h * cs)
+              .f('uCell', CELL * cs).f('uT', VT).f('uSun', sunAz()).f('uFood', foodAz()).f('uDist', cfg.dist).f('uSpot', D.cx * cs, D.cy * cs, R);
+            K.run(pFond, bgT);
+          }
+          pCopy.use().t('uB', bgT); K.run(pCopy, cab.scene);
           let n = 0;
           for (const b of B) {
             if (b.out || n >= MAX) continue;
@@ -315,8 +335,8 @@ void main(){
           gl.bindFramebuffer(gl.FRAMEBUFFER, cab.scene.fb); gl.viewport(0, 0, cab.scene.w, cab.scene.h);
           gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           gl.bindVertexArray(vao);
-          pBee.use().f('uRes', cw, ch).f('uOmb', 1).f('uT', VT); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);   // ombres portées
-          pBee.use().f('uRes', cw, ch).f('uOmb', 0).f('uT', VT); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
+          pBee.use().f('uRes', cw, ch).f('uOmb', 1).f('uT', VT).f('uSpot', D.cx * cs, D.cy * cs, R).f('uDan', dancer.x * cs, dancer.y * cs); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);   // ombres portées
+          pBee.use().f('uRes', cw, ch).f('uOmb', 0).f('uT', VT).f('uSpot', D.cx * cs, D.cy * cs, R).f('uDan', dancer.x * cs, dancer.y * cs); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
           gl.bindVertexArray(null); gl.disable(gl.BLEND);
           cab.finish({ expo: 1.6, bloom: 0.3, thr: 1.0, knee: 0.5, radius: 0.7, vig: 0.5, grain: 0.03, grainBlack: 0.3, sat: 1.0 });
           ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
@@ -355,12 +375,30 @@ void main(){
         ctx.save();
         // la trace de la danse : la course frétillante en trait vif, le retour en pointillé
         if (cfg.trace && trace.length > 2) {
-          ctx.lineWidth = 2; ctx.lineCap = 'round';
-          for (let i = 1; i < trace.length; i++) {
-            const [x0, y0, w0] = trace[i - 1], [x1, y1] = trace[i], a = (i / trace.length) * 0.75;
-            ctx.strokeStyle = w0 ? `rgba(140,190,255,${a.toFixed(3)})` : `rgba(255,230,180,${(a * 0.45).toFixed(3)})`;
-            ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+          ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalCompositeOperation = 'lighter';
+          const n = trace.length;
+          // les retours (demi-cercles) : un fil d'or pâle, plus vif quand il est récent
+          for (let i = 1; i < n; i++) {
+            const [x0, y0, w0] = trace[i - 1], [x1, y1, w1] = trace[i], a = i / n;
+            if (w0 && w1) continue;
+            for (const [lw, al] of [[6, 0.07], [2, 0.42]]) { ctx.lineWidth = lw; ctx.strokeStyle = `rgba(255,214,140,${(al * a).toFixed(3)})`; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); }
           }
+          // les courses frétillantes : du premier au dernier point de chaque course, un zigzag dessiné finement (le frétillement)
+          for (let i = 0; i < n; i++) {
+            if (!trace[i][2]) continue;
+            let j = i; while (j + 1 < n && trace[j + 1][2]) j++;
+            const [xa, ya] = trace[i], [xb, yb] = trace[j], len = Math.hypot(xb - xa, yb - ya), a = (j + 1) / n;
+            if (len > 4) {
+              const ux = (xb - xa) / len, uy = (yb - ya) / len, lam = BEE * 0.17, amp = BEE * 0.075;
+              for (const [lw, al] of [[7, 0.12], [2.2, 0.9]]) {
+                ctx.lineWidth = lw; ctx.strokeStyle = `rgba(150,200,255,${(al * a).toFixed(3)})`; ctx.beginPath();
+                for (let s = 0; s <= len; s += 1.5) { const o = Math.sin((s / lam) * TAU) * amp * Math.min(1, s / 6, (len - s) / 6); ctx.lineTo(xa + ux * s - uy * o, ya + uy * s + ux * o); }
+                ctx.stroke();
+              }
+            }
+            i = j;
+          }
+          ctx.globalCompositeOperation = 'source-over';
         }
         ctx.font = '500 10px "JetBrains Mono", monospace'; ctx.shadowColor = 'rgba(0,0,0,.95)'; ctx.shadowBlur = 5; ctx.textAlign = 'left';
         const al = alpha(), up = -Math.PI / 2;
@@ -430,6 +468,7 @@ void main(){
       }
       if (!keep.cfg.init) { keep.cfg.init = true; setScene(keep.scene); }
 
+      if (window.FASC_DEBUG) window.FASC_DEBUG.abeilles = { cfg, run(n, h) { for (let i = 0; i < n; i++) { VT += h; stepDance(h); stepBees(h); } } };
       return {
         livePaused: true,
         frame(t, dt) {

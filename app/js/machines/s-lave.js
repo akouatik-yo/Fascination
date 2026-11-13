@@ -1220,7 +1220,7 @@ void main(){
       if (cfg.scene === 'soleil') {
         const R = Math.min(view().w, H) * 0.44, d = l.x ? Math.hypot(l.x - view().cx, l.y - H / 2) / R : 0;
         if (!cfg.zoom && d > 1.0 && d < 1.12) return ['Protubérance', 'gaz à environ 5 000 à 10 000 °C, bien plus froid que la couronne autour, à plus d’un million de degrés', '#ff6a3c'];
-        if (!cfg.zoom && d >= 1.12) return ['Auréole', 'de la lumière diffusée (dans l’instrument et dans l’air) ; la vraie couronne, l’atmosphère du Soleil à plus d’un million de degrés, ne se voit qu’aux éclipses', '#ffb070'];
+        if (!cfg.zoom && d >= 1.12) return ['Auréole', 'de la lumière diffusée (dans l’instrument et dans l’air) ; la vraie couronne, l’atmosphère du Soleil à plus d’un million de degrés, ne se voit à l’œil nu qu’aux éclipses', '#ffb070'];
         return ['Granulation', 'gaz chaud qui monte au centre des granules (≈ 6 000 °C), plus froid dans les couloirs sombres', '#ffd27a'];
       }
       const m = l.m;

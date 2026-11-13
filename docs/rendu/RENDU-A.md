@@ -137,3 +137,21 @@ Retours de la recette (« un enfant de 5 ans dirait-il c'est moche ? »), repris
 
 
 - **Pause demandée par Yoann (13/11, 16 h 07)** : tout est poussé (2c13f37). Point de reprise : ajouter « à l’œil nu » dans le texte de l’auréole (« la vraie couronne… ne se voit à l’œil nu qu’aux éclipses », demande de Kurt), puis attendre le recontrôle de la qualité sur 2c13f37.
+
+## Reprise après la pause (13/11, 18 h 05 → 19 h)
+
+Trois demandes du CEO :
+
+1. **Soleil, auréole** : « la vraie couronne… ne se voit **à l’œil nu** qu’aux éclipses » (demande de Kurt). Les protubérances à « 5 000 à 10 000 °C » étaient déjà dans la v33.
+2. **Foudre** (Constance : lueurs 2 à 3 fois plus fortes, nuage bleu-gris) : c'était déjà fait avant la pause, dans a7c8d19. Les lueurs dans le nuage ont une amplitude de 0,9 à 2 (×0,45 avec `env.doux`) et le nuage est bleu ardoise (0,085 ; 0,095 ; 0,135). Captures `foudre-labo*.jpg`.
+3. **Ronds de sorcières** (« moches ») : on voit maintenant une vraie vue de drone, des anneaux entiers couronnés de champignons. Captures `mycelium-ronds-labo.jpg` et `mycelium-ronds-labo-tel.jpg` (avant : `mycelium-ronds-avant.jpg`).
+   - **Échelle** : le drone est plus haut, pour que les anneaux tiennent en entier. Il y a environ 88 px par mètre en 1280 × 800 et 43 px en 390 × 844 (contre 160 et 127 dans la v32). Les spores de départ sont placées dans la zone libre, sous la bande du haut et au-dessus des boutons du bas, avec un plan propre au portrait. Le plus vieux rond était coupé par le bord, et deux ronds passaient sous les boutons.
+   - **Texture** : l'herbe drue de l'anneau est multipliée sur l'herbe, et le relief passe en lumière douce. Les brins restent visibles au travers ; avant, c'était un aplat flou posé par-dessus. La lumière vient d'en haut à gauche, comme l'ombre des champignons et la lumière chaude de fin de journée. Le relief était éclairé d'en haut à droite, ce qui était incohérent.
+   - **Une erreur du modèle, corrigée** : le taux de croissance du mycélium (Fisher-KPP) était calé sur la vitesse du front comptée en cases, alors que la digestion du sol ne l'était pas. Plus l'écran montrait de prairie, moins le front était dense.
+     - Au-dessous de 160 px par mètre, il ne dépassait plus le seuil où sortent les champignons : il n'en restait aucun en 1280, comme en 390.
+     - Le front avançait en outre à 67 % de la vitesse affichée en 390.
+
+     La digestion suit maintenant la même horloge que la croissance (`kap ∝ c`), et le profil du front ne dépend plus de l'échelle. La vitesse est aussi étalonnée : l'épuisement du sol freine le front à 82 % de la vitesse théorique, et on compense. En 1D, on mesure 2,67, 5,5, 10,2 et 24 cases par an pour des cibles de 2,7, 5,55, 10 et 24.
+   - **Le diamètre affiché est mesuré** sur la crête du mycélium (médiane de 16 rayons), et non plus calculé par la formule. La formule annonçait 6,4 m pour un rond qui en mesure 5,5 en 1280 et 4,4 en 390 : le sol est plus ou moins riche, la croissance suit les saisons et un rond met du temps à démarrer.
+   - **Départ** : un matin de septembre, juste après une pluie ; les champignons sont déjà sortis sur les anneaux. Ils sont dessinés 2,5 fois plus grands que nature (1,6 fois avant ; c'est annoncé dans la notice), sinon on ne les verrait pas d'aussi haut. Les spores apportées par le vent ne tombent plus sous la bande du haut.
+   - **Hors de mon périmètre** : dans le Labo, le texte d'état en bas à gauche est caché par les boutons Bidouiller et Pourquoi. C'est le cas de toutes les machines qui écrivent en bas (Foudre, Lave, Réseau…) : c'est à décider côté shell.

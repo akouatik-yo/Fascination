@@ -16,6 +16,7 @@ Demande de Yoann (relayée par le CEO) : le fond scientifique est bon, mais le r
   - `node tools/test-jeunesse.mjs` (8/8) ;
   - `node tools/test-fiches.mjs`.
 - **Tablette d'abord** : 60 i/s visés sur une tablette moyenne, ratio de pixels ≤ 2, et un repli si WebGL2 manque.
+- **Pas de déclin dans le temps** (règle du 13/11, demandée par le CEO) : chaque machine refaite est mesurée avec le banc de rendu B (`tools/avant-apres.mjs`, à partir de 6ec1be3, i/s sur les 2 dernières secondes, avec la charge de l'hôte affichée) à **3, 15 et 30 s**. Les i/s ne doivent pas baisser d'une mesure à l'autre. Une machine qui décline n'est pas intégrée, même validée en science. Le test de fuite du shell est `tools/test-fuite.mjs`.
 - **Ne modifiez pas les fiches jeunesse** (`jeunesse/meta/`) sans me le demander : leurs textes décrivent ce que montre la machine.
 - **Branches** : rendu A sur `rendu-a`, rendu B sur `rendu-b`, toutes deux depuis `jeunesse`.
   - Pas de fusion sur `main`.

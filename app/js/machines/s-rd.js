@@ -148,7 +148,15 @@ void main(){
       if (P == 4) col += base * t * .4;
     }
   }
-  if (uInk > .5 && uCoat < .5 && P != 2) col = mix(vec3(.955, .94, .91), col, .25 + .75 * t);
+  if (uInk > .5 && uCoat < .5 && P != 2){
+    // thème clair : le motif est un pigment posé sur du papier, qui absorbe une partie de la lumière (comme une aquarelle) :
+    // sanguine pour le corail, indigo pour la nacre, sépia pour l'ambre, vert-bleu pour le néon
+    vec3 sig = P == 0 ? vec3(.22, 1., 1.3) : P == 1 ? vec3(1.05, .85, .28) : P == 3 ? vec3(.32, .72, 1.45) : vec3(1.3, .32, .45);
+    float gr = clamp(length(vec2(vx, vy)) * 4., 0., 1.);
+    float dd = .06 + 2.1 * t + .5 * gr * t;                             // le pigment s'accumule un peu au bord des taches
+    vec3 paper = vec3(.955, .94, .91) * (.97 + .03 * fbm(g * .35));
+    col = paper * exp(-sig * dd) * (.93 + .07 * dif);
+  }
   if (uLin > .5){ o = vec4(pow(max(col, 0.), vec3(2.2)), 1.); return; }   // en lumière linéaire pour la cabine
   o = vec4(pow(col, vec3(.95)), 1.);
 }`;
@@ -256,7 +264,9 @@ void main(){
       const [f, k] = params();
       if (keep.scene === 'atlas') {
         for (const [ff, y] of [[0.02, 0], [0.04, 0], [0.06, 0], [0.08, 0]]) { const yy = H - ((ff - 0.008) / 0.077) * H; tag('f ' + fr(ff, 2), v.x0 + 14, yy + 4); void y; }
-        tag('← k PLUS PETIT · k PLUS GRAND →  (k SUIT LA FRONTIÈRE OÙ LES MOTIFS EXISTENT)', v.cx - 230, H - 18);
+        // centrée, et plus courte sur un écran étroit (elle était coupée en 390 px)
+        const ks = v.w < 640 ? '← k PLUS PETIT · k PLUS GRAND →' : '← k PLUS PETIT · k PLUS GRAND →  (k SUIT LA FRONTIÈRE OÙ LES MOTIFS EXISTENT)';
+        tag(ks, v.cx - ctx.measureText(ks).width / 2, H - 18);
       } else tag(`${keep.scene === 'pelage' ? COATS[keep.coat].label.toUpperCase() : keep.scene === 'galerie' ? PRESETS[keep.cur].label.toUpperCase() : 'LABORATOIRE'} · f = ${fr(f, 4)} · k = ${fr(k, 4)}`, v.x0 + 18, H - 18);
       if (toast && T - toast.t < 6) { ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = dark ? 'rgba(6,6,12,.55)' : 'rgba(255,255,255,.75)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = dark ? '#fff' : '#2a2238'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }

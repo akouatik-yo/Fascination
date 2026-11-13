@@ -507,7 +507,7 @@ void main(){
 }`;
   function ciel(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], saturation: 1.12 });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1 });
     const atmo = atmosphere(R, 0.34), dec = decor(R, NU_CIEL);
     const PC = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + CIEL_FS));
     const lueurs = R.lot({ forme: 'gauss' });
@@ -652,7 +652,7 @@ void main(){
 
   function arc(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], saturation: 1.08 });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1 });
     const atmo = atmosphere(R, 0.34), dec = decor(R, NU_ARC);
     const PB = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + ARC_FS));
     let LUT = null, lutA = -1, lutT = 0;
@@ -850,7 +850,7 @@ void main(){
     const q = 0.5, GW = Math.round(W * q), GH = Math.round(H * q);
     const acc = new Float32Array(GW * GH * 3), octets = new Uint8Array(GW * GH * 4);
     let nT = 0, C = null, s = null, key = '', cleC = '', expo = 1, info = null, nf = 0;
-    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], saturation: 1.06 });
+    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], plafond: 1 });
     const atmo = atmosphere(R, 0.34), dec = decor(R, NU_HALO);
     const PH = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + HALO_FS));
     const gl = R.gl, texH = gl.createTexture();

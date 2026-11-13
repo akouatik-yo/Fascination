@@ -37,10 +37,10 @@ float rainL(vec2 p, float sc, float sp, float den){
 void main(){
   vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
   float y = px.y / uRes.y, x = px.x / uRes.y;
-  vec3 sky = mix(vec3(.010, .012, .022), vec3(.040, .036, .050), smoothstep(.15, .9, y));
+  vec3 sky = mix(vec3(.016, .019, .034), vec3(.055, .058, .08), smoothstep(.15, .9, y));
   // les lumières des villes, sous l'horizon, éclairent en orange (sodium) le bas du ciel et le dessous des nuages
   vec3 ville = vec3(.15, .066, .018);
-  sky += ville * .8 * smoothstep(.45, 1., y) * smoothstep(.35, 1., y);
+  sky += ville * .55 * smoothstep(.45, 1., y) * smoothstep(.35, 1., y);
   float L = lights(px);
   vec2 q = vec2(x * 1.5 + uT * .006, y * 2.4);
   float n = fbm5(q * 2.1 + vec2(0., uT * .004));
@@ -51,7 +51,7 @@ void main(){
   dens = clamp(dens + scud * .7, 0., 1.);
   vec3 lc = vec3(.78, .76, 1.);
   // dans le nuage, la lumière diffuse : les parties épaisses s'éclairent, les trous restent sombres
-  vec3 cloud = vec3(.038, .042, .068) * (.55 + .9 * n2) + lc * L * (.25 + 1.4 * n2 * n2);
+  vec3 cloud = vec3(.085, .095, .135) * (.5 + .9 * n2) + lc * L * (.25 + 1.4 * n2 * n2);   // bleu-gris, lisible même entre deux lueurs
   // seul le bas du nuage reçoit la lueur de la ville (un liseré ambré sur les bourrelets), le corps reste bleu ardoise
   cloud += ville * (.1 + .9 * n2 * n2) * smoothstep(base - .14, base + .02, y);
   vec3 col = mix(sky + lc * L * .2, cloud, dens);
@@ -105,7 +105,7 @@ void main(){
       if (c > cl){ cl = c; nn = n; top = smoothstep(7., 15., h); }
     }
     // la nuit, le dessus des nuages reçoit un peu de la lueur du ciel ; les éclairs les allument de l'intérieur
-    col = mix(col, vec3(.04, .045, .066) * (.55 + .9 * nn) + vec3(.018, .045, .03) * top + lc * L * (.6 + 1.2 * nn * nn), cl);
+    col = mix(col, vec3(.085, .095, .135) * (.5 + .9 * nn) + vec3(.03, .07, .045) * top + lc * L * (.6 + 1.2 * nn * nn), cl);
     // lueur nocturne de l'oxygène atomique (557,7 nm) vers 95 km : une couche lumineuse, ondulée par les ondes de gravité
     float wv = .72 + .28 * sin(px.x / uRes.y * 22. + uT * .15 + 2.5 * sin(px.x / uRes.y * 4.1 - uT * .05));
     col += uGlow * vec3(.07, .26, .1) * (exp(-pow((h - 95.) / 3.6, 2.)) * wv + .28 * exp(-pow((h - 94.) / 11., 2.)) * (.8 + .2 * wv));
@@ -586,12 +586,15 @@ void main(){
     function buildLand() { land = { dark: paintLand(false), lit: paintLand(true) }; }
 
     /* ───────── haute atmosphère ───────── */
-    const HZ = H * 0.8, KM = (HZ - H * 0.06) / 115, CURV = 0.055;
+    const yTop = Math.max(H * 0.06, ((env.view && env.view.y0) || 0) + 8);
+    const HZ = H > W ? yTop + (H - yTop) * 0.62 : H * 0.8, KM = (HZ - yTop) / 115, CURV = 0.055;
     const limbY = (x) => { const d = (x - W / 2) / H; return HZ + d * d * H * CURV; };
     const alt = (x, km) => limbY(x) - km * KM;
     let storms = [], tles = [];
     function buildAtmo() {
-      storms = [0.18, 0.47, 0.78].map((f) => ({ x: W * (f + rnd(0.05, -0.05)), q: rnd(1, 0), fl: [], cd: rnd(3, 0.5) }));
+      // dans la partie visible, à l'écart des coins (où le Labo pose ses boutons ronds)
+      const v = view(), fx = v.w < 600 ? [0.24, 0.5, 0.74] : [0.18, 0.47, 0.78];
+      storms = fx.map((f) => ({ x: v.x0 + v.w * (f + rnd(0.04, -0.04)), q: rnd(1, 0), fl: [], cd: rnd(3, 0.5) }));
     }
     function makeSprite(x) {
       const segs = [], cols = [];
@@ -817,7 +820,7 @@ void main(){
       if (glowCd <= 0) {
         glowCd = rnd(1.15, 0.35);
         const v = view(), np = 1 + rint(2), dur = rnd(0.8, 0.3);
-        glows.push({ x: v.x0 + rnd(0.95, 0.05) * v.w, y: cbY * rnd(0.85, 0.2), r: rnd(0.28, 0.14), a: rnd(0.85, 0.35) * (env.doux ? 0.5 : 1), t: 0, dur, p: Array.from({ length: np }, () => rnd(dur * 0.7, 0)) });
+        glows.push({ x: v.x0 + rnd(0.95, 0.05) * v.w, y: cbY * rnd(0.85, 0.2), r: rnd(0.28, 0.14), a: rnd(2, 0.9) * (env.doux ? 0.45 : 1), t: 0, dur, p: Array.from({ length: np }, () => rnd(dur * 0.7, 0)) });
       }
       for (let i = glows.length - 1; i >= 0; i--) { glows[i].t += dt; if (glows[i].t > glows[i].dur + 0.8) glows.splice(i, 1); }
     }

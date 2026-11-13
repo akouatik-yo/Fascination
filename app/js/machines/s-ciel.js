@@ -369,7 +369,7 @@ float paysage(vec3 d, out vec3 alb, out vec3 n, out float dist){
       alb = albSol(clamp(m, 0., 1.));
       if (uLac > .5) alb *= .6 + .4 * smoothstep(.0, .006, rive - tg);   // la berge, plus sombre au bord de l'eau
       float k = 1.;
-      if (uMouille > 0.) k += .5 * smoothstep(.1, .3, fbmG(p * 55. + 4., 3)) * uMouille * (1. - .6 * lod);
+      if (uMouille > 0.) k += .5 * smoothstep(.22, .38, fbmG(p * 55. + 4., 3)) * uMouille * (1. - .6 * lod);
       return k;
     }
   }
@@ -636,7 +636,7 @@ void main(){
   vec3 bow = th < 70. ? texture(uLut, vec2(th / 70., .5)).rgb : vec3(0.);
   vec3 arcL = bow * g2.z * uLight * uEs0 * .045;
   vec3 L;
-  if (g0.a > .5){ L = decorEclaire(g0, g1, d); if (g1.w > uPluieD) L += arcL * .8; }   // l'arc passe devant les collines lointaines
+  if (g0.a > .5){ L = decorEclaire(g0, g1, d); if (g1.w > uPluieD) L += arcL * .35; }   // l'arc passe devant les collines lointaines
   else {
     float el = asin(clamp(d.z, -1., 1.));
     vec3 hor = horizonDir(d);
@@ -762,6 +762,9 @@ void main(){
         // le nuage d'averse assombrit la vue : on expose un peu plus que pour un ciel clair
         expo = clamp(0.5 / Math.max(1e-7, r.moy), 0.05, 5e4); atmo.exposer(expo);
         info = { s, Ec: r.E, ext: extinction(P, 1), Es0: eclat(sunColor(P, keep.rbEl, 0)), Es1: eclat(sunColor(P, keep.rbEl, 1.2)) };
+        // balance des blancs de l'appareil : elle neutralise à moitié la teinte du soleil bas (l'œil s'y adapte aussi)
+        const Ts = sunColor(P, Math.max(keep.rbEl, 1), 0), Ys = 0.2126 * Ts[0] + 0.7152 * Ts[1] + 0.0722 * Ts[2];
+        R.regler({ teinte: Ts.map((x) => Math.pow(Ys / Math.max(x, 1e-3), 0.45)) });
         const kd = [W, H, v.x0, v.x1].join('|');
         if (kd !== cleD) { cleD = kd; dec.calc(C, W, H, { oeil: 0.004, sol: 0, lac: 0, mouille: 0.85, yaw: Math.PI, rangs: RANGS.arc }); }
       }

@@ -52,7 +52,11 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .titre { display: flex; align-items: center; gap: 6px; background: var(--verre); border: 1px solid var(--trait); border-radius: 999px; padding: 4px; max-width: 100%; }
 .titre .fl { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; }
 .titre .fl:hover, .titre .fl:active { background: rgba(255, 255, 255, .1); }
-#nom { font-weight: 700; font-size: 21px; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 52px; }
+#nom { font-weight: 700; font-size: 19px; line-height: 1.2; padding: 4px 14px; text-align: center; min-height: 52px; max-height: calc(2.4em + 8px); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#titreEcoute:empty { display: none; }
+.ecouter.rond { width: 48px; height: 48px; min-height: 48px; padding: 0; justify-content: center; border-radius: 50%; margin: 0; }
+.ecouter.rond span { display: none; }
+.vignette .surVignette { position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(8, 9, 18, .7); }
 
 /* ── en bas : le chemin de la question (pierres de gué), et au-dessus les actions spectaculaires ── */
 #scenes { position: absolute; bottom: var(--bord); left: 50%; transform: translateX(-50%); max-width: calc(100% - 2 * var(--bord) - 2 * 104px); display: flex; gap: 8px; overflow-x: auto; padding: 4px; scrollbar-width: none; z-index: 9; }
@@ -314,3 +318,17 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 #fil .pied { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 #fj.age-1 #fil .cran.etincelle { font-size: 22px; }
 @media (max-width: 640px) { #fil { bottom: calc(var(--bord) + 2 * var(--rond) + 80px); max-height: 46%; } }
+
+/* le panneau part sous la barre du haut : les boutons du haut restent visibles et utilisables */
+#tiroir { top: calc(14px + var(--rond) + 12px); border-top-left-radius: 22px; border-top: 1px solid var(--trait); }
+@media (max-aspect-ratio: 1/1) { #tiroir { top: auto; } }
+/* le nom d'un outil tient dans son rond */
+.geste span { max-width: calc(var(--rond) + 2px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+  .geste span { font-size: 10px; }
+  /* le chemin en pastilles numérotées ; seul le chapitre en cours garde son nom */
+  .pil:not(.on) .txt { display: none; }
+  .pil:not(.on) { padding: 6px; min-width: 44px; justify-content: center; }
+  #scenes { justify-content: center; }
+  #nom { font-size: 16px; -webkit-line-clamp: 3; max-height: calc(3.6em + 8px); }
+}

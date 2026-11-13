@@ -236,6 +236,7 @@ void main(){
        et l'éclairement que le ciel donne au paysage. Le décor (relief, albédo, nuages) est calculé une fois par
        cadrage dans trois cibles ; seule la lumière est refaite à chaque image (le soleil peut bouger sans frais). ─ */
   const E0 = 20;
+  const ECHELLE = 0.6;   // fraction de la résolution de travail (tablette, et logiciel sans carte graphique) ; les textes restent nets (2D)
   const FOND = window.FKR ? window.FKR.couleur.deCss(window.FKR.FONDS.defaut) : [0.0015, 0.0018, 0.003];
   function atmosphere(R, sc) {
     const K = R.K, gl = R.gl, W = R.W, H = R.H;
@@ -264,6 +265,7 @@ void main(){
       // le ciel vu par la caméra C ; renvoie l'éclairement du ciel sur le sol (E) et la luminance moyenne (géométrique) du ciel vu
       calc(C, P, s, o) {
         uni(C, W, H, P, s, o); K.run(PS, A);
+        if (o.sonde === false && this.der) return this.der;
         uni(CP, NP, NP, P, s, o); K.run(PS, PR);
         gl.bindFramebuffer(gl.FRAMEBUFFER, PR.fb); gl.readPixels(0, 0, NP, NP, gl.RGBA, gl.FLOAT, buf);
         const E = [0, 0, 0], F = C.F, cc = Math.cos(o.cone || 1);
@@ -274,7 +276,7 @@ void main(){
           E[0] += buf[o4] * w; E[1] += buf[o4 + 1] * w; E[2] += buf[o4 + 2] * w;
           if (C.fish || q[0] * F[0] + q[1] * F[1] + q[2] * F[2] > cc) { sl += Math.log(1e-7 + 0.2126 * buf[o4] + 0.7152 * buf[o4 + 1] + 0.0722 * buf[o4 + 2]); n++; }
         }
-        return { E, moy: n ? Math.exp(sl / n) : 1e-7 };
+        return (this.der = { E, moy: n ? Math.exp(sl / n) : 1e-7 });
       },
     };
   }
@@ -507,11 +509,11 @@ void main(){
 }`;
   function ciel(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1 });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
     const atmo = atmosphere(R, 0.34), dec = decor(R, NU_CIEL);
     const PC = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + CIEL_FS));
     const lueurs = R.lot({ forme: 'gauss' });
-    let C = null, dirty = true, cle = '', expo = 1, T = 0, dir = -1, info = null;
+    let C = null, dirty = true, cle = '', expo = 1, T = 0, dir = -1, info = null, tSonde = -1e9, cleSonde = '';
     const stars = Array.from({ length: 260 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), rnd(1.6, 0.5)]; });
     const drag = dragSun(env, 'el', -18, 60);
     const drones = [];
@@ -527,7 +529,9 @@ void main(){
       const P = PLANETS[keep.planet], s = sunVec(keep.el), terre = keep.planet === 'terre';
       const alt = terre ? keep.alt : 0, hz = terre ? keep.haze : 1, paysage = alt < 1.5;
       C = cam();
-      const r = atmo.calc(C, P, s, { haze: hz, alt, oz: keep.ozone ? P.oz : 0, cone: 55 * D2R });
+      const now = performance.now(), sonde = !keep.anim || now - tSonde > 250 || cleSonde !== keep.look + keep.planet;
+      if (sonde) { tSonde = now; cleSonde = keep.look + keep.planet; }
+      const r = atmo.calc(C, P, s, { haze: hz, alt, oz: keep.ozone ? P.oz : 0, cone: 55 * D2R, sonde });
       // exposition automatique : on vise une luminance moyenne du ciel vu, plus sombre la nuit
       const target = keep.el > 0 ? 0.24 : 0.24 * Math.exp(keep.el / 5);
       expo = clamp(target / Math.max(1e-7, r.moy), 0.05, keep.planet === 'lune' ? 1 : 5e4);
@@ -652,7 +656,7 @@ void main(){
 
   function arc(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1 });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
     const atmo = atmosphere(R, 0.34), dec = decor(R, NU_ARC);
     const PB = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + ARC_FS));
     let LUT = null, lutA = -1, lutT = 0;
@@ -850,7 +854,7 @@ void main(){
     const q = 0.5, GW = Math.round(W * q), GH = Math.round(H * q);
     const acc = new Float32Array(GW * GH * 3), octets = new Uint8Array(GW * GH * 4);
     let nT = 0, C = null, s = null, key = '', cleC = '', expo = 1, info = null, nf = 0;
-    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], plafond: 1 });
+    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
     const atmo = atmosphere(R, 0.34), dec = decor(R, NU_HALO);
     const PH = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + HALO_FS));
     const gl = R.gl, texH = gl.createTexture();

@@ -9,7 +9,7 @@
   - en rendu logiciel, le Feu démarre en braises. À vérifier sur ta tablette.
 
 **Machines refaites et intégrées** : les **Lucioles** (vraies couleurs, mode doux), le **Cristal** (flocon transparent) et le **Ciel** (ajouté vers 13 h 30, vitesse stable). Les autres attendent :
-- les **Bulles** sont justes en science, mais encore trop lentes ;
+- les **Bulles** sont intégrées depuis 13 h 40 (coût constant, au niveau de l'original) ;
 - l'**Eau** est relue, avec deux corrections demandées ;
 - la **Lampe à lave avec les volcans** attend deux corrections ;
 - la **Danse des abeilles** attend ses mesures.

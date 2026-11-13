@@ -119,7 +119,7 @@
     const api = {
       livePaused: true,
       // contexte WebGL perdu : on attend qu'il revienne, puis on reconstruit la scène (sans toucher aux réglages)
-      frame: (t, dt) => { if (veille) veille.image(performance.now()); if (w.R && w.R.perdu) { if (!w.R.gl.isContextLost()) rebuild(); return; } w.frame(t, dt); }, down: (p) => w.down && w.down(p), move: (p) => w.move && w.move(p), up: () => w.up && w.up(),
+      frame: (t, dt) => { const vv = env.view || { x0: 0, x1: env.w }; LT = vv.x1 - vv.x0 - 32; if (veille) veille.image(performance.now()); if (w.R && w.R.perdu) { if (!w.R.gl.isContextLost()) rebuild(); return; } w.frame(t, dt); }, down: (p) => w.down && w.down(p), move: (p) => w.move && w.move(p), up: () => w.up && w.up(),
       dispose: () => w.dispose && w.dispose(),
       ui() {
         const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [
@@ -175,7 +175,18 @@ vec3 viewDir(out bool ok){
       move(p) { if (!p.down) return false; const v = clamp(e0 + (y0 - p.y) * 0.12, lo, hi); const ch = v !== keep[key]; keep[key] = v; return ch; },
     };
   }
-  function txtLine(ctx, x, y, s, col) { const w = ctx.measureText(s).width; ctx.fillStyle = 'rgba(6,8,16,.55)'; ctx.fillRect(x - 6, y - 13, w + 12, 18); ctx.fillStyle = col || 'rgba(236,240,250,.92)'; ctx.fillText(s, x, y); }
+  // lignes d'état : sur un écran étroit (téléphone en portrait), une ligne trop longue se coupe en plusieurs, de bas en haut ;
+  // renvoie la hauteur de la ligne du haut, pour empiler la suivante au-dessus
+  let LT = 1e9;
+  function txtLine(ctx, x, y, s, col) {
+    const L = [];
+    let cur = '';
+    for (const m of s.split(' ')) { const t = cur ? cur + ' ' + m : m; if (cur && ctx.measureText(t).width > LT) { L.push(cur); cur = m; } else cur = t; }
+    if (cur) L.push(cur);
+    const y0 = y - (L.length - 1) * 20;
+    L.forEach((l, i) => { const yy = y0 + i * 20, w = ctx.measureText(l).width; ctx.fillStyle = 'rgba(6,8,16,.55)'; ctx.fillRect(x - 6, yy - 13, w + 12, 18); ctx.fillStyle = col || 'rgba(236,240,250,.92)'; ctx.fillText(l, x, yy); });
+    return y0;
+  }
 
   /* ═════════ scène 1 : le ciel ═════════ */
   const PLANETS = {
@@ -636,7 +647,7 @@ void main(){
           if (e >= 0 && am) st += ` · LA LUMIÈRE TRAVERSE ${fr(am, am < 10 ? 1 : 0)} FOIS L’ÉPAISSEUR D’AIR DU ZÉNITH`;
           else if (e > -6) st += ' · CRÉPUSCULE CIVIL'; else if (e > -12) st += ' · CRÉPUSCULE NAUTIQUE'; else st += ' · CRÉPUSCULE ASTRONOMIQUE';
         }
-        txtLine(ctx, x0, y, st, 'rgba(255,236,200,.95)'); y -= 20;
+        y = txtLine(ctx, x0, y, st, 'rgba(255,236,200,.95)') - 20;
         if (keep.look === 'dos' && keep.planet === 'terre' && e < 1 && e > -7) txtLine(ctx, x0, y, 'AU-DESSUS DE L’HORIZON : L’OMBRE DE LA TERRE (BLEU SOMBRE), PUIS LA CEINTURE DE VÉNUS (ROSE)');
         if (keep.look === 'zenith' && keep.planet === 'terre' && e < 0 && e > -8) txtLine(ctx, x0, y, keep.ozone ? 'LE BLEU DU ZÉNITH AU CRÉPUSCULE : SURTOUT L’OZONE, QUI ABSORBE L’ORANGÉ' : 'SANS OZONE, LE ZÉNITH DU CRÉPUSCULE TOURNE AU GRIS');
         cad.fait();
@@ -849,7 +860,7 @@ void main(){
       ctx.font = '500 11px "JetBrains Mono", monospace';
       const top1 = 42 - keep.rbEl, top2 = 51 - keep.rbEl;
       let y = H - 18;
-      txtLine(ctx, x0, y, `SOLEIL DANS VOTRE DOS À ${fr(keep.rbEl, 1)}° · GOUTTES DE ${fr(keep.drop * 2, keep.drop < 0.05 ? 2 : 1)} MM DE DIAMÈTRE`, 'rgba(255,236,200,.95)'); y -= 20;
+      y = txtLine(ctx, x0, y, `SOLEIL DANS VOTRE DOS À ${fr(keep.rbEl, 1)}° · GOUTTES DE ${fr(keep.drop * 2, keep.drop < 0.05 ? 2 : 1)} MM DE DIAMÈTRE`, 'rgba(255,236,200,.95)') - 20;
       txtLine(ctx, x0, y, top1 > 0 ? `HAUT DE L’ARC À ${fr(top1, 0)}° AU-DESSUS DE L’HORIZON · ARC SECONDAIRE À ${fr(top2, 0)}°` : `SOLEIL TROP HAUT : L’ARC PRINCIPAL EST SOUS L’HORIZON${top2 > 0 ? ' (LE SECONDAIRE DÉPASSE ENCORE)' : ''}`);
       if (snd() && T - lastRain > 0.5) { lastRain = T; au.noise(0.7, 0.01, rnd(4000, 2500), 0.5, 'bandpass'); }
       cad.fait();
@@ -1078,7 +1089,7 @@ void main(){
         const v = env.view || { x0: 0, x1: W }, x0 = v.x0 + 16;
         ctx.font = '500 11px "JetBrains Mono", monospace';
         let y = H - 18;
-        txtLine(ctx, x0, y, `${(nT / 1e6).toFixed(1).replace('.', ',')} MILLION${nT >= 2e6 ? 'S' : ''} DE RAYONS · SOLEIL À ${fr(keep.hEl, 1)}°`, 'rgba(255,236,200,.95)'); y -= 20;
+        y = txtLine(ctx, x0, y, `${(nT / 1e6).toFixed(1).replace('.', ',')} MILLION${nT >= 2e6 ? 'S' : ''} DE RAYONS · SOLEIL À ${fr(keep.hEl, 1)}°`, 'rgba(255,236,200,.95)') - 20;
         if (keep.mix.plaques > 0.05) txtLine(ctx, x0, y, keep.hEl < 32.2 ? 'PLAQUETTES : PARHÉLIES DE PART ET D’AUTRE DU SOLEIL, ARC CIRCUMZÉNITHAL AU-DESSUS (SOLEIL SOUS 32°)' : 'SOLEIL AU-DESSUS DE 32° : L’ARC CIRCUMZÉNITHAL A DISPARU');
         cad.fait();
       },
@@ -1251,7 +1262,7 @@ void main(){
         const x0 = v.x0 + 16;
         ctx.font = '500 11px "JetBrains Mono", monospace';
         let y = H - 18;
-        txtLine(ctx, x0, y, `AURORE ${nomForce(a).toUpperCase()} · ${oeil ? 'À L’ŒIL NU' : 'EN PHOTO (POSE LONGUE)'} · ENTRE 100 ET 300 KM D’ALTITUDE, BIEN AU-DESSUS DES NUAGES`, 'rgba(255,236,200,.95)'); y -= 20;
+        y = txtLine(ctx, x0, y, `AURORE ${nomForce(a).toUpperCase()} · ${oeil ? 'À L’ŒIL NU' : 'EN PHOTO (POSE LONGUE)'} · ENTRE 100 ET 300 KM D’ALTITUDE, BIEN AU-DESSUS DES NUAGES`, 'rgba(255,236,200,.95)') - 20;
         txtLine(ctx, x0, y, oeil ? (a > 0.6 ? 'À L’ŒIL NU, UNE AURORE FORTE GARDE SES COULEURS ; FAIBLE, ELLE PARAÎT GRISE OU VERT PÂLE' : 'LA VISION DE NUIT VOIT MAL LES COULEURS : UNE AURORE FAIBLE PARAÎT GRISE OU VERT PÂLE') : 'VERT : OXYGÈNE (557,7 NM) · ROUGE, PLUS HAUT : OXYGÈNE (630 NM) · BORD INFÉRIEUR VIOLET : AZOTE');
         cad.fait();
       },

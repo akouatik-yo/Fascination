@@ -104,6 +104,9 @@ void main(){
       alb: [0.75, 0.6, 0.65], glass: [0.012, 0.01, 0.01], bio: [0.3, 0.95, 0.75], bioKind: 'vague', T: 6, tent: 0,
       why: 'Un tube creux formé de centaines de petits animaux (des tuniciers). Chacun s’allume quand il voit la lumière de son voisin : une vague de lumière parcourt alors toute la colonie. Thomas Huxley écrivait en 1849 avoir lu à leur lueur.' },
   };
+  // Sans la lampe, rien de rouge ne se voit en profondeur (brief de Kurt) : la « lueur propre » qui dessine les silhouettes
+  // est celle de la faible lumière bleue ambiante, pas la couleur du pigment. La lampe, elle, révèle les vraies couleurs (alb).
+  for (const k in SPEC) { const g = SPEC[k].glass, l = (g[0] + g[1] + g[2]) / 3; SPEC[k].glass = [l * 0.08, l * 0.38, l * 1.15]; }
   const ORDER = Object.keys(SPEC);
 
   window.FASC.push({
@@ -555,7 +558,8 @@ void main(){
       gl.bindFramebuffer(gl.FRAMEBUFFER, A.fb); gl.viewport(0, 0, A.w, A.h); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
       gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
       const setU = (P) => { P.use(); gl.uniformMatrix4fv(gl.getUniformLocation(P.p, 'uVP'), false, VP); P.f('uEye', eye[0], eye[1], eye[2]).f('uFog', fog); };
-      const ambCol = [0.25, 0.45, 0.8];
+      // la faible lumière qui descend jusqu'ici est bleue (vers 470 nm) : un pigment rouge n'y renvoie rien, il paraît noir (brief de Kurt)
+      const ambCol = [0.0, 0.35, 1.0];
       setU(PM); PM.f('uAmb', amb * 0.25).f('uLamp', light * 0.32).f('uAmbCol', ...ambCol);
       gl.bindVertexArray(BM.vao); gl.bindBuffer(gl.ARRAY_BUFFER, BM.vbo); gl.bufferData(gl.ARRAY_BUFFER, BM.data.subarray(0, BM.n), gl.DYNAMIC_DRAW); gl.drawArrays(gl.TRIANGLES, 0, BM.n / BM.stride);
       setU(PL); PL.f('uAmb', amb * 0.25).f('uLamp', light * 0.45).f('uAmbCol', ...ambCol);

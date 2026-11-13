@@ -61,3 +61,7 @@ Brief de Kurt : « transparent, blanc par diffusion, avec des reflets ; fond som
 
 - **Avant** : entre deux éclairs, un écran presque noir. **Après** : sous l'orage, la lueur orangée des villes (lampes au sodium) éclaire le bas du ciel et le dessous des nuages, dont les bourrelets ressortent ; la pluie en reçoit un peu. C'est ce que montrent les photographies d'orages nocturnes près des villes. Tramage ajouté contre les bandes du dégradé sombre.
 - Rien ne change aux éclairs, aux flashs adoucis ni au mode doux. La suite (le canal en lumière linéaire, avec son halo violet d'azote) reste à faire.
+
+## Les Abysses (`s-abysses.js`) : pas de rouge sans la lampe
+
+- **Écart avec le brief corrigé** : la lumière ambiante des profondeurs contenait du rouge (0,25), et la « lueur propre » des méduses reprenait la couleur de leur pigment. Sans la lampe, Atolla et Periphylla paraissaient rouges, alors qu'« au-delà de quelques dizaines de mètres, pas de rouge ». La lumière ambiante est maintenant bleue (vers 470 nm), et la lueur qui dessine les silhouettes l'est aussi. La lampe révèle toujours les vraies couleurs, comme le dit le texte de la machine.

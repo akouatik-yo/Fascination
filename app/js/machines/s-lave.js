@@ -407,13 +407,19 @@ void main(){
     float sd = 9.;
     vec2 sc = zoom > .5 ? vec2(.35, -.1) : vec2(.25, .2);
     if (uSpot > .5){
-      sd = length(q - sc) / (zoom > .5 ? .3 : .06);
-      if (sd < 1.){
+      sd = length(q - sc) / (zoom > .5 ? .3 : .075);
+      if (sd < 1.3){
         float a = atan(q.y - sc.y, q.x - sc.x);
-        float fil = .5 + .5 * sin(a * 60. + fbm(vec2(a * 8., sd * 3.)) * 4.);
-        float um = smoothstep(.5, .42, sd), pen = smoothstep(1., .9, sd) * (1. - um);
-        T = mix(T, 4250. + 650. * fil, pen);
-        T = mix(T, 3600., um);
+        // des bords irréguliers (une tache n'est jamais ronde) et des filaments de pénombre de longueurs et de largeurs
+        // différentes, un peu courbés : pas un oursin aux rayons réguliers
+        float edge = sd * (1. + .22 * (fbm(vec2(a * 2.3 + 4.1, 1.7)) - .5)), inner = sd * (1. + .35 * (fbm(vec2(a * 3.1, 5.3)) - .5));
+        float aw = a + .25 * (fbm(vec2(a * 4., sd * 2.5)) - .5);
+        float fil = smoothstep(.35, .75, fbm(vec2(aw * 26., sd * 3.5 - aw * 1.5))) * (.6 + .4 * fbm(vec2(aw * 9., 2.)));
+        float um = smoothstep(.5, .4, inner), pen = smoothstep(1., .88, edge) * (1. - um);
+        // vue d'ensemble : la tache est petite, on la veut sombre comme sur les photographies filtrées (pas rouge)
+        float dz = zoom > .5 ? 0. : 1.;
+        T = mix(T, 4200. + 800. * fil - 350. * dz, pen);
+        T = mix(T, 3600. + 250. * (fbm(q * 40.) - .5) - 400. * dz, um);
       }
     }
     float I = pow(T / 5800., 7.);                               // en lumière visible, l'éclat varie bien plus vite que T⁴
@@ -428,13 +434,19 @@ void main(){
       I *= smoothstep(1., .995, rr);
     }
     // comme les images des observatoires : une luminance colorisée par une palette or (brun, orange, or pâle)
-    float Y = clamp(I * (zoom > .5 ? .6 : .92), 0., 1.5);
+    float Y = clamp(I * (zoom > .5 ? .6 : 1.12), 0., 1.5);          // vue d'ensemble : centre or pâle, bord orangé (une boule, pas une assiette)
     col = vecInv(min(vec3(Y * Y, .51 * Y * Y * Y, .08 * pow(Y, 5.)), vec3(.97)));
   }
   if (zoom < .5 && rr > .99){
-    // chromosphère rose et couronne, très ténues
-    float e = rr - 1.;
-    col += vec3(.9, .25, .12) * exp(-max(e, 0.) * 160.) * .35 + vec3(.6, .3, .1) * exp(-max(e, 0.) * 6.) * .02;
+    float e = rr - 1., ang = atan(q.y, q.x);
+    // la chromosphère : un liseré rose ; des protubérances : flammes et arches de gaz (vers 10 000 °C) au bord du disque,
+    // regroupées autour de quelques régions actives
+    float chro = exp(-max(e, 0.) * 110.);
+    float pmask = smoothstep(.55, .85, vnoise(vec2(ang * 3.2 + 1.7, 3.)));
+    float pfl = smoothstep(.45, .8, fbm(vec2(ang * 40., e * 30. - uT * .015))) * exp(-max(e, 0.) * 18.) * pmask;
+    // l'auréole : la lumière diffusée autour du disque (dans l'instrument et dans l'air), comme sur les photographies
+    float aur = .16 * exp(-max(e, 0.) * 5.) + .05 * exp(-max(e, 0.) * 1.4);
+    col += vec3(.95, .32, .12) * (chro * .5 + pfl * .9) + vec3(1., .42, .1) * aur;
   }
   o = vec4(col, 1.);
 }`;
@@ -1056,7 +1068,7 @@ void main(){
         if (!bare && G.cab) {
           pg.sunH.use().f('uRes', cw, ch).f('uC', v.cx * s, (H / 2) * s).f('uT', T * cfg.sunSpeed).f('uZoom', cfg.zoom).f('uSpot', cfg.spot ? 1 : 0).f('uR', cfg.zoom ? Math.max(v.w, H) * 0.5 * s : R0);
           K.run(pg.sunH, G.cab.scene);
-          G.cab.finish({ tone: 'aces', expo: 1, bloom: cfg.zoom ? 0.2 : 0.5, thr: 2.5, knee: 0.5, radius: 0.85, vig: cfg.zoom ? 0.3 : 0.2, grain: 0.025, grainBlack: 0.3 });
+          G.cab.finish({ tone: 'aces', expo: 1, bloom: cfg.zoom ? 0.2 : 0.3, thr: cfg.zoom ? 2.5 : 3.2, knee: 0.5, radius: 0.9, vig: cfg.zoom ? 0.3 : 0.2, grain: 0.025, grainBlack: 0.3 });
         } else {
         pg.sun.use().f('uRes', cw, ch).f('uC', v.cx * s, (H / 2) * s).f('uT', T * cfg.sunSpeed).f('uZoom', cfg.zoom).f('uSpot', cfg.spot ? 1 : 0).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uR', cfg.zoom ? Math.max(v.w, H) * 0.5 * s : R0);
         K.run(pg.sun, null);

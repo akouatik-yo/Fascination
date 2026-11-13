@@ -2065,33 +2065,41 @@ void main(){
         const g = farL.g, gm = layM.g;
         const ridge = (base, amp, nT, tH, col, seed, mc) => {
           const n = Math.ceil(W / 3) + 2, hg = new Float32Array(n);
-          for (let i = 0; i < n; i++) { const x = i * 3; hg[i] = amp * (0.5 + 0.5 * Math.sin(x * 0.0031 + seed)) + amp * 0.35 * Math.sin(x * 0.011 + seed * 2); }
+          // une masse de forêt continue (pas de trou en V entre deux arbres), qui ondule lentement
+          for (let i = 0; i < n; i++) { const x = i * 3; hg[i] = amp * (0.5 + 0.5 * Math.sin(x * 0.0031 + seed)) + amp * 0.35 * Math.sin(x * 0.011 + seed * 2) + tH * (0.42 + 0.08 * Math.sin(x * 0.006 + seed * 3)); }
           for (let k = 0; k < nT; k++) {
-            // un bois varié, pas une scie : des hauteurs et des largeurs très différentes, des conifères (flèche)
-            // et des feuillus (dôme) mêlés, chacun un peu penché et bosselé
-            const x0 = rnd(W), h = tH * (0.3 + 1.3 * Math.pow(Math.random(), 1.7)), kind = Math.random();
-            const w = h * (kind < 0.5 ? rnd(0.22, 0.12) : rnd(0.62, 0.3)), lean = rnd(0.5, -0.5);
-            const taper = kind < 0.5 ? rnd(1.5, 0.8) : 1, bump = rnd(3.5, 1.5), ph = rnd(TAU);
+            // un bois varié : surtout des feuillus en dômes (2 à 4 lobes à l'échelle de la couronne, jamais de dents fines),
+            // quelques conifères isolés en flèche ; des hauteurs et des largeurs très différentes
+            const x0 = rnd(W), h = tH * (0.45 + 1.1 * Math.pow(Math.random(), 1.6)), con = Math.random() < 0.22;
+            const w = h * (con ? rnd(0.3, 0.2) : rnd(0.9, 0.5)), lobes = 2 + rint(3), ph = rnd(TAU), lean = rnd(0.25, -0.25);
             for (let i = Math.max(0, ((x0 - w) / 3) | 0); i < Math.min(n, (x0 + w) / 3 + 1); i++) {
-              const u = (i * 3 - x0) / w;                           // signé : permet de pencher l'arbre
-              const ua = Math.abs(u + lean * (1 - Math.abs(u)) * 0.3);
+              const u = (i * 3 - x0) / w + lean * 0.2, ua = Math.abs(u);
               if (ua > 1) continue;
-              let p = kind < 0.5 ? h * Math.pow(1 - ua, taper) : h * Math.sqrt(Math.max(0, 1 - ua * ua));
-              p *= 0.86 + 0.14 * Math.sin(i * bump + ph);           // le feuillage bosselé
+              let p;
+              if (con) p = h * Math.pow(1 - ua, 1.15);
+              else {
+                // un dôme, avec des lobes larges (une couronne de feuillu vue de loin)
+                const dome = Math.sqrt(Math.max(0, 1 - ua * ua));
+                p = h * dome * (0.88 + 0.12 * Math.cos(u * Math.PI * lobes + ph)) * (0.9 + 0.1 * dome);
+              }
               if (p > hg[i]) hg[i] = p;
             }
           }
+          // un léger lissage : les petites aspérités de 3 px disparaissent, les formes restent
+          for (let pass = 0; pass < 2; pass++) { let a = hg[0]; for (let i = 1; i < n - 1; i++) { const b = hg[i]; hg[i] = (a + 2 * b + hg[i + 1]) / 4; a = b; } }
           for (const [gg, cc] of [[g, col], [gm, mc]]) {
             gg.fillStyle = cc; gg.beginPath(); gg.moveTo(0, H);
             for (let i = 0; i < n; i++) gg.lineTo(i * 3, base - hg[i]);
             gg.lineTo(W, H); gg.closePath(); gg.fill();
           }
         };
-        ridge(hor - H * 0.03, H * 0.05, Math.round(W / 9), H * 0.085, '#0b1222', 1.3, '#ff0000');
+        // les arbres se mesurent à la largeur du paysage, pas à la hauteur de l'écran (sinon, en portrait, ce sont des montagnes)
+        const Hs = Math.min(H, W * 0.75);
+        ridge(hor - Hs * 0.03, Hs * 0.05, Math.round(W / 16), Hs * 0.08, '#0b1222', 1.3, '#ff0000');
         const mist = g.createLinearGradient(0, hor - H * 0.12, 0, hor + H * 0.02);
         mist.addColorStop(0, 'rgba(120,140,190,0)'); mist.addColorStop(0.7, 'rgba(120,140,190,.09)'); mist.addColorStop(1, 'rgba(120,140,190,0)');
         g.fillStyle = mist; g.fillRect(0, hor - H * 0.12, W, H * 0.14);
-        ridge(hor, H * 0.025, Math.round(W / 7), H * 0.11, '#060a14', 4.1, '#00ff00');
+        ridge(hor, Hs * 0.025, Math.round(W / 13), Hs * 0.1, '#060a14', 4.1, '#00ff00');
         gm.fillStyle = '#0000ff'; gm.fillRect(0, hor, W, H - hor);
         const gr = g.createLinearGradient(0, hor, 0, H);
         gr.addColorStop(0, '#060913'); gr.addColorStop(1, '#020305');
@@ -12002,7 +12010,15 @@ void main(){
       if (P == 4) col += base * t * .4;
     }
   }
-  if (uInk > .5 && uCoat < .5 && P != 2) col = mix(vec3(.955, .94, .91), col, .25 + .75 * t);
+  if (uInk > .5 && uCoat < .5 && P != 2){
+    // thème clair : le motif est un pigment posé sur du papier, qui absorbe une partie de la lumière (comme une aquarelle) :
+    // sanguine pour le corail, indigo pour la nacre, sépia pour l'ambre, vert-bleu pour le néon
+    vec3 sig = P == 0 ? vec3(.22, 1., 1.3) : P == 1 ? vec3(1.05, .85, .28) : P == 3 ? vec3(.32, .72, 1.45) : vec3(1.3, .32, .45);
+    float gr = clamp(length(vec2(vx, vy)) * 4., 0., 1.);
+    float dd = .06 + 2.1 * t + .5 * gr * t;                             // le pigment s'accumule un peu au bord des taches
+    vec3 paper = vec3(.955, .94, .91) * (.97 + .03 * fbm(g * .35));
+    col = paper * exp(-sig * dd) * (.93 + .07 * dif);
+  }
   if (uLin > .5){ o = vec4(pow(max(col, 0.), vec3(2.2)), 1.); return; }   // en lumière linéaire pour la cabine
   o = vec4(pow(col, vec3(.95)), 1.);
 }`;
@@ -12110,7 +12126,9 @@ void main(){
       const [f, k] = params();
       if (keep.scene === 'atlas') {
         for (const [ff, y] of [[0.02, 0], [0.04, 0], [0.06, 0], [0.08, 0]]) { const yy = H - ((ff - 0.008) / 0.077) * H; tag('f ' + fr(ff, 2), v.x0 + 14, yy + 4); void y; }
-        tag('← k PLUS PETIT · k PLUS GRAND →  (k SUIT LA FRONTIÈRE OÙ LES MOTIFS EXISTENT)', v.cx - 230, H - 18);
+        // centrée, et plus courte sur un écran étroit (elle était coupée en 390 px)
+        const ks = v.w < 640 ? '← k PLUS PETIT · k PLUS GRAND →' : '← k PLUS PETIT · k PLUS GRAND →  (k SUIT LA FRONTIÈRE OÙ LES MOTIFS EXISTENT)';
+        tag(ks, v.cx - ctx.measureText(ks).width / 2, H - 18);
       } else tag(`${keep.scene === 'pelage' ? COATS[keep.coat].label.toUpperCase() : keep.scene === 'galerie' ? PRESETS[keep.cur].label.toUpperCase() : 'LABORATOIRE'} · f = ${fr(f, 4)} · k = ${fr(k, 4)}`, v.x0 + 18, H - 18);
       if (toast && T - toast.t < 6) { ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = dark ? 'rgba(6,6,12,.55)' : 'rgba(255,255,255,.75)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = dark ? '#fff' : '#2a2238'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
     }
@@ -16726,13 +16744,19 @@ void main(){
     float sd = 9.;
     vec2 sc = zoom > .5 ? vec2(.35, -.1) : vec2(.25, .2);
     if (uSpot > .5){
-      sd = length(q - sc) / (zoom > .5 ? .3 : .06);
-      if (sd < 1.){
+      sd = length(q - sc) / (zoom > .5 ? .3 : .075);
+      if (sd < 1.3){
         float a = atan(q.y - sc.y, q.x - sc.x);
-        float fil = .5 + .5 * sin(a * 60. + fbm(vec2(a * 8., sd * 3.)) * 4.);
-        float um = smoothstep(.5, .42, sd), pen = smoothstep(1., .9, sd) * (1. - um);
-        T = mix(T, 4250. + 650. * fil, pen);
-        T = mix(T, 3600., um);
+        // des bords irréguliers (une tache n'est jamais ronde) et des filaments de pénombre de longueurs et de largeurs
+        // différentes, un peu courbés : pas un oursin aux rayons réguliers
+        float edge = sd * (1. + .22 * (fbm(vec2(a * 2.3 + 4.1, 1.7)) - .5)), inner = sd * (1. + .35 * (fbm(vec2(a * 3.1, 5.3)) - .5));
+        float aw = a + .25 * (fbm(vec2(a * 4., sd * 2.5)) - .5);
+        float fil = smoothstep(.35, .75, fbm(vec2(aw * 26., sd * 3.5 - aw * 1.5))) * (.6 + .4 * fbm(vec2(aw * 9., 2.)));
+        float um = smoothstep(.5, .4, inner), pen = smoothstep(1., .88, edge) * (1. - um);
+        // vue d'ensemble : la tache est petite, on la veut sombre comme sur les photographies filtrées (pas rouge)
+        float dz = zoom > .5 ? 0. : 1.;
+        T = mix(T, 4200. + 800. * fil - 350. * dz, pen);
+        T = mix(T, 3600. + 250. * (fbm(q * 40.) - .5) - 400. * dz, um);
       }
     }
     float I = pow(T / 5800., 7.);                               // en lumière visible, l'éclat varie bien plus vite que T⁴
@@ -16747,13 +16771,19 @@ void main(){
       I *= smoothstep(1., .995, rr);
     }
     // comme les images des observatoires : une luminance colorisée par une palette or (brun, orange, or pâle)
-    float Y = clamp(I * (zoom > .5 ? .6 : .92), 0., 1.5);
+    float Y = clamp(I * (zoom > .5 ? .6 : 1.12), 0., 1.5);          // vue d'ensemble : centre or pâle, bord orangé (une boule, pas une assiette)
     col = vecInv(min(vec3(Y * Y, .51 * Y * Y * Y, .08 * pow(Y, 5.)), vec3(.97)));
   }
   if (zoom < .5 && rr > .99){
-    // chromosphère rose et couronne, très ténues
-    float e = rr - 1.;
-    col += vec3(.9, .25, .12) * exp(-max(e, 0.) * 160.) * .35 + vec3(.6, .3, .1) * exp(-max(e, 0.) * 6.) * .02;
+    float e = rr - 1., ang = atan(q.y, q.x);
+    // la chromosphère : un liseré rose ; des protubérances : flammes et arches de gaz (vers 10 000 °C) au bord du disque,
+    // regroupées autour de quelques régions actives
+    float chro = exp(-max(e, 0.) * 110.);
+    float pmask = smoothstep(.55, .85, vnoise(vec2(ang * 3.2 + 1.7, 3.)));
+    float pfl = smoothstep(.45, .8, fbm(vec2(ang * 40., e * 30. - uT * .015))) * exp(-max(e, 0.) * 18.) * pmask;
+    // l'auréole : la lumière diffusée autour du disque (dans l'instrument et dans l'air), comme sur les photographies
+    float aur = .16 * exp(-max(e, 0.) * 5.) + .05 * exp(-max(e, 0.) * 1.4);
+    col += vec3(.95, .32, .12) * (chro * .5 + pfl * .9) + vec3(1., .42, .1) * aur;
   }
   o = vec4(col, 1.);
 }`;
@@ -17375,7 +17405,7 @@ void main(){
         if (!bare && G.cab) {
           pg.sunH.use().f('uRes', cw, ch).f('uC', v.cx * s, (H / 2) * s).f('uT', T * cfg.sunSpeed).f('uZoom', cfg.zoom).f('uSpot', cfg.spot ? 1 : 0).f('uR', cfg.zoom ? Math.max(v.w, H) * 0.5 * s : R0);
           K.run(pg.sunH, G.cab.scene);
-          G.cab.finish({ tone: 'aces', expo: 1, bloom: cfg.zoom ? 0.2 : 0.5, thr: 2.5, knee: 0.5, radius: 0.85, vig: cfg.zoom ? 0.3 : 0.2, grain: 0.025, grainBlack: 0.3 });
+          G.cab.finish({ tone: 'aces', expo: 1, bloom: cfg.zoom ? 0.2 : 0.3, thr: cfg.zoom ? 2.5 : 3.2, knee: 0.5, radius: 0.9, vig: cfg.zoom ? 0.3 : 0.2, grain: 0.025, grainBlack: 0.3 });
         } else {
         pg.sun.use().f('uRes', cw, ch).f('uC', v.cx * s, (H / 2) * s).f('uT', T * cfg.sunSpeed).f('uZoom', cfg.zoom).f('uSpot', cfg.spot ? 1 : 0).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uR', cfg.zoom ? Math.max(v.w, H) * 0.5 * s : R0);
         K.run(pg.sun, null);
@@ -23441,9 +23471,14 @@ void main(){
     // dans la partie visible de l'écran (les panneaux latéraux cachent les bords)
     const V0 = env.view || { x0: 0, x1: W }, VW = V0.x1 - V0.x0;
     const START = port ? [[0, 0.34, 0.26], [2, 0.66, 0.42], [1, 0.38, 0.6], [3, 0.66, 0.78]] : [[0, 0.3, 0.34], [2, 0.7, 0.3], [1, 0.42, 0.68], [3, 0.72, 0.72]];
-    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, 7);
-    // on part de colonies déjà étalées : le sujet occupe l'écran dès la première image (DA de Fausta)
-    for (let k = 0; k < 230; k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
+    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, port ? 9 : 7);
+    // on part de colonies déjà étalées : le sujet occupe l'écran dès la première image (DA de Fausta). Le pré-développement
+    // a un budget de temps (rapide sur une machine puissante, écourté sur une tablette lente) ; en portrait, l'écran
+    // est haut et étroit : on pousse un peu plus loin.
+    {
+      const want = port ? 340 : 230, t0 = performance.now();
+      for (let k = 0; k < want && (k < 60 || performance.now() - t0 < 160); k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
+    }
     flush(); stainPaint();
     let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);
     quiet = false;

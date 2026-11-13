@@ -573,9 +573,14 @@
     // dans la partie visible de l'écran (les panneaux latéraux cachent les bords)
     const V0 = env.view || { x0: 0, x1: W }, VW = V0.x1 - V0.x0;
     const START = port ? [[0, 0.34, 0.26], [2, 0.66, 0.42], [1, 0.38, 0.6], [3, 0.66, 0.78]] : [[0, 0.3, 0.34], [2, 0.7, 0.3], [1, 0.42, 0.68], [3, 0.72, 0.72]];
-    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, 7);
-    // on part de colonies déjà étalées : le sujet occupe l'écran dès la première image (DA de Fausta)
-    for (let k = 0; k < 230; k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
+    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, port ? 9 : 7);
+    // on part de colonies déjà étalées : le sujet occupe l'écran dès la première image (DA de Fausta). Le pré-développement
+    // a un budget de temps (rapide sur une machine puissante, écourté sur une tablette lente) ; en portrait, l'écran
+    // est haut et étroit : on pousse un peu plus loin.
+    {
+      const want = port ? 340 : 230, t0 = performance.now();
+      for (let k = 0; k < want && (k < 60 || performance.now() - t0 < 160); k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
+    }
     flush(); stainPaint();
     let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);
     quiet = false;

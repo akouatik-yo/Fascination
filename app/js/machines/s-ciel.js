@@ -4,9 +4,9 @@
    l'arc-en-ciel (une goutte tracée rayon par rayon ; le ciel par la théorie d'Airy),
    les halos (rayons lancés au hasard à travers des prismes de glace hexagonaux). */
 (function boot() {
-  if (!window.FK || !window.FKGL) return setTimeout(boot, 12);
+  if (!window.FK || !window.FKGL || !window.FKR) return setTimeout(boot, 12);
   const { TAU, clamp, rnd, rint, layer } = window.FK;
-  const { GLKit, HEAD } = window.FKGL;
+  const { HEAD } = window.FKGL;
   const D2R = Math.PI / 180, R2D = 180 / Math.PI;
   const fr = (x, d = 0) => x.toFixed(d).replace('.', ',').replace('-', '−');
 

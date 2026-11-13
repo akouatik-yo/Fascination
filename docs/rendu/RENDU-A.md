@@ -171,3 +171,23 @@ Le verdict de Constance et de la qualité sur ded80e4 était « moche, de justes
 - Captures : `foudre-atmo-labo.jpg` (1280 × 800, des farfadets en cours) et `foudre-atmo-labo-tel.jpg` (390 × 844).
 - **L'orage au repos en 390 px** (« limite » : nuage presque noir) : en portrait, la base du nuage était à 21 % de la hauteur. La bande réservée du Labo en couvrait l'essentiel, et il ne restait qu'une quarantaine de pixels de nuage visibles. La base descend sous la bande réservée (`y0` + 14 % de la hauteur), et les lueurs et éclairs intranuages se placent dans la partie visible. La pose est un peu plus longue en portrait (×1,35), où l'on voit moins de ciel. Le paysage ne change pas. Capture : `foudre-repos-labo-tel.jpg`.
 - Tests : smoke OK ; test-jeunesse 8/8, lancé seul (en parallèle d'autres navigateurs, le test des 40 machines dépasse 500 s en rendu logiciel) ; test-fiches : seulement les 4 problèmes Blob déjà connus.
+
+## Recontrôle de Constance sur b57b07b et 22ee8e8 (13/11, 19 h 40)
+
+Rien ne passe encore à « non moche » en 390 px. Repris :
+
+- **Ronds de sorcières en 390** (« anneaux flous, champignons de 1 à 3 px ») :
+  - le calcul utilise des cases de 3 px au lieu de 4 sur un téléphone (moins de 500 000 px²), et les anneaux sont nets ;
+  - un champignon dessiné mesure au moins 2,1 px de rayon sur petit écran. La notice dit déjà « davantage sur un petit écran ».
+- **La neige d'hiver** : c'était le « voile délavé ». Un reste du code d'origine : un hiver neigeux 55 % des années, et un calque blanc uni jusqu'à environ 62 %, qui ressemblait à du brouillard.
+  - La neige est maintenant presque continue et piquetée par les pointes de l'herbe.
+  - L'herbe plus haute des anneaux la perce : les ronds se dessinent en vert sombre sur la pelouse blanchie, comme sur les photos de ronds dans le givre.
+  - Captures : `mycelium-ronds-hiver-labo.jpg` et `-tel.jpg`.
+- **Soleil en 390** :
+  - l'étiquette de l'OBSERVER reste dans l'écran, sur les côtés comme sous la bande du haut ; celle de l'auréole sortait par le bord et coupait « à l'œil nu » (capture `lave-soleil-aureole-labo-tel.jpg`) ;
+  - la ligne d'état « le Soleil est blanc : l'or est la convention… » passe à la ligne entre les mots ;
+  - la scène du Soleil a sa propre aide pour « Regarde » (`jeunesse/meta/lave.js`, `scenes.soleil.noms`, le mécanisme de Moiré et de Sonillus) : « un grain, la tache sombre ou une flamme au bord », au lieu de « la cire ou le liquide ».
+- **Restent ouverts** :
+  - « Au-dessus des orages » : environ 60 % de noir. Le vrai remède serait une échelle des altitudes dilatée sous 20 km, où sont les orages (environ ×1,8), et annoncée. C'est un choix de représentation : je le soumets d'abord à Kurt.
+  - Le carton du début, qui couvre les orages, est posé par le shell.
+  - L'orage au repos en 390.

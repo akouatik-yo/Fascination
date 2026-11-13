@@ -1179,6 +1179,15 @@ void main(){
         for (const part of t.split(' · ')) { const nx = cur ? cur + ' · ' + part : part; if (cur && ctx.measureText(nx).width > maxw) { lines.push(cur); cur = part; } else cur = nx; }
         lines.push(cur);
       }
+      // un morceau encore trop long (sans « · ») passe à la ligne entre les mots : en 390 px, la convention de l'or
+      // du Soleil était coupée au bord
+      for (let i = 0; i < lines.length; i++) {
+        if (ctx.measureText(lines[i]).width <= maxw) continue;
+        const ws = lines[i].split(' '); let a = '';
+        while (ws.length && ctx.measureText(a ? a + ' ' + ws[0] : ws[0]).width <= maxw) a = a ? a + ' ' + ws.shift() : ws.shift();
+        if (!a) a = ws.shift();
+        if (ws.length) lines.splice(i, 1, a, ws.join(' '));
+      }
       lines.forEach((t, i) => { ctx.globalAlpha = t === s || s.includes(t) ? 1 : 0.75; ctx.fillText(t, v.x0 + 16, H - 16 - (lines.length - 1 - i) * 15); });
       ctx.restore();
     }
@@ -1236,7 +1245,8 @@ void main(){
       if (a <= 0.01) { label = null; return; }
       if ((label.rt = (label.rt || 0) + 1) % 20 === 0) label.m = readAt(label.x, label.y);
       const [name, role, col] = describe(label), v = view();
-      const side = label.x > v.x0 + v.w * 0.5 ? -1 : 1, lx = label.x + side * 40, ly = label.y < 70 ? label.y + 46 : label.y - 36;
+      const side = label.x > v.x0 + v.w * 0.5 ? -1 : 1, y0 = (env.view && env.view.y0) || 0;
+      let ly = label.y - 36 - 16 < y0 + 4 ? label.y + 46 : label.y - 36;
       ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(label.x, label.y, 11, 0, TAU); ctx.stroke();
       // un fond sombre sous le texte : il reste lisible même posé sur le disque doré du Soleil ou sur la lave ;
@@ -1248,8 +1258,13 @@ void main(){
       for (const wd of role.toUpperCase().split(' ')) { const nx = cur ? cur + ' ' + wd : wd; if (cur && ctx.measureText(nx).width > maxW) { lines.push(cur); cur = wd; } else cur = nx; }
       if (cur) lines.push(cur);
       const bw = Math.max(w1, ...lines.map((t) => ctx.measureText(t).width)) + 16;
-      ctx.fillStyle = 'rgba(6,6,12,.62)'; ctx.fillRect(side > 0 ? lx - 8 : lx - bw + 8, ly - 16, bw, 26 + lines.length * 12);
-      ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6; ctx.textAlign = side > 0 ? 'left' : 'right';
+      // l'étiquette reste dans l'écran : en 390 px, celle de l'auréole sortait par le bord et coupait la fin du texte
+      const bh = 26 + lines.length * 12;
+      const bx = clamp(side > 0 ? label.x + 32 : label.x - 32 - bw, v.x0 + 6, v.x0 + v.w - 6 - bw);
+      ly = Math.min(ly, H - 8 - bh + 16);
+      const lx = bx + 8;
+      ctx.fillStyle = 'rgba(6,6,12,.62)'; ctx.fillRect(bx, ly - 16, bw, bh);
+      ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6; ctx.textAlign = 'left';
       ctx.fillStyle = 'rgba(250,250,245,.96)'; ctx.font = 'italic 500 14px "Space Grotesk", sans-serif'; ctx.fillText(name, lx, ly);
       ctx.fillStyle = col; ctx.font = '500 9.5px "JetBrains Mono", monospace'; lines.forEach((t, i) => ctx.fillText(t, lx, ly + 15 + i * 12));
       ctx.restore();

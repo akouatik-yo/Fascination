@@ -20,7 +20,9 @@
     // dans la hauteur utile en paysage et dans la largeur en portrait ; le bas de l'écran porte les boutons.
     const Y0 = V0.y0 || 0, YB = H * (H > W ? 0.83 : 0.86), PXM = clamp(Math.min(VW / 9, Math.max(120, YB - Y0) / 6.8), 34, 240);
     const BX = (u) => V0.x0 + VW * u, BY = (v) => Y0 + (YB - Y0) * v;
-    const CS = W * H > 1.6e6 ? 5 : 4, GW = Math.ceil(W / CS), GH = Math.ceil(H / CS), NC = GW * GH;
+    // taille des cases du calcul : plus fines sur un téléphone, où l'on voit la prairie de plus haut (anneaux nets)
+    const CS = W * H > 1.6e6 ? 5 : W * H < 5e5 ? 3 : 4, GW = Math.ceil(W / CS), GH = Math.ceil(H / CS), NC = GW * GH;
+    const RMIN = Math.min(W, H) < 600 ? 2.1 : 1.3; // rayon minimal d'un champignon dessiné, en px
     const F32 = () => new Float32Array(NC);
     const F = F32(), F2 = F32(), S = F32(), S0 = F32(), N = F32(), G = F32().fill(1), BARE = F32(), BLK = new Uint8Array(NC);
     const TH = 0.45; // en dessous de ce seuil de matière organique, le mycélium meurt de faim
@@ -80,16 +82,30 @@
         g.fillStyle = '#f2c230'; g.beginPath(); g.arc(x, y, r * 0.45, 0, TAU); g.fill();
       }
     }
-    const snow = layer(Math.ceil(W / 3), Math.ceil(H / 3));
+    // la neige (ou le givre) : presque continue, piquetée par les pointes de l'herbe ; l'herbe plus haute des anneaux
+    // la perce, et les ronds se dessinent en vert sombre sur la pelouse blanchie (une vraie image d'hiver) ; à demi-résolution
+    const snow = layer(Math.ceil(W / 2), Math.ceil(H / 2));
     {
-      const g = snow.g; g.fillStyle = 'rgba(244,247,250,.86)'; g.fillRect(0, 0, snow.w, snow.h);
-      for (let i = 0; i < 24; i++) { const x = rnd(snow.w), y = rnd(snow.h), r = rnd(snow.w * 0.3, snow.w * 0.08), gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(206,218,232,.22)'); gr.addColorStop(1, 'rgba(206,218,232,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); }
-      for (let i = 0; i < (snow.w * snow.h) / 30; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.7)' : 'rgba(170,186,200,.35)'; g.fillRect(rnd(snow.w), rnd(snow.h), 1, 1); }
+      const g = snow.g, sw = snow.w, shh = snow.h, img = g.createImageData(sw, shh), d = img.data;
+      const cw = 14, CW = Math.ceil(sw / cw) + 2, coarse = new Float32Array(CW * (Math.ceil(shh / cw) + 2));
+      for (let i = 0; i < coarse.length; i++) coarse[i] = Math.random();
+      for (let y = 0; y < shh; y++) {
+        const fy = y / cw, iy = fy | 0, uy = fy - iy;
+        for (let x = 0; x < sw; x++) {
+          const fx = x / cw, ix = fx | 0, ux = fx - ix, k = iy * CW + ix;
+          const cn = (coarse[k] * (1 - ux) + coarse[k + 1] * ux) * (1 - uy) + (coarse[k + CW] * (1 - ux) + coarse[k + CW + 1] * ux) * uy;
+          const a = clamp(0.6 + cn * 0.3 + (Math.random() - 0.5) * 0.55, 0, 1);
+          const o = (y * sw + x) * 4, v = 234 + Math.random() * 20;
+          d[o] = v; d[o + 1] = v + 3; d[o + 2] = Math.min(255, v + 9); d[o + 3] = a * 255;
+        }
+      }
+      g.putImageData(img, 0, 0);
     }
+    const snowT = layer(snow.w, snow.h); // la neige du moment, découpée là où sont les anneaux
     const deco = layer(W, H); // allées de gravier
     // trois calques de teinte : l'herbe drue en multiplication et le relief en lumière douce (la texture de l'herbe
     // reste visible au travers, au lieu d'un aplat flou), la paille et la terre nue par-dessus
-    const tint = buf(GW, GH), tintM = buf(GW, GH), tintL = buf(GW, GH);
+    const tint = buf(GW, GH), tintM = buf(GW, GH), tintL = buf(GW, GH), tintN = buf(GW, GH);
     const idx = (x, y) => { const gx = Math.floor(x / CS), gy = Math.floor(y / CS); return gx < 0 || gy < 0 || gx >= GW || gy >= GH ? -1 : gy * GW + gx; };
     function disk(x, y, r, fn) {
       const R = Math.ceil(r / CS), cx = Math.floor(x / CS), cy = Math.floor(y / CS);
@@ -173,7 +189,7 @@
         const i = front[rint(front.length)], x = ((i % GW) + Math.random()) * CS, y = (((i / GW) | 0) + Math.random()) * CS;
         const nb = 1 + rint(2);
         for (let q = 0; q < nb; q++) {
-          shrooms.push({ x: x + rnd(6, -6), y: y + rnd(6, -6), r: Math.max(1.3, rnd(2.5, 1.1) * 0.01 * PXM * 2.5), t0: T, life: Math.max(0.06, 1.2 / cfg.year) * rnd(1.3, 0.8), hue: rnd(1) });
+          shrooms.push({ x: x + rnd(6, -6), y: y + rnd(6, -6), r: Math.max(RMIN, rnd(2.5, 1.1) * 0.01 * PXM * 2.5), t0: T, life: Math.max(0.06, 1.2 / cfg.year) * rnd(1.3, 0.8), hue: rnd(1) });
         }
         if (snd() && Math.random() < 0.08) au.note(rnd(2400, 1600), 0.04, 'sine', 0.012);
       }
@@ -216,13 +232,14 @@
           d[o] = R; d[o + 1] = Gc; d[o + 2] = B; d[o + 3] = 255;
         }
       } else {
-        const dm = tintM.d, dl = tintL.d;
+        const dm = tintM.d, dl = tintL.d, dn = tintN.d;
         for (let i = 0; i < NC; i++) {
           const o = i * 4;
           if (BLK[i]) { d[o + 3] = 0; dm[o] = dm[o + 1] = dm[o + 2] = 255; dl[o + 3] = 0; continue; }
           // vert sombre : l'azote libéré, une herbe plus drue (multipliée sur l'herbe, donc texturée)
           const n = clamp((N[i] - 0.03) * 1.9, 0, 1);
           dm[o] = 255 - n * 150; dm[o + 1] = 255 - n * 92; dm[o + 2] = 255 - n * 165;
+          dn[o] = dn[o + 1] = dn[o + 2] = 255; dn[o + 3] = Math.min(1, n * 1.5) * 255;
           // cette herbe est plus haute : le côté tourné vers le soleil (en haut à gauche, comme l'ombre des champignons)
           // s'éclaire, l'autre s'assombrit
           const gx = (N[i + 2] || 0) - (N[i - 2] || 0), gy = (N[i + 2 * GW] || 0) - (N[i - 2 * GW] || 0), sh = clamp((gx + gy) * 2.6, -1, 1);
@@ -235,7 +252,7 @@
           const ex = S[i] - S0[i] - 0.15; if (ex > 0) add(78, 52, 30, Math.min(0.85, ex * 0.8));
           d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = a * 255;
         }
-        tintM.flush(); tintL.flush();
+        tintM.flush(); tintL.flush(); tintN.flush();
       }
       tint.flush();
     }
@@ -277,7 +294,7 @@
       paintTint();
     }
     quiet = false;
-    if (window.FASC_DEBUG) window.FASC_DEBUG.ronds = { cfg, PXM, get T() { return T; }, get front() { return front.length; }, get shrooms() { return shrooms; }, get diam() { return diam; }, get spores() { return spores; }, probe(x, y) { const i = idx(x, y); return i < 0 ? null : [F[i], S[i], N[i]]; } };
+    if (window.FASC_DEBUG) window.FASC_DEBUG.ronds = { cfg, PXM, get T() { return T; }, get front() { return front.length; }, get shrooms() { return shrooms; }, get diam() { return diam; }, get spores() { return spores; }, run(y) { let left = y; while (left > 1e-9) { const h = Math.min(hmax(), left); step(h); flush(h); left -= h; } scanFront(); paintTint(); }, set snowy(v) { snowy = v; lastYear = Math.floor(T); }, probe(x, y) { const i = idx(x, y); return i < 0 ? null : [F[i], S[i], N[i]]; } };
     const drones = [];
     if (au) drones.push(au.drone(98, 'sine', 0.012), au.drone(147, 'sine', 0.006));
 
@@ -375,7 +392,15 @@
             vg.addColorStop(0, 'rgba(10,20,8,0)'); vg.addColorStop(1, 'rgba(10,20,8,.28)');
             ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
           }
-          if (snowA > 0.02) { ctx.globalAlpha = snowA * 0.72; ctx.drawImage(snow.c, 0, 0, W, H); ctx.globalAlpha = 1; }
+          // la neige, un saupoudrage : l'herbe plus haute des anneaux la perce et les dessine en sombre (elle couvrait
+          // tout l'écran une année sur deux)
+          if (snowA > 0.02) {
+            const sg = snowT.g;
+            sg.globalCompositeOperation = 'copy'; sg.drawImage(snow.c, 0, 0);
+            sg.globalCompositeOperation = 'destination-out'; sg.drawImage(tintN.c, 0, 0, (GW * CS) / 2, (GH * CS) / 2);
+            sg.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = snowA * 0.88; ctx.drawImage(snowT.c, 0, 0, W, H); ctx.globalAlpha = 1;
+          }
           if (rain) {
             ctx.fillStyle = 'rgba(10,18,30,.1)'; ctx.fillRect(0, 0, W, H);   // la pluie assombrit un peu, sans voiler de gris
             ctx.strokeStyle = 'rgba(210,225,240,.35)'; ctx.lineWidth = 1; ctx.beginPath();

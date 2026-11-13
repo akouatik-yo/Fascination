@@ -560,7 +560,8 @@ void main(){
       // plates-formes à la mesure des fourmis : trop grandes, l'entrée du pont devient un trou de serrure introuvable
       // en portrait, le pont se dresse (nid en bas, nourriture en haut) : couché sur 390 px de large, ses branches se croisaient.
       // On le trace dans un repère local (u le long du pont, v en travers), puis E() le pose à l'écran.
-      const PV = PONT && port, PY0 = PV ? ((env.view && env.view.y0) || 0) + 165 : 0, PY1 = PV ? H - 190 : 0;
+      // (seulement s'il reste assez de hauteur : une fenêtre étroite mais basse garde le pont couché)
+      const PV = PONT && port && H - 355 - ((env.view && env.view.y0) || 0) > VW * 1.2, PY0 = PV ? ((env.view && env.view.y0) || 0) + 165 : 0, PY1 = PV ? H - 190 : 0;
       const LU = PV ? PY1 - PY0 : VW, LV = PV ? VW : H;
       const E = PV ? (p) => [VX0 + p[1], PY1 - p[0]] : (p) => [VX0 + p[0], p[1]];
       // HC : l'échelle en travers. Couché, c'est la hauteur de l'écran (rien ne change sur tablette). Debout, on garde les proportions

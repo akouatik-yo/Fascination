@@ -30,30 +30,34 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 
 | # | Rendu A (`rendu-a`) | Rendu B (`rendu-b`) |
 |---|---|---|
-| 1 | Lucioles | (chaîne optique commune, `fkgl.js`) |
-| 2 | Foudre | Eau |
-| 3 | Abysses (méduses) | Couleurs du ciel |
-| 4 | Cristal | Fourmilière |
-| 5 | Lampe à lave **+ volcans et intérieur de la Terre** | Galaxie |
-| 6 | Écoulement | Bulles |
-| 7 | Mycélium | Murmuration |
-| 8 | Monde quantique | Sable |
-| 9 | Cymatiques | Blob |
-| 10 | Motifs de Turing | Tunnel |
-| 11 | Pendules | Spirales |
-| 12 | Harmonographe | Harpe |
-| 13 | | Spectre |
-| 14 | | Kaléidoscope |
-| 15 | | Jeu de la vie |
-| 16 | | Attracteur |
-| 17 | | Fractales |
+| 0 | | (FKR, la bibliothèque commune) |
+| 1 | Lucioles | Eau **+ houle et tsunamis** |
+| 2 | **Danse des abeilles** (nouvelle machine `s-abeilles.js`) | Couleurs du ciel **+ aurores polaires** |
+| 3 | Lampe à lave **+ volcans et intérieur de la Terre** | Fourmilière |
+| 4 | Foudre | Galaxie **+ système solaire** |
+| 5 | Abysses | Tunnel (dans la Galaxie : retirer ou étiqueter la fiction) |
+| 6 | Cristal | Bulles |
+| 7 | Écoulement | Murmuration **+ bancs de poissons** |
+| 8 | Mycélium | Sable |
+| 9 | Blob | Harpe |
+| 10 | Monde quantique | Spectre |
+| 11 | Motifs de Turing | Cymatiques |
+| 12 | Spirales | Kaléidoscope |
+| 13 | Pendules **+ double pendule** | Jeu de la vie |
+| 14 | Harmonographe | Attracteur |
+| 15 | | Fractales |
+
+**Refonte pédagogique (13/11 vers 1 h 30)** : voir `docs/REFONTE-PEDAGOGIQUE.md`. Les ajouts en gras ont leur cadrage scientifique dans ce document.
+- Les **regroupements** (insectes, réseaux du vivant, motifs, pendule, son) se font dans le shell, par la session Fascinations : chaque moteur reste une machine, et le shell les présente en chapitres d'une même question. Les paires d'un même regroupement sont confiées à la même relève : Blob et Mycélium, Turing et Spirales, Pendules et Harmonographe chez A ; Harpe, Spectre et Cymatiques chez B.
+- **Une nouvelle machine** respecte le contrat habituel (`window.FASC.push`, `make(env)`) et `env.view.y0`, `env.doux`. Envoyez-moi ses chemins de réglages : j'écris sa fiche.
 
 **Échange (13/11 vers 00 h 40)** : les Lucioles passent à rendu A, car c'est la machine d'accueil de l'application adulte, donc la plus vue. La Galaxie passe à rendu B : elle a déjà la chaîne de lumière du Feu, le gain y est moindre.
 
-**Fichiers communs** :
-- `app/js/fkcabine.js` (le développement de l'image : halo, ACES ou AgX, vignettage, grain, tramage) est écrit par rendu A sur `rendu-a` (79f63a2), et rendu A en reste propriétaire.
-- `app/js/fkgl.js` (le cœur WebGL) appartient à rendu B.
-- Personne ne duplique le post-traitement : rendu B utilise `fkcabine.js`.
+**Fichiers communs** (le CEO a tranché le 13/11 vers 0 h 55, heure de Paris) :
+- **Une seule bibliothèque de rendu, FKR** (`app/js/fkrendu.js`). Rendu B en est la propriétaire.
+- Elle reprend à l'identique la cabine de rendu A (`FKGL.cabine`, même API) : les machines de A n'ont rien à changer.
+- **Tout le monde utilise FKR.** `fkgl.js` reste à rendu B, avec son API intacte.
+- Les sources de couleur (CIE 1931, raies, absorption de l'eau, bioluminescence) sont dans `docs/RENDU-COMMUN.md` sur `rendu-b`. Elles sont relues et validées par la session Fascinations le 13/11.
 
 **Seul le Feu est intouchable.** Le 13/11 vers 0 h 45, Yoann a écrit : « Oui, embellissez aussi l'eau et les fourmis ». L'**Eau** et la **Fourmilière** reviennent donc à rendu B, en tête de sa liste après la chaîne commune. La DA de chef-design (059035f) les précise. L'Attracteur et les Fractales restent à B, en fin de liste.
 

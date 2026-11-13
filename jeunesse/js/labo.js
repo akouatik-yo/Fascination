@@ -36,7 +36,7 @@
     son: false, spectacle: false, tiroir: null, ecran: null, hist: [], hpos: -1, lb: false, ouverture: 0, nom: null,
     vus: new Set(lireJSON('fj-vus', [])), outilsMontres: new Set(), etsiVu: new Set(lireJSON('fj-etsi', [])),
     prefs: Object.assign({ doux: true, calme: false }, lireJSON('fj-prefs', {})), constructions: 0, doigts: 0,
-    profil: lireJSON('fj-profil', null),   // { age, niveau } : choisi à l'accueil, modifiable ensuite
+    profils: [], profil: null,   // les joueurs de la tablette { id, avatar, age, niveau } ; tout reste dans l'appareil
   };
   let defs = [], audio = null, sac = null, raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null;
   const canvas = $('cv'), app = $('fj');
@@ -44,29 +44,51 @@
   const images = (n) => new Promise((ok) => { let k = 0; const f = () => (++k >= n ? ok() : requestAnimationFrame(f)); requestAnimationFrame(f); });
 
   /* ───────── l'âge et le niveau ─────────
-     L'âge règle l'ergonomie (taille des cibles, nombre de gestes et de leviers, lecture à voix haute) ;
+     L'âge règle l'ergonomie (taille des cibles, nombre de gestes et de leviers, police, lecture à voix haute) ;
      le niveau règle la profondeur (quels textes, quels réglages, vrais noms ou noms d'enfant).
-     La science est la même à tous les niveaux : seuls la quantité et le vocabulaire changent. */
+     La science est la même à tous les niveaux : seuls la quantité et le vocabulaire changent.
+     Conseils de chef-design (13/11) : l'âge n'est jamais affiché hors du coin des grands ; sous 9 ans, le niveau
+     « Je découvre » est posé d'office (il se change derrière la porte des grands) ; plusieurs joueurs par tablette. */
   const NIVEAUX = [
-    { n: 1, nom: 'Je découvre', sous: 'Je regarde, je touche, et une phrase m’explique.', icone: 'graines' },
+    { n: 1, nom: 'Je découvre', sous: 'Je regarde, je touche, et une phrase m’explique.', icone: 'graine' },
     { n: 2, nom: 'J’aime comprendre', sous: 'Des explications courtes et des défis « Et si… ? ».', icone: 'pousse' },
-    { n: 3, nom: 'Je veux tous les détails', sous: 'Tous les réglages et les textes pour les curieux.', icone: 'loupe' },
-    { n: 4, nom: 'Je connais déjà', sous: 'Les vrais noms, les vraies valeurs, le Labo ouvert.', icone: 'labo' },
+    { n: 3, nom: 'Je veux tous les détails', sous: 'Tous les réglages et les textes pour les curieux.', icone: 'arbre' },
+    { n: 4, nom: 'Je connais déjà', sous: 'Les vrais noms, les vraies valeurs, le Labo ouvert.', icone: 'foret' },
   ];
+  const AVATARS = [['oiseau', '#6fd4ff'], ['insecte', '#7ee8a9'], ['feuille', '#b6e86f'], ['flocon', '#cfe6ff'], ['planete', '#c9a0ff'], ['fusee', '#ff86c8'], ['goutte', '#4fb3ff'], ['flamme', '#ffb35c']];
   const AGES = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];   // 16 = « 16 ans et plus »
-  const niveauPropose = (age) => (age <= 6 ? 1 : age <= 14 ? 2 : 3);
+  const niveauPropose = (age) => (age <= 8 ? 1 : age <= 14 ? 2 : 3);
   const palier = () => { const a = S.profil ? S.profil.age : 11; return a <= 6 ? 1 : a <= 9 ? 2 : a <= 14 ? 3 : 4; };
   const niveau = () => (S.profil ? S.profil.niveau : 2);
   const ZOOM = { 1: 1.3, 2: 1.15, 3: 1, 4: 1 };
+  (function chargerProfils() {
+    let ps = lireJSON('fj-profils', null);
+    if (!Array.isArray(ps)) { const ancien = lireJSON('fj-profil', null); ps = ancien && ancien.age ? [Object.assign({ id: 'p1', avatar: 0 }, ancien)] : []; }
+    S.profils = ps.filter((p) => p && p.id && p.age);
+    S.profil = S.profils.find((p) => p.id === store.get('fj-profil-actif')) || S.profils[0] || null;
+  })();
   function appliquerProfil() {
     for (let i = 1; i <= 4; i++) { app.classList.toggle('age-' + i, palier() === i); app.classList.toggle('niv-' + i, niveau() === i); }
     document.documentElement.style.setProperty('--k', ZOOM[palier()]);
   }
+  function sauverProfils() { store.set('fj-profils', JSON.stringify(S.profils)); if (S.profil) store.set('fj-profil-actif', S.profil.id); }
+  // un profil créé ou modifié devient le joueur actif
   function enregistrerProfil(p) {
-    S.profil = p; store.set('fj-profil', JSON.stringify(p)); appliquerProfil();
+    const k = S.profils.findIndex((x) => x.id === p.id);
+    if (!p.id) p.id = 'p' + Date.now().toString(36);
+    if (p.avatar == null) p.avatar = S.profils.length % AVATARS.length;
+    if (k >= 0) S.profils[k] = p; else S.profils.push(p);
+    S.profil = p; sauverProfils(); appliquerProfil();
     laboOuvert = niveau() >= 4;
   }
-  // lecture à voix haute (synthèse de l'appareil, en français ; rien si l'appareil n'en a pas)
+  // changer de joueur : si la taille des commandes change et que rien n'a encore été fait, la machine est recréée à l'identique
+  function devenir(p) {
+    const avant = palier();
+    enregistrerProfil(p); son('scene'); ecran(null);
+    if (palier() !== avant && !S.touche && S.def) ouvrir(S.id, { etat: etatCourant() }); else if (S.def) rendre();
+  }
+  const avatar = (i, grand) => { const a = AVATARS[i % AVATARS.length] || AVATARS[0]; return h('span', { class: 'avatar' + (grand ? ' grand' : ''), style: '--c:' + a[1] }, FJ.icone(a[0])); };
+  // lecture à voix haute (synthèse de l'appareil, en français ; le bouton est caché si l'appareil n'a pas de voix française)
   const voix = (function () {
     const ok = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined';
     let fr = null;
@@ -75,11 +97,11 @@
     return {
       get dispo() { return ok && !!fr; },
       dire(txt) {
-        if (!ok) return;
+        if (!ok || !fr) return;
         try {
           window.speechSynthesis.cancel();
           const u = new window.SpeechSynthesisUtterance(String(txt).replace(/\*\*/g, ''));
-          u.lang = 'fr-FR'; if (fr) u.voice = fr; u.rate = palier() === 1 ? 0.9 : 1;
+          u.lang = 'fr-FR'; u.voice = fr; u.rate = 0.9;
           window.speechSynthesis.speak(u);
         } catch (e) { /* rien */ }
       },
@@ -88,42 +110,58 @@
   })();
   const boutonEcouter = (txt) => (voix.dispo ? h('button', { class: 'ecouter', 'aria-label': 'Écouter', onclick: () => voix.dire(typeof txt === 'function' ? txt() : txt) }, FJ.icone('sonOn'), h('span', null, 'Écouter')) : null);
 
-  // l'écran d'accueil : l'âge, puis le niveau (proposé d'après l'âge, modifiable)
+  // l'accueil : qui joue ? puis, pour un nouveau joueur, l'âge, le signe, et le niveau (seulement à partir de 9 ans)
   function ouvrirAccueil() {
     ecran('accueil');
     const box = $('accueil'); box.textContent = '';
-    let age = S.profil ? S.profil.age : null;
+    let question = '', dejaLu = false;
+    // la parole n'est permise qu'après un geste (iOS, Chrome) : on lit la question au premier toucher
+    box.onpointerdown = () => { if (!dejaLu && question) { dejaLu = true; voix.dire(question); } };
+    const tete = (retour) => h('div', { class: 'tete' }, retour ? h('button', { class: 'bt', onclick: retour }, FJ.icone('prec'), h('span', null, 'Retour')) : h('div', { class: 'logo' }, h('b', null, 'Fascinations'), h('span', null, 'labo')),
+      S.profil ? h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer')) : null);
+    const titre = (q) => { question = q; dejaLu = false; return h('h2', { class: 'grandeq' }, q, boutonEcouter(q)); };
+    const neuf = {};
+    const etapeQui = () => {
+      box.textContent = '';
+      box.append(tete(null), titre('Qui joue ?'));
+      const g = h('div', { class: 'joueurs' }); box.append(g);
+      for (const p of S.profils) g.append(h('button', { class: 'joueur' + (S.profil && p.id === S.profil.id ? ' on' : ''), 'aria-label': 'Joueur ' + (AVATARS[p.avatar % AVATARS.length] || AVATARS[0])[0], onclick: () => devenir(p) }, avatar(p.avatar, true)));
+      g.append(h('button', { class: 'joueur nouveau', 'aria-label': 'Nouveau joueur', onclick: etapeAge }, h('span', { class: 'avatar grand plus' }, '+')));
+    };
     const etapeAge = () => {
       box.textContent = '';
-      box.append(h('div', { class: 'tete' }, h('div', { class: 'logo' }, h('b', null, 'Fascinations'), h('span', null, 'labo')),
-        S.profil ? h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer')) : null));
-      box.append(h('h2', { class: 'grandeq' }, 'Quel âge as-tu ?', boutonEcouter('Quel âge as-tu ?')));
+      box.append(tete(S.profils.length ? etapeQui : null), titre('Quel âge as-tu ?'));
       const g = h('div', { class: 'ages' }); box.append(g);
       for (const a of AGES) {
-        g.append(h('button', { class: 'age' + (a === age ? ' on' : ''), onclick: () => { age = a; son('outil'); etapeNiveau(); } },
-          h('b', null, a === 16 ? '16 +' : String(a)), h('span', null, a === 16 ? 'et plus' : 'ans')));
+        // des bougies comme sur un gâteau : un enfant se reconnaît sans lire
+        const bougies = a <= 9 ? h('span', { class: 'bougies' + (a >= 7 ? ' deux' : ''), 'aria-hidden': 'true' }, ...Array.from({ length: a }, () => h('i'))) : null;
+        g.append(h('button', { class: 'age', 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
+          bougies, h('b', null, a === 16 ? '16 +' : String(a))));
       }
-      box.append(h('p', { class: 'petit' }, 'L’âge règle la taille des boutons et la quantité de texte. On peut le changer à tout moment, depuis la carte.'));
+    };
+    const etapeSigne = () => {
+      box.textContent = '';
+      box.append(tete(etapeAge), titre('Choisis ton signe'));
+      const g = h('div', { class: 'joueurs' }); box.append(g);
+      const pris = new Set(S.profils.map((p) => p.avatar % AVATARS.length));
+      AVATARS.forEach((a, i) => g.append(h('button', { class: 'joueur' + (pris.has(i) ? ' pris' : ''), 'aria-label': a[0], onclick: () => {
+        neuf.avatar = i;
+        if (neuf.age < 9) devenir({ age: neuf.age, avatar: i, niveau: 1 });   // sous 9 ans : pas de question de niveau
+        else etapeNiveau();
+      } }, avatar(i, true))));
     };
     const etapeNiveau = () => {
       box.textContent = '';
-      const prop = S.profil && S.profil.age === age ? S.profil.niveau : niveauPropose(age);
-      box.append(h('div', { class: 'tete' }, h('button', { class: 'bt', onclick: etapeAge }, FJ.icone('prec'), h('span', null, age === 16 ? '16 ans et plus' : age + ' ans'))));
-      box.append(h('h2', { class: 'grandeq' }, 'Et la science, pour toi ?', boutonEcouter(() => 'Et la science, pour toi ? ' + NIVEAUX.map((n) => n.nom + '. ' + n.sous).join(' '))));
+      box.append(tete(etapeSigne), titre('Et la science, pour toi ?'));
       const g = h('div', { class: 'niveaux' }); box.append(g);
+      const prop = niveauPropose(neuf.age);
       for (const n of NIVEAUX) {
-        g.append(h('button', { class: 'niveau' + (n.n === prop ? ' propose' : ''), onclick: () => {
-          const avant = palier();
-          enregistrerProfil({ age, niveau: n.n }); son('scene'); ecran(null);
-          // les colonnes ont changé de taille : si l'enfant n'a encore rien fait, on recrée la machine à l'identique pour que la scène tienne entre elles
-          if (palier() !== avant && !S.touche && S.def) ouvrir(S.id, { etat: etatCourant() }); else rendre();
-          if (palier() === 1 && S.meta) bulle('Touche l’écran !');
-        } },
+        g.append(h('button', { class: 'niveau' + (n.n === prop ? ' propose' : ''), onclick: () => devenir({ age: neuf.age, avatar: neuf.avatar, niveau: n.n }) },
           FJ.icone(n.icone), h('b', null, n.nom), h('span', null, n.sous)));
       }
-      box.append(h('p', { class: 'petit' }, 'Le niveau entouré est proposé pour ton âge, mais c’est toi qui choisis. La science reste exacte à tous les niveaux : seuls la quantité de détails et le vocabulaire changent.'));
+      box.append(h('p', { class: 'petit' }, 'Le choix entouré est proposé, mais c’est toi qui décides. La science reste exacte partout : seuls la quantité de détails et les mots changent.'));
     };
-    if (age) etapeNiveau(); else etapeAge();
+    if (S.profils.length) etapeQui(); else etapeAge();
   }
 
   /* ───────── les fiches ───────── */
@@ -877,8 +915,7 @@
     box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${S.vus.size} / ${defs.length} découvertes`),
       h('button', { class: 'bt', onclick: () => { ecran(null); aller(sac.suivant()); } }, FJ.icone('encore'), h('span', null, 'Au hasard')),
       h('button', { class: 'bt', onclick: () => ouvrirCarnet() }, FJ.icone('carnet'), h('span', null, 'Mon carnet')),
-      h('button', { class: 'bt profil', onclick: ouvrirAccueil }, FJ.icone((NIVEAUX[niveau() - 1] || NIVEAUX[1]).icone),
-        h('span', null, S.profil ? (S.profil.age >= 16 ? '16 ans et +' : S.profil.age + ' ans') + ' · ' + NIVEAUX[niveau() - 1].nom : 'Mon âge')),
+      h('button', { class: 'bt profil', 'aria-label': 'Qui joue ?', onclick: ouvrirAccueil }, S.profil ? avatar(S.profil.avatar) : FJ.icone('mains'), h('span', null, 'Qui joue ?')),
       h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer'))));
     for (const m of FJ.MONDES) {
       const sec = h('section', { class: 'monde', style: '--c:' + m.couleur });
@@ -917,8 +954,23 @@
       const b = h('button', { class: 'bascule' + (S.prefs[k] ? ' on' : ''), onclick: () => { S.prefs[k] = !S.prefs[k]; store.set('fj-prefs', JSON.stringify(S.prefs)); b.classList.toggle('on', S.prefs[k]); app.classList.toggle('calme', S.prefs.calme); } }, h('i'), h('span', null, txt));
       box.append(b, h('p', { class: 'petit' }, aide));
     };
-    box.append(h('h3', null, 'Âge et niveau'), h('p', { class: 'petit' }, S.profil ? `${S.profil.age >= 16 ? '16 ans et plus' : S.profil.age + ' ans'} · ${NIVEAUX[niveau() - 1].nom}. L’âge règle la taille des boutons, le nombre de gestes et de réglages ; le niveau règle la profondeur des explications.` : 'Pas encore choisi.'),
-      h('button', { class: 'bt', onclick: ouvrirAccueil }, FJ.icone('pousse'), h('span', null, 'Changer l’âge ou le niveau')));
+    box.append(h('h3', null, 'Les joueurs : âge et niveau'), h('p', { class: 'petit' }, 'L’âge règle la taille des boutons, la police, le nombre de gestes et de réglages ; le niveau règle la profondeur des explications. Sous 9 ans, « Je découvre » est posé d’office : vous pouvez le changer ici. L’âge n’est affiché nulle part ailleurs.'));
+    const liste = h('div', { class: 'joueursGrands' }); box.append(liste);
+    const majListe = () => {
+      liste.textContent = '';
+      for (const p of S.profils) {
+        const ligne = h('div', { class: 'joueurGrand' + (S.profil && p.id === S.profil.id ? ' on' : '') });
+        const ageTxt = h('b', null, p.age >= 16 ? '16 ans et +' : p.age + ' ans');
+        const changeAge = (d) => { p.age = clamp(p.age + d, 5, 16); if (S.profil && p.id === S.profil.id) enregistrerProfil(p); else sauverProfils(); majListe(); };
+        ligne.append(avatar(p.avatar), h('button', { class: 'bt', 'aria-label': 'Un an de moins', onclick: () => changeAge(-1) }, '−'), ageTxt, h('button', { class: 'bt', 'aria-label': 'Un an de plus', onclick: () => changeAge(1) }, '+'));
+        const nv = h('div', { class: 'opts' });
+        for (const n of NIVEAUX) nv.append(h('button', { class: n.n === p.niveau ? 'on' : '', title: n.sous, onclick: () => { p.niveau = n.n; if (S.profil && p.id === S.profil.id) enregistrerProfil(p); else sauverProfils(); majListe(); } }, FJ.icone(n.icone), ' ', n.nom));
+        ligne.append(nv, h('button', { class: 'bt doux', onclick: () => { if (!confirm('Oublier ce joueur ?')) return; S.profils = S.profils.filter((x) => x !== p); if (S.profil === p) S.profil = S.profils[0] || null; sauverProfils(); appliquerProfil(); majListe(); } }, FJ.icone('gomme'), h('span', null, 'Oublier')));
+        liste.append(ligne);
+      }
+    };
+    majListe();
+    box.append(h('button', { class: 'bt', onclick: ouvrirAccueil }, FJ.icone('mains'), h('span', null, 'Qui joue ? / Nouveau joueur')));
     pref('doux', 'Flashs adoucis', 'Atténue les éclairs et les scintillements rapides (photosensibilité). Recommandé.');
     pref('calme', 'Moins d’animations dans l’interface', 'Pas de main qui montre les gestes, transitions réduites.');
     box.append(h('h3', null, 'Le carnet'), h('button', { class: 'bt', onclick: async () => { if (confirm('Effacer tout le carnet (photos, épingles, paris) ?')) { await carnet.effacer(); bulle('Carnet effacé.'); } } }, FJ.icone('gomme'), h('span', null, 'Effacer le carnet')));
@@ -989,7 +1041,7 @@
     if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }
   if (TEST) {
-    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, ouvrirAccueil, exposes, outilsVisibles };
+    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, ouvrirAccueil, exposes, outilsVisibles };
   }
   init();
 })();

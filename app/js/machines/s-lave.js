@@ -324,9 +324,9 @@ void main(){
   vec2 tu = vec2((px.x - uRect.x) / uRect.z, 1. - (px.y - uRect.y) / uRect.w);
   float heat = .4 + 1.8 * uRa;
   vec3 col = vec3(.0035, .004, .0055);
-  // la lumière des deux plaques sur le fond du laboratoire
+  // la lampe du laboratoire, au-dessus : un peu de lumière neutre près de la cuve (à quelques dizaines de degrés, rien ne luit)
   float db = (px.y - (uRect.y + uRect.w)) / uRes.y, dt = ((uRect.y) - px.y) / uRes.y;
-  col += vec3(1., .3, .08) * heat * .025 / (1. + db * db * 60.) + vec3(.3, .55, 1.) * .01 / (1. + dt * dt * 60.);
+  col += vec3(.55, .5, .45) * .006 / (1. + db * db * 60.) + vec3(.5, .52, .55) * .004 / (1. + dt * dt * 60.);
   float pl = uRes.y * .012;
   if (px.x > uRect.x && px.x < uRect.x + uRect.z){
     if (tu.y >= 0. && tu.y <= 1.){
@@ -347,12 +347,13 @@ void main(){
       float e = min(px.x - uRect.x, uRect.x + uRect.z - px.x);
       col += vec3(.5, .55, .6) * .08 * exp(-e * .8);
     } else if (px.y > uRect.y + uRect.w && px.y < uRect.y + uRect.w + pl){
-      // plaque de cuivre chauffée : elle rougeoie d'autant plus que l'écart de température est grand
+      // plaque de cuivre chauffée à quelques dizaines de degrés : couleur cuivre, sans lueur (un métal ne rougeoie que vers 500 °C)
       float k = (px.y - uRect.y - uRect.w) / pl;
-      col = vec3(.55, .2, .08) * (.3 + .7 * (1. - k)) * .25 + vec3(1., .32, .06) * heat * .9 * (1. - k * .6);
+      col = vec3(.955, .638, .538) * (.03 + .05 * (1. - k) + .12 * exp(-pow((k - .22) * 6., 2.)));
     } else if (px.y < uRect.y && px.y > uRect.y - pl){
+      // plaque refroidie (métal, eau froide derrière) : grise, sans lueur
       float k = (uRect.y - px.y) / pl;
-      col = vec3(.35, .5, .7) * (.12 + .2 * (1. - k)) + vec3(.6, .8, 1.) * .15 * (1. - k);
+      col = vec3(.62, .66, .7) * (.025 + .04 * (1. - k) + .1 * exp(-pow((k - .78) * 6., 2.)));
     }
   }
   o = vec4(col, 1.);
@@ -635,20 +636,107 @@ void main(){
   const FS_VOLCAN = () => GL_TERRE() + `
 uniform vec2 uRes; uniform float uKm, uGround, uCx, uT, uVisq, uNuee, uEclair;
 out vec4 o;
-float cone(float x){ float d = abs(x - uCx) * uKm; return max(0., 3.1 * pow(max(1. - d / 9., 0.), 1.25) - .35 * smoothstep(.9, 0., d)); }   // km au-dessus de la plaine (cratère de 900 m)
+// le relief (km au-dessus de la plaine) selon la distance à l'axe (km) : cône de 9 km de rayon, cratère de 900 m
+float relief(float d){ d = abs(d); return max(0., 3.1 * pow(max(1. - d / 9., 0.), 1.25) - .42 * smoothstep(.45, .08, d)); }
+float lisse(float d){ d = abs(d); return 3.1 * pow(max(1. - d / 9., 0.), 1.25); }
+// la cheminée : un chemin irrégulier, du toit de la chambre (vers -4,8 km) au cratère
+float condX(float yk, float top){ return (.16 * sin(yk * .7 + 1.3) + .05 * sin(yk * 2.6 + .4)) * (1. - smoothstep(top - 1.4, top - .1, yk)); }
+float condW(float yk, float top){ return .045 + .018 * sin(yk * 1.7 + .5) + .06 * smoothstep(top - .9, top, yk); }
+// distance (km) d'un point à un segment, et position le long du segment (0 → 1)
+vec2 seg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.); return vec2(length(pa - ba * h), h); }
+// une couleur par couche de roche (albédo sous la lune), d'après son numéro
+vec3 couche(float id, float sous){
+  float h = hash12(vec2(id, sous * 7.3 + 1.));
+  vec3 c;
+  if (sous < .5) c = h < .4 ? vec3(.021, .021, .024) : h < .65 ? vec3(.03, .023, .02) : h < .85 ? vec3(.036, .034, .031) : vec3(.027, .025, .024);   // laves, scories, cendres
+  else c = h < .3 ? vec3(.04, .035, .028) : h < .55 ? vec3(.025, .025, .028) : h < .8 ? vec3(.042, .04, .036) : vec3(.023, .021, .021);          // grès, schistes, calcaires, vieilles laves
+  return c * (.85 + .3 * hash12(vec2(id, 4.4)));
+}
+// des bulles (km) dans une grille qui défile vers le haut : (intérieur, liseré)
+vec2 bulles(vec2 p, float cell, float vit, float dens, float rmin, float rmax){
+  vec2 q = vec2(p.x, p.y - uT * vit) / cell, qi = floor(q), qf = fract(q);
+  float b = 0., l = 0.;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++){
+    vec2 c = qi + vec2(i, j); float h = hash12(c);
+    if (h > dens) continue;
+    vec2 ctr = vec2(i, j) + .5 + .5 * (vec2(hash12(c + 3.1), hash12(c + 5.7)) - .5);
+    ctr.x += .12 * sin(uT * .9 + h * 40.);
+    float r = mix(rmin, rmax, hash12(c + 9.2)) / cell, d = length(qf - ctr);
+    b = max(b, smoothstep(r, r * .7, d));
+    l = max(l, smoothstep(r * .3, 0., abs(d - r * .8)));
+  }
+  return vec2(b, l);
+}
 void main(){
   vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
-  float x = px.x, xk = (x - uCx) * uKm, yk = (uGround - px.y) * uKm;   // km : à droite, et en hauteur au-dessus de la plaine
-  float hs = cone(x), top = cone(uCx);
+  float xk = (px.x - uCx) * uKm, yk = (uGround - px.y) * uKm;   // km : à droite, et en hauteur au-dessus de la plaine
+  float hs = relief(xk), top = relief(0.), visq = uVisq;
+  float Tm = visq > .5 ? 900. : 1150.;
+  float Hf = .9 + .22 * sin(uT * .55) + .1 * sin(uT * 1.37 + 1.);     // hauteur de la fontaine (km), comme à l'Etna : elle pulse lentement
+  float lac = top + .12;                                               // le lac de lave au fond du cratère
+  // les coulées de basalte : 5,5 km à gauche, 3,8 km à droite ; elles refroidissent en descendant
+  float sF = abs(xk) - .45, LF = xk < 0. ? 5.5 : 3.8;
+  float fl = visq > .5 ? 0. : step(0., sF) * step(sF, LF);
+  float uF = clamp(sF / LF, 0., 1.);
+  float TF = 1150. - 430. * pow(uF, .85);
+  float thF = (.075 - .025 * uF) * fl;                                 // épaisseur grossie (×4 environ) pour rester visible
   vec3 col;
-  float visq = uVisq;
   if (yk > hs){
-    // le ciel nocturne, rougi par l'éruption
-    col = mix(vec3(.006, .008, .02), vec3(.002, .003, .01), clamp(yk / 8., 0., 1.)) + vec3(.9, .9, 1.) * etoiles(px) * .3;
-    float hv = yk - top;                                          // km au-dessus du cratère
-    if (visq > .5){
-      // colonne plinienne : des cendres grises qui montent en volutes, éclairées par en dessous
-      // jet de gaz étroit à la base, puis colonne de convection qui s'élargit en volutes (« chou-fleur »)
+    float above = yk - hs, hv = yk - top;
+    // le ciel nocturne
+    col = mix(vec3(.006, .008, .02), vec3(.002, .003, .01), clamp(yk / 9., 0., 1.)) + vec3(.9, .9, 1.) * etoiles(px) * .3;
+    // quelques nuages élevés : sombres au loin, rougis au-dessus du volcan par la lueur de l'éruption
+    float nc = smoothstep(.5, .8, fbm(vec2(xk * .16 + uT * .008, yk * .55))) * exp(-pow((yk - 7.5) / 1.4, 2.));
+    col = mix(col, vec3(.008, .009, .013) + incand(1050.) * (visq > .5 ? .1 : .3) * exp(-abs(xk) / 3.5), nc * .85);
+    if (visq < .5){
+      // la lueur de l'éruption dans l'air : autour de la fontaine, et au ras des coulées
+      float rG = length(vec2(xk, (hv - Hf * .5) * 1.25));
+      col += incand(1060.) * (.3 * exp(-rG / 1.) + .07 * exp(-rG / 3.5)) * (.7 + .35 * Hf);
+      col += incand(TF) * .6 * smoothstep(.25, .75, abs(xk)) * step(sF, LF) * exp(-max(above - thF, 0.) / .22) * (1. - .6 * smoothstep(.3, 1., uF));
+      col += incand(1150.) * .45 * exp(-max(yk - lac, 0.) / .3) * smoothstep(.7, .3, abs(xk));   // le lac de lave éclaire le cratère
+      // le panache de gaz et de vapeur, poussé par le vent, éclairé par-dessous
+      float h = max(hv, 0.), xc = .1 * h + .03 * h * h, w = .2 + .3 * h;
+      if (hv > -.1 && abs(xk - xc) < 1.8 * w){
+        vec2 q = vec2((xk - xc) / w * 1.1, h * .8 - uT * .09);
+        vec2 wq = vec2(fbm(q * 2.1 + uT * .02), fbm(q * 1.6 - 2.));
+        float n = fbm(q * 1.3 + wq * 1.2), nb = fbm(q * 1.3 + vec2(0., .12) + wq * 1.2);
+        float dens = smoothstep(1.15, .3, abs(xk - xc) / w + (.55 - n) * .9) * smoothstep(-.05, .5, hv) * smoothstep(11., 5., h) * (.3 + .7 * n);
+        float lit = clamp(.5 + (n - nb) * 9., 0., 1.);
+        vec3 pl = incand(1080.) * 1.1 * exp(-h / 1.5) * (.35 + .65 * lit) + vec3(.022, .024, .032) * (.5 + .7 * n);
+        col = mix(col, pl, clamp(dens, 0., 1.) * .92);
+      }
+      // la fontaine de lave : un jet qui pulse, et des gouttes en paraboles qui rougissent en refroidissant
+      if (abs(xk) < 1.1 && hv > -.1 && hv < Hf * 1.3 + .1){
+        float jw = .05 + .15 * clamp(hv / Hf, 0., 1.);
+        float jet = exp(-pow(xk / jw, 2.)) * smoothstep(Hf * 1.1, Hf * .6, hv) * smoothstep(-.06, .02, hv);
+        jet *= .7 + .6 * vnoise(vec2(xk * 30., hv * 10. - uT * 6.));
+        col += incand(1160. - 70. * clamp(hv / Hf, 0., 1.)) * jet * 7.;
+        col += incand(1100.) * .7 * exp(-pow(xk / (jw * 3.), 2.)) * smoothstep(Hf * 1.25, 0., hv) * smoothstep(-.06, .05, hv);   // le halo de la fontaine
+        for (int i = 0; i < 64; i++){
+          float fi = float(i), h1 = hash12(vec2(fi, 1.7)), h2 = hash12(vec2(fi, 4.1)), h3 = hash12(vec2(fi, 8.3));
+          float tau = fract(uT * (.32 + .22 * h1) + h2);
+          float D = (h3 - .5) * (.6 + 1.2 * h2 * h2), Hd = Hf * (.35 + .85 * h1);
+          vec2 pp = vec2(D * tau, top + 4. * Hd * tau * (1. - tau));
+          vec2 sv = vec2(D, 4. * Hd * (1. - 2. * tau)) * .055;          // une traînée, comme sur une photo posée
+          float d = seg(vec2(xk, yk), pp - sv, pp).x / uKm;
+          col += incand(1140. - 220. * tau) * 3. * exp(-d * d * 1.1);
+        }
+      }
+      // la coulée, posée sur le flanc : croûte sombre qui fige vers l'aval, fissures incandescentes
+      if (above < thF){
+        float z = above / thF, adv = sF * 9. - uT * .5 * (1. - .7 * uF);
+        float crack = smoothstep(.72, .93, vnoise(vec2(adv, xk < 0. ? 3. : 7.))) * (.4 + .6 * vnoise(vec2(adv * 3., z * 2.)));
+        float crust = smoothstep(.05, .7, uF) * (.35 + .65 * z) * (1. - crack);
+        vec3 lave = incand(TF + 40. * (vnoise(vec2(adv * 2., z)) - .5)) * 3.2;
+        col = mix(lave, vec3(.018, .016, .016) * (.7 + .5 * vnoise(vec2(adv * 4., z * 3.))), clamp(crust, 0., 1.));
+      }
+      // le lac de lave au fond du cratère, couvert de plaques qui dérivent
+      if (yk < lac && abs(xk) < .5){
+        float pl2 = smoothstep(.55, .9, vnoise(vec2(xk * 18. - uT * .2, 2.)));
+        col = incand(1150.) * 3.5 * (1. - .7 * pl2) + vec3(.02) * pl2;
+      }
+    } else {
+      // colonne plinienne : jet de gaz étroit à la base, puis colonne de convection qui s'élargit en volutes (« chou-fleur »)
       float w = hv < .8 ? .12 + hv * .55 : .56 + (hv - .8) * .38;
       float e = fbm(vec2(hv * 1.4 - uT * .35, step(0., xk) * 5.3 + 1.));
       w *= .78 + .5 * e;
@@ -656,62 +744,79 @@ void main(){
       float n = fbm(q * 1.4 + vec2(fbm(q * 2.3 + uT * .15), fbm(q * 1.7 - 3.)) * 1.3);
       float nb = fbm(q * 1.4 + vec2(0., .06) + vec2(fbm(q * 2.3 + uT * .15), fbm(q * 1.7 - 3.)) * 1.3);
       float dens = smoothstep(1.05, .7, abs(xk) / w + (.5 - n) * .35) * smoothstep(-.05, .1, hv);
-      float lit = clamp(.5 + (nb - n) * 12., 0., 1.);                     // le dessous des volutes reçoit la lueur du cratère
+      float lit = clamp(.5 + (nb - n) * 12., 0., 1.);                       // le dessous des volutes reçoit la lueur du cratère
       vec3 cendre = vec3(.075, .07, .066) * (.55 + .7 * n) * (.8 + .3 * lit);
       vec3 lueur = incand(1000.) * (.6 * lit + .15) * exp(-max(hv, 0.) * 1.1);
       col = mix(col, cendre + lueur, clamp(dens, 0., 1.));
       col += incand(1050.) * 2.5 * smoothstep(.12, .0, abs(xk) - hv * .3) * smoothstep(.5, .0, hv) * step(0., hv);   // pyroclastes incandescents du jet
-      // un éclair dans le panache (les cendres s'électrisent en se frottant)
-      if (uEclair > 0.){ float e = exp(-pow(xk * 3. - sin(hv * 9. + uT) * .4 - .2, 2.) * 40.) * smoothstep(1.5, 2.5, hv) * smoothstep(5., 3.5, hv); col += vec3(.7, .75, 1.) * e * uEclair * 2.; }
-    } else {
-      // fontaine de lave : des gouttes incandescentes en paraboles, et un panache de vapeur
-      vec2 c = floor(vec2(xk * 45., hv * 45.)), f = fract(vec2(xk * 45., hv * 45.));
-      float hh = hash12(c + floor(uT * 10.));
-      float env = exp(-pow(xk / (.08 + .35 * max(hv, 0.)), 2.)) * smoothstep(.55, .0, hv) * step(0., hv);
-      float spray = step(.8, hh) * smoothstep(.5, .1, length(f - .5)) * env;
-      col += incand(1120.) * (spray * 6. + env * env * 1.2);                   // gouttes de lave et cœur de la fontaine
-      float st = fbm(vec2(xk * 1.5, hv * 1.2 - uT * .5));
-      col += vec3(.5, .48, .46) * .05 * smoothstep(.4, .8, st) * exp(-pow(xk / (.3 + hv * .25), 2.)) * smoothstep(0., .5, hv) + incand(1100.) * .03 * exp(-max(hv, 0.) * 1.5);
-    }
-  } else {
-    // la roche : couches de laves et de cendres dans l'édifice, sédiments sous la plaine
-    float dd = hs - yk;                                           // km sous la surface
-    float strat = yk > 0. ? sin(dd * 9. + vnoise(px * .05) * 2.) : sin(yk * 6. + xk * .15 + vnoise(px * .04) * 2.5);
-    vec3 roche = (yk > 0. ? vec3(.05, .042, .04) : vec3(.06, .052, .042)) * (.75 + .25 * strat) * (.8 + .4 * vnoise(px * .4));
-    col = roche;
-    // la chambre magmatique, à 5-7 km : du magma chargé de cristaux, qui brasse lentement
-    vec2 ch = vec2(xk / 3.2, (yk + 6.) / 1.3);
-    float rc = length(ch);
-    float Tm = visq > .5 ? 900. : 1150.;
-    float m = smoothstep(1., .9, rc);
-    vec3 mag = incand(Tm + 40. * (vnoise(vec2(ch * 4.) + uT * .1) - .5)) * (.75 + .5 * fbm(ch * 3. + uT * .05)) * 1.6;
-    mag *= 1. - .55 * smoothstep(.82, .9, vnoise(px * .55));            // des cristaux (le magma est une « bouillie » cristalline)
-    // la cheminée : le magma monte ; s'il est gazeux, ses bulles grossissent en montant puis le font éclater en cendres
-    float cw = .09 + .03 * sin(yk * 3.);
-    float cond = smoothstep(cw, cw * .5, abs(xk)) * step(-5., yk) * step(yk, top - .2);
-    if (visq > .5){
-      float bub = smoothstep(.75, .95, vnoise(vec2(xk * 80., yk * 20. - uT * 3.))) * smoothstep(-5., 1., yk);
-      mag = mix(mag, vec3(.02), bub * cond * .8);
-    }
-    col = mix(col, mag, max(m, cond));
-    // la roche autour, chauffée par le magma, rougeoie à peine
-    col += incand(Tm) * .05 * exp(-max(rc - 1., 0.) * 2.5) * (1. - m);
-    // coulées sur le flanc (basalte) ou nuée ardente (magma visqueux)
-    if (dd < .12 && yk > 0.){
-      if (visq < .5){
-        // deux rivières de lave : jaune-orange près du cratère, rouge plus bas, puis une croûte sombre qui fige
-        float sx = abs(xk), side = xk > 0. ? 1. : -1.;
-        float wid = .045 * (.7 + .6 * vnoise(vec2(sx * 3., side)));
-        float rv = smoothstep(wid, wid * .4, dd - .015) * smoothstep(5.5, 4.5, sx);
-        float Tl = 1160. - 62. * sx + 30. * (vnoise(vec2(sx * 8. - uT * .6 * side, side * 3.)) - .5);
-        float croute = smoothstep(.55, .75, vnoise(vec2(sx * 14. - uT * .3, side * 7.))) * smoothstep(800., 950., 1160. - Tl + 800.);
-        col = mix(col, incand(Tl) * 4. * (1. - .8 * croute) + vec3(.012) * croute, rv * step(760., Tl));
-      } else if (uNuee > 0.){
+      // un éclair dans le panache (les cendres s'électrisent en se frottant) : local, jamais plein écran
+      if (uEclair > 0.){ float e2 = exp(-pow(xk * 3. - sin(hv * 9. + uT) * .4 - .2, 2.) * 40.) * smoothstep(1.5, 2.5, hv) * smoothstep(5., 3.5, hv); col += vec3(.7, .75, 1.) * e2 * uEclair * 2.; }
+      // le dôme de lave visqueuse dans le cratère : une croûte sombre fendue de lueurs
+      float dome = top + .3 * (1. - pow(xk / .42, 2.));
+      if (yk < dome && abs(xk) < .42){ float cr = smoothstep(.8, .95, vnoise(vec2(xk * 25., yk * 25.))); col = vec3(.03, .028, .027) * (.7 + .5 * vnoise(px * .7)) + incand(880.) * cr * 1.5; }
+      // nuée ardente : un nuage brûlant de gaz et de cendres qui dévale le flanc
+      if (uNuee > 0. && above < .6){
         float front = uNuee * 9.;
-        float nu = smoothstep(.0, .35, front - abs(xk)) * smoothstep(.6, .0, dd) * smoothstep(.3, .7, fbm(vec2(xk * 2. - uT, dd * 3.)));
-        col = mix(col, vec3(.12, .1, .09) + incand(700.) * .2, nu);
+        float nu = smoothstep(.0, .35, front - abs(xk)) * smoothstep(.6, .0, above) * smoothstep(.3, .7, fbm(vec2(xk * 2. - uT, above * 3.)));
+        col = mix(col, vec3(.07, .06, .055) + incand(720.) * .3, nu);
       }
     }
+  } else {
+    // la roche, coupée : couches de laves et de cendres dans l'édifice, vieilles couches plissées sous la plaine
+    float sous = yk > 0. ? 0. : 1., u;
+    if (yk > 0.) u = (lisse(xk) - yk) / (.16 + .06 * sin(xk * .9 + 1.)) + .9 * fbm(vec2(xk * .9, yk * 1.6));   // coulées et retombées, parallèles aux flancs
+    else u = (-yk + step(xk, -5.2 + .35 * yk) * .9 + .22 * sin(xk * .33 + .6) + .4 * fbm(vec2(xk * .22, yk * .3))) / (.42 + .1 * sin(xk * .17 - yk * .4));   // une faille ancienne décale les couches
+    vec3 roche = couche(floor(u), sous);
+    roche *= .8 + .3 * vnoise(px * .45) + .12 * vnoise(px * 1.7);
+    roche *= .92 + .08 * sin(fract(u) * 38. + vnoise(px * .2) * 3.) * sous;  // laminations fines des sédiments
+    roche *= .7 + .3 * smoothstep(0., .06, fract(u));                        // le contact entre deux couches
+    roche *= vec3(.9, .94, 1.06);                                            // lumière froide de la lune
+    if (yk < -4.2 + .3 * fbm(vec2(xk * .3, 2.))){ float gr = hash12(floor(px * .5)); roche = vec3(.03, .028, .029) * (.75 + .4 * vnoise(px * .3)) + vec3(.008, .005, .004) * step(.9, gr) - vec3(.006) * step(gr, .06); }   // le socle cristallin (granite)
+    col = roche;
+    vec2 pw = vec2(xk + .03 * sin(yk * 9.) + .015 * sin(yk * 23.), yk);
+    // un vieux dyke, figé : une bande de basalte sombre qui recoupe les couches
+    vec2 d2 = seg(pw, vec2(-.8, -5.), vec2(-3.1, 1.));
+    col = mix(col, vec3(.022, .022, .026) * (.8 + .4 * vnoise(px * .9)), smoothstep(.034, .02, d2.x));
+    // la chambre magmatique, à 5-7 km : une lentille irrégulière de magma qui brasse
+    vec2 cq = vec2((xk - .2) / 3.3, (yk + 6.) / 1.2);
+    float ang = atan(cq.y, cq.x);
+    float rc = length(cq) * (1. + .07 * sin(ang * 3. + 1.) + .05 * sin(ang * 7. + 2.));
+    float m = smoothstep(1., .96, rc);
+    if (rc < 1.4){
+      vec2 p = vec2(xk, yk);
+      vec2 wv = vec2(fbm(p * 1.4 + vec2(uT * .04, 0.)), fbm(p * 1.4 + vec2(0., -uT * .05) + 5.));
+      float n = fbm(p * 2.2 + wv * 1.6 + vec2(0., -uT * .08));
+      // convection : le magma chaud monte au centre, au-dessus de la recharge ; refroidi, il redescend le long des parois
+      float plume = exp(-pow((xk - .2 - .25 * sin(yk * 3. - uT * .5)) / .75, 2.)) * smoothstep(1., .1, rc);
+      float Tc = Tm + 150. * (n - .5) + 130. * plume - 260. * smoothstep(.6, 1., rc);
+      vec3 mag = incand(Tc) * 1.7;
+      mag *= 1. - .5 * smoothstep(.8, .95, vnoise(px * .55)) * (.5 + .5 * smoothstep(.6, 1., rc));   // cristaux, plus nombreux près des parois
+      vec2 bb = bulles(p, .3, .07 + .05 * plume, (visq > .5 ? .3 : .14) + .3 * plume, .05, .11);         // bulles de gaz (grossies) qui montent, surtout dans le panache chaud
+      mag = mix(mag, mag * .35, bb.x * m) + incand(Tc + 80.) * bb.y * 1.4 * m;
+      col = mix(col, mag, m);
+      col += incand(Tm - 80.) * .07 * exp(-max(rc - 1., 0.) * 6.) * (1. - m);                      // la roche autour, chauffée (auréole)
+    }
+    // un dyke actif : une lame de magma qui fend la roche depuis le toit de la chambre (elle n'a pas percé)
+    vec2 d1 = seg(pw, vec2(1.15, -4.9), vec2(2.4, .8));
+    float w1 = .024 * (1. - .85 * d1.y * d1.y), k1 = smoothstep(w1, w1 * .4, d1.x) * (1. - m);
+    col = mix(col, incand(Tm - 60. - 160. * d1.y) * 1.8, k1);
+    col += incand(Tm - 120.) * .045 * exp(-d1.x / .12) * (1. - k1) * (1. - m);
+    // la cheminée : le magma monte ; ses bulles grossissent à mesure que la pression baisse
+    float cx = condX(yk, top), cw = condW(yk, top);
+    float cond = smoothstep(cw, cw * .55, abs(xk - cx)) * smoothstep(-5.4, -5., yk) * (1. - m);
+    if (cond > 0.){
+      float g = smoothstep(-5., top, yk);
+      float Tcd = Tm - 30. + 30. * (vnoise(vec2(xk * 40., yk * 5. - uT * 1.2)) - .5);
+      vec3 mc = incand(Tcd) * 1.9;
+      vec2 bb = bulles(vec2(xk - cx, yk), .07, .25 + .5 * g, .25 + .5 * g, .008 + .02 * g, .016 + .03 * g);
+      mc = mix(mc, mc * .3, bb.x) + incand(Tcd) * bb.y;
+      if (visq > .5) mc = mix(mc, vec3(.05, .045, .04) + incand(950.) * bb.y * .6, smoothstep(top - 1.5, top - .9, yk) * .85);   // fragmentation : gaz et cendres
+      col = mix(col, mc, cond);
+    }
+    col += incand(Tm - 50.) * .06 * exp(-abs(xk - cx) / .15) * step(-5., yk) * (1. - cond) * (1. - m);   // la roche chauffée le long de la cheminée
+    // le haut du cône, éclairé par la fontaine
+    float dd = hs - yk;
+    col += incand(1060.) * (visq > .5 ? .06 : .22) * exp(-dd / .05) * exp(-abs(xk) / 1.3);
   }
   o = vec4(col, 1.);
 }`;
@@ -741,6 +846,7 @@ void main(){
       'La simulation résout les équations de Navier-Stokes dans la bouteille, transporte la chaleur, et traite la cire par un champ de phase de Cahn et Hilliard (1958) : une grandeur qui vaut 1 dans la cire et −1 dans le liquide, et qui pousse les deux à se séparer avec une frontière fine. La tension de surface vient de la même équation : elle arrondit les gouttes et fait se pincer les colonnes, comme un filet d’eau qui se casse en perles (instabilité de Plateau-Rayleigh).',
       'En 1900, Henri Bénard chauffe par en dessous une fine couche d’huile de baleine et voit apparaître un réseau d’hexagones. Lord Rayleigh explique en 1916 le seuil d’apparition : le nombre de Rayleigh, qui compare la poussée d’Archimède à la viscosité et à la diffusion de la chaleur, doit dépasser environ 1 708. En dessous, la chaleur passe par conduction ; au-dessus, le liquide s’organise en rouleaux qui tournent alternativement dans un sens et dans l’autre.',
       'La surface du Soleil bout de la même façon : des millions de granules de 1 000 km environ, qui vivent une dizaine de minutes. Le gaz chaud monte au centre, le gaz refroidi redescend dans les couloirs sombres, 300 °C plus froids. Le télescope Daniel K. Inouye, à Hawaï, les a photographiées en 2020 avec des détails de 30 km. Le Soleil vibre aussi, toutes les cinq minutes environ : l’héliosismologie s’en sert pour sonder son intérieur.',
+      'Sous nos pieds, la roche est solide : le magma ne naît qu’à trois endroits. Aux dorsales, le manteau remonte et fond parce que la pression baisse (la décompression). Aux points chauds, un panache plus chaud monte du fond du manteau. Aux subductions, la plaque océanique qui plonge entraîne de l’eau, et cette eau fait fondre le manteau au-dessus d’elle : ce sont les volcans des Andes, du Japon ou de l’Indonésie, souvent explosifs, car leur magma est visqueux et riche en gaz.',
     ],
     tools: [
       { id: 'observer', label: 'observer', desc: 'Touchez la cire ou le liquide : température et sens du mouvement.' },
@@ -883,7 +989,7 @@ void main(){
     }
     function geoVolcan() {
       const v = view(), y0 = (env.view && env.view.y0) || 0;
-      return { km: Math.max(30 / v.w, 7.6 / ((H - y0) * 0.38)), ground: y0 + (H - y0) * 0.62, cx: v.cx };
+      return { km: Math.max(30 / v.w, 7.6 / ((H - y0) * 0.38)), ground: y0 + (H - y0) * 0.55, cx: v.cx };
     }
     function render() {
       const { K, pg } = G, cw = K.canvas.width, ch = K.canvas.height, s = G.s;
@@ -1002,10 +1108,17 @@ void main(){
         put('VOLCAN ACTIF', g.hot - 25, g.sea - 7 * vz, 'rgba(255,190,120,.9)');
       } else if (cfg.scene === 'volcan') {
         const g = geoVolcan(), z = (km) => km / g.km;
-        put('CHAMBRE MAGMATIQUE · 5 À 7 KM SOUS LA PLAINE', g.cx + z(3.6), g.ground + z(6), 'rgba(255,200,120,.9)', 'left');
-        put('CHEMINÉE', g.cx + z(0.35), g.ground + z(2.5), 'rgba(255,214,160,.85)', 'left');
+        put('CHAMBRE MAGMATIQUE · 5 À 7 KM SOUS LA PLAINE', g.cx + z(3.7), g.ground + z(6), 'rgba(255,200,120,.9)', 'left');
+        put('LE MAGMA BRASSE · BULLES DE GAZ (GROSSIES)', g.cx + z(3.7), g.ground + z(6) + 13, 'rgba(255,200,120,.75)', 'left');
+        put('CHEMINÉE', g.cx + z(0.4), g.ground + z(2.9), 'rgba(255,214,160,.85)', 'left');
+        put('DYKE : LE MAGMA FEND LA ROCHE', g.cx + z(2.5), g.ground + z(0.9), 'rgba(255,214,160,.8)', 'left');
+        put('VIEUX DYKE, FIGÉ', g.cx - z(2.9), g.ground + z(1.6), 'rgba(220,214,230,.7)', 'right');
         if (cfg.magma === 'visqueux') { put('COLONNE DE CENDRES', g.cx + z(2.2), g.ground - z(6.5), 'rgba(235,232,255,.8)', 'left'); put('ELLE MONTE À 20-40 KM', g.cx + z(2.2), g.ground - z(6.5) + 13, 'rgba(235,232,255,.8)', 'left'); if (nuee > 0.05) put('NUÉE ARDENTE', g.cx + z(nuee * 8.5), g.ground - z(0.6), 'rgba(255,220,190,.9)'); }
-        else put('FONTAINES ET COULÉES DE BASALTE · ~1 150 °C', g.cx + z(1.4), g.ground - z(3.6), 'rgba(255,200,120,.9)', 'left');
+        else {
+          put('FONTAINE DE LAVE · BASALTE À ~1 150 °C', g.cx + z(1.1), g.ground - z(3.9), 'rgba(255,200,120,.9)', 'left');
+          put('COULÉE : JAUNE À 1 150 °C, ROUGE VERS 900 °C, PUIS UNE CROÛTE NOIRE', g.cx - z(3.2), g.ground - z(2.6), 'rgba(255,200,120,.85)', 'right');
+          put('(ÉPAISSEUR GROSSIE POUR ÊTRE VISIBLE)', g.cx - z(3.2), g.ground - z(2.6) + 13, 'rgba(255,200,120,.65)', 'right');
+        }
         const v = view(), bx = v.x1 - 30 - z(5), by = H - 34;
         ctx.strokeStyle = 'rgba(240,236,255,.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + z(5), by); ctx.stroke();
         put('5 KM', bx + z(2.5), by - 6, 'rgba(240,236,255,.75)');
@@ -1022,7 +1135,21 @@ void main(){
       if (cfg.scene === 'terre') s = `LA TERRE EN COUPE, À L’ÉCHELLE · 1 S ≈ ${fr(cfg.geo, cfg.geo < 1 ? 1 : 0)} MILLION${cfg.geo >= 2 ? 'S' : ''} D’ANNÉES · ${Math.round(ma)} MILLIONS D’ANNÉES ÉCOULÉS`;
       if (cfg.scene === 'pointchaud') s = `POINT CHAUD · 1 S ≈ ${Math.round(cfg.hot * 1000).toLocaleString('fr-FR')} 000 ANS · RELIEF EXAGÉRÉ ×25 AU-DESSUS DU FOND MARIN, À L’ÉCHELLE EN DESSOUS`;
       if (cfg.scene === 'volcan') s = 'SOUS LE VOLCAN, À L’ÉCHELLE · ' + (cfg.magma === 'visqueux' ? 'MAGMA VISQUEUX ET GAZEUX : IL EXPLOSE' : 'BASALTE FLUIDE : IL COULE');
-      ctx.fillText(s, v.x0 + 16, H - 16); ctx.restore();
+      // la convention des couleurs, dite à l'écran (règle de Hubble de la DA)
+      let c = '';
+      if (cfg.scene === 'benard') c = cfg.benView ? 'COLORANT FLUORESCENT : IL SUIT L’ÉCOULEMENT' : 'FAUSSES COULEURS : LA TEMPÉRATURE (NOIR = PLUS FROID, JAUNE = PLUS CHAUD)';
+      if (cfg.scene === 'terre') c = 'COULEURS : LA LUEUR QU’AURAIT LA MATIÈRE À SA TEMPÉRATURE · PERSONNE NE PEUT VOIR L’INTÉRIEUR DE LA TERRE';
+      if (cfg.scene === 'pointchaud' || cfg.scene === 'volcan') c = 'COULEURS : LA LUEUR QU’AURAIT LA ROCHE À SA TEMPÉRATURE · PERSONNE NE PEUT VOIR SOUS LA SURFACE';
+      // retour à la ligne aux « · » quand l'écran est étroit (tablette en portrait, téléphone)
+      const lines = [], maxw = v.w - 32;
+      for (const t of [c, s]) {
+        if (!t) continue;
+        let cur = '';
+        for (const part of t.split(' · ')) { const nx = cur ? cur + ' · ' + part : part; if (cur && ctx.measureText(nx).width > maxw) { lines.push(cur); cur = part; } else cur = nx; }
+        lines.push(cur);
+      }
+      lines.forEach((t, i) => { ctx.globalAlpha = t === s || s.includes(t) ? 1 : 0.75; ctx.fillText(t, v.x0 + 16, H - 16 - (lines.length - 1 - i) * 15); });
+      ctx.restore();
     }
     let pending = false;
     function frame(t, dt) {

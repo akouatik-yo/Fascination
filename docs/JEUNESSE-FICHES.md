@@ -116,4 +116,13 @@ Ces corrections viennent de la relecture scientifique de Claire :
   - Je veux tous les détails : tous les leviers de la fiche et « Pour les curieux » ouvert.
   - Je connais déjà : en plus, le Labo ouvert, le texte adulte de la machine, et sous chaque levier son vrai nom et sa vraie valeur.
 - **La lecture à voix haute** (« Écouter ») utilise la synthèse vocale de l'appareil, quand elle a une voix française. Elle est proposée aux moins de 10 ans et au niveau « Je découvre ».
+- **Les retours de chef-design (13/11)** sont appliqués :
+  - **plusieurs joueurs par tablette** : chacun a un signe (un avatar), et l'on change de joueur depuis la carte (« Qui joue ? ») ;
+  - **l'âge n'est jamais affiché**, sauf dans le coin des grands ;
+  - **sous 9 ans, « Je découvre » est posé d'office**, sans question ; le niveau se change dans le coin des grands, derrière l'appui long ;
+  - **les chiffres de 5 à 9 portent des bougies**, et la question est lue au premier toucher ;
+  - **pictogrammes de niveau** : graine, pousse, arbre, forêt ;
+  - **police Andika** (SIL, OFL) de 5 à 9 ans ;
+  - **cibles** d'au moins 76 px à 5-6 ans et 60 px à 7-9 ans, avec environ 16 px d'écart.
+  - Captures : `docs/captures-jeunesse/`.
 - **La science ne change pas d'un niveau à l'autre** : seuls la quantité de texte et le vocabulaire changent. Un texte `petit` dit les mêmes faits que l'étincelle, sans mot savant. Il ne simplifie jamais au point d'être faux.

@@ -1,5 +1,7 @@
 /* Fascinations Labo — l'habillage : sobre, lisible, posé par-dessus la machine sans jamais la redimensionner. */
 @font-face { font-family: 'Atkinson'; font-weight: 400; font-style: normal; font-display: swap; src: url(../polices/atkinson-hyperlegible-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Andika'; font-weight: 400; font-style: normal; font-display: swap; src: url(../polices/andika-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Andika'; font-weight: 700; font-style: normal; font-display: swap; src: url(../polices/andika-latin-700-normal.woff2) format('woff2'); }
 @font-face { font-family: 'Atkinson'; font-weight: 700; font-style: normal; font-display: swap; src: url(../polices/atkinson-hyperlegible-latin-700-normal.woff2) format('woff2'); }
 
 :root {
@@ -217,9 +219,8 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 .accueil .tete { width: 100%; display: flex; align-items: center; justify-content: space-between; }
 .grandeq { font-size: clamp(28px, 4.5vw, 44px); margin: 18px 0 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
 .ages { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 14px; width: min(760px, 100%); }
-.age { min-height: 96px; border-radius: 22px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.age { min-height: 112px; border-radius: 22px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .age b { font-size: 40px; line-height: 1; }
-.age span { color: var(--doux); font-size: 15px; }
 .age.on { border-color: #7ee8a9; }
 .niveaux { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; width: min(760px, 100%); }
 .niveau { min-height: 120px; border-radius: 22px; padding: 16px 18px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 14px; text-align: left; align-items: center; }
@@ -234,3 +235,31 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 .bt.profil { border: 1.5px solid #7ee8a9; }
 /* 5-6 ans : la question et l'étincelle en gros */
 #fj.age-1 .question { font-size: 26px; } #fj.age-1 .etincelle { font-size: 22px; }
+
+/* 5-9 ans : Andika (SIL, pour les lecteurs débutants) ; cibles d'au moins 76 px (5-6 ans) et 60 px (7-9 ans) à l'écran, 16 px d'écart */
+#fj.age-1, #fj.age-2 { font-family: 'Andika', 'Atkinson', system-ui, sans-serif; }
+#fj.age-1 .pil { min-height: 60px; padding: 8px 18px; }
+#fj.age-1 #gestes, #fj.age-1 .col { gap: 13px; }
+#fj.age-1 .action, #fj.age-1 .recette, #fj.age-1 .bt, #fj.age-1 .vit { min-height: 60px; }
+#fj.age-1 .recettes, #fj.age-1 .rangee, #fj.age-1 #actions { gap: 13px; }
+#fj.age-2 .pil { min-height: 52px; }
+/* les joueurs */
+.avatar { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--c, #7ee8a9) 22%, #12131f); color: var(--c, #7ee8a9); border: 2px solid var(--c, #7ee8a9); flex: none; }
+.avatar .ic { width: 24px; height: 24px; }
+.avatar.grand { width: 104px; height: 104px; }
+.avatar.grand .ic { width: 56px; height: 56px; }
+.avatar.plus { font-size: 54px; font-weight: 700; color: var(--doux); border-style: dashed; --c: #9aa0b8; }
+.joueurs { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px; width: min(760px, 100%); }
+.joueur { border-radius: 50%; padding: 6px; }
+.joueur.on .avatar { box-shadow: 0 0 0 5px rgba(255, 255, 255, .25); }
+.joueur.pris { opacity: .45; }
+.age { position: relative; }
+.bougies { display: flex; gap: 3px; justify-content: center; margin-bottom: 6px; flex-wrap: wrap; max-width: 78px; }
+.bougies i { width: 5px; height: 18px; border-radius: 2px; background: linear-gradient(#ffd36e 0 30%, #f3f1ea 30%); }
+.joueursGrands { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 14px; }
+.joueurGrand { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px; border-radius: 14px; background: rgba(255, 255, 255, .04); border: 1px solid var(--trait); }
+.joueurGrand.on { border-color: #7ee8a9; }
+.joueurGrand .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.joueurGrand .opts button { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 12px; border-radius: 12px; background: rgba(255, 255, 255, .07); border: 1px solid var(--trait); }
+.joueurGrand .opts button.on { border-color: #7ee8a9; background: rgba(126, 232, 169, .14); }
+.joueurGrand .opts .ic { width: 20px; height: 20px; }

@@ -26,7 +26,8 @@ await p.waitForFunction(() => window.DEMO && window.DEMO.images > 0, null, { tim
 const phys = await p.evaluate(() => {
   const C = window.FKR.couleur, r = (a) => a.map((v) => +v.toFixed(3));
   return { T1900: r(C.corpsNoir(1900)), T6500: r(C.corpsNoir(6500)), T10000: r(C.corpsNoir(10000)), Ha: r(C.raie(656.28)), OIII: r(C.raie(500.68)), Na: r(C.raie(589)),
-    eau10: r(C.eau(10).rgb), eau10Y: +C.eau(10).Y.toFixed(3), ciel: r(C.rayleigh()), luciole: r(C.bande('luciole')), css: C.css([1, 0.5, 0.2]), ecl1500: Math.round(C.eclatCorpsNoir(1500)) };
+    eau10: r(C.eau(10).rgb), eau10Y: +C.eau(10).Y.toFixed(3), ciel: r(C.rayleigh()), luciole: r(C.bande('luciole')), css: C.css([1, 0.5, 0.2]), ecl1500: Math.round(C.eclatCorpsNoir(1500)),
+    son55: r(C.son(55)), son3520: r(C.son(3520)), viridis0: C.css(window.FKR.palette.carte('viridis')(0)), viridis1: C.css(window.FKR.palette.carte('viridis')(1)), cartes: window.FKR.palette.CARTES.length, agx: window.FKR.DEFAUTS.tons, fond: C.css(window.FKR.DEFAUTS.fond) };
 });
 console.log('couleurs physiques :', JSON.stringify(phys));
 console.log('couleurs physiques');
@@ -40,6 +41,17 @@ ok(phys.eau10[0] < 0.2 && phys.eau10[2] === 1, 'sous 10 m d\'eau, le rouge a dis
 ok(phys.ciel[2] === 1 && phys.ciel[0] < 0.7, 'la diffusion Rayleigh donne un ciel bleu');
 ok(phys.luciole[1] === 1 && phys.luciole[0] > 0.4 && phys.luciole[2] < 0.1, 'la luciole est jaune-vert');
 ok(phys.ecl1500 > 2500 && phys.ecl1500 < 3300, '1 500 K brille ≈ 2 900 fois plus que 1 000 K');
+ok(phys.son55[0] === 1 && phys.son55[1] < 0.05 && phys.son3520[2] === 1 && phys.son3520[1] < 0.05, 'échelle du son : graves rouges, aigus violets');
+ok(phys.viridis0 === '#440154' && phys.viridis1 === '#fde725' && phys.cartes === 7, 'cartes perceptives exactes aux extrémités (viridis), 7 cartes');
+ok(phys.agx === 'agx' && phys.fond === '#05060a', 'réglages de la DA : AgX, fond #05060A');
+const cab = await p.evaluate(() => {
+  try {
+    const K = window.FKGL.GLKit(96, 64), c = window.FKGL.cabine(K, { levels: 4 });
+    K.clear(c.scene); c.finish({ tone: 'agx', bloom: 0.5, thr: 0.9 }); c.finish({ tone: 'aces', ink: 1 });
+    const e = K.gl.getError(); K.lose(); return { ok: e === 0, e, porte: window.FKGL.cabine === window.FKR.cabineK };
+  } catch (err) { return { ok: false, err: String(err) }; }
+});
+ok(cab.ok, 'FKGL.cabine (la cabine de rendu A, portée) fonctionne ' + JSON.stringify(cab));
 
 // 2. les scènes
 for (const sc of scenes) {

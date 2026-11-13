@@ -133,6 +133,7 @@
     champignon: [525, 75],     // Mycena, Armillaria, Omphalotus : le « bois pourri qui brille »
     lanterne: [470, 50],       // photophores des poissons-lanternes (Myctophidae)
     dragon_rouge: [705, 35],   // poisson-dragon Malacosteus : un projecteur rouge, invisible pour ses proies
+    phosphore: [527, 70],      // luminophore P31 (ZnS:Cu) des oscilloscopes : le vert des traces (≈)
   };
   const gaussSpec = (pic, fwhm) => { const s = fwhm / 2.3548; return (l) => Math.exp(-0.5 * ((l - pic) / s) ** 2); };
   // une raie isolée (largeur de quelques dixièmes de nm : on l'élargit à 1 nm pour l'intégration)
@@ -157,6 +158,9 @@
   // étoiles : température effective typique de chaque classe spectrale
   const CLASSES = { O: 38000, B: 18000, A: 8800, F: 6800, G: 5700, K: 4500, M: 3300 };
   const etoile = (c) => corpsNoir(typeof c === 'number' ? c : CLASSES[c] || 5700);
+  // l'échelle commune du son (DA) : une fréquence devient une couleur du spectre, graves rouges, aigus violets ;
+  // 55 Hz (la grave) → 700 nm, 3 520 Hz (six octaves plus haut) → 400 nm ; la même dans toutes les machines du son
+  const son = (hz) => raie(Math.round(700 - 300 * clamp(Math.log2(Math.max(1, hz) / 55) / 6, 0, 1)));
 
   // conversions utiles pour l'interface : linéaire ↔ sRGB et code css
   const versSrgb = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
@@ -168,7 +172,7 @@
     cmf, xyz2rgb, luminance, oklab, deOklab, affichable, spectre, planck: planckL,
     corpsNoir, eclatCorpsNoir, raie, melange: (l) => melange(typeof l === 'string' ? MELANGES[l] : l),
     bande: (pic, fwhm) => (typeof pic === 'string' ? bande(BANDES[pic][0], BANDES[pic][1]) : bande(pic, fwhm)),
-    eau, absEau, rayleigh, etoile, versSrgb, versLin, css, deCss,
+    eau, absEau, rayleigh, etoile, son, versSrgb, versLin, css, deCss,
     RAIES, MELANGES, BANDES, CLASSES,
   };
 
@@ -185,8 +189,23 @@
       return deOklab([lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f)]).map((v) => Math.max(0, v));
     };
   }
+  // cartes de couleurs perceptivement uniformes, pour les grandeurs sans couleur propre (concentration, densité, énergie, itération) :
+  // viridis, magma, inferno, cividis, twilight (matplotlib : van der Walt et Smith, Nuñez et al., Bechtold), mako et rocket (seaborn, Waskom) ;
+  // 33 ancres sRGB, interpolées dans OkLab (écart < 0,006 avec les tables d'origine, invisible)
+  const CARTES = {'viridis':'440154470d6048186a482374472d7b4537814240863e49893b528b375b8d33638d2f6b8e2c728e297a8e26828e23898e21918c1f988b1fa08822a78528ae8032b67a3fbc734ec36b5ec96270cf5784d44b98d83eaddc30c2df23d8e219ece51bfde725','magma':'0000040303120a0822130d341d114729115a36106b440f7651127c5d177f6a1c81762181832681902a819c2e7faa337db73779c43c75d0416fdc4869e75263ef5d5ef56b5cf9795dfc8961fd9869fea772feb67cfec488fed395fde2a3fcf0b2fcfdbf','inferno':'0000040403120b0724150b37210c4a2f0a5b3d09654a0c6b57106e64156e71196e7d1e6d8a226a972766a32c61b0315bbc3754c73e4cd24644db503be45a31eb6628f1731df68013f98e09fb9d07fcac11fbbc21f9cb35f5db4cf2ea69f3f68afcffa4','cividis':'00224e00285b002e6a0533711a386f273e6e32436d3b496c434e6c4b546c535a6d5a5f6e61656f686a716f70737676767d7c788482798c8878938e789b9476a39a74aba072b4a76fbcae6cc4b468cdbb63d5c25edec958e7d150f0d846f9e03afee838','twilight':'e2d9e2d7d7ddc4ced4acc2cc95b5c781a6c37297c16887be6276ba5f64b55e51ad5d3da1592a8f511b7745135c3811452f14363a113a4a13425f174a741e4f872750983550a64550b25652bb6958c27c63c89073cca389d1b6a3d8c7bedfd4d6e2d9e2','mako':'0b04051409101c101c2416282b1c3531214237284f3b2e5d3e356b403c794143873f4c923b5698385f9c36699f3572a1357ba33484a5348da73496a9359fab37a8ac3cb1ad42b9ad4bc2ad57cbad6ad2ad82d8b099ddb6aee3c0c0e9ccd0efd9def5e5','rocket':'03051a0d0a21180f2924143230173a3c1a42481c48541e4e611f536e1f577b1f59891e5b971c5ba4195bb21758bf1654cb1b4fd62449df2f44e73d3fec4c3ef05c42f26b49f47a54f58860f5966cf6a37af6b089f6bc99f7c9aaf8d4bcf9e0cdfaebdd'};
+  const carteCache = {};
+  function carte(nom) {
+    if (carteCache[nom]) return carteCache[nom];
+    const h = CARTES[nom]; if (!h) throw new Error('FKR : carte inconnue ' + nom);
+    const A = []; for (let i = 0; i < h.length; i += 6) A.push(oklab(deCss(h.slice(i, i + 6))));
+    const n = A.length - 1;
+    return (carteCache[nom] = (t) => {
+      const x = clamp(t, 0, 1) * n, i = Math.min(n - 1, Math.floor(x)), f = x - i, a = A[i], b = A[i + 1];
+      return deOklab([lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f)]).map((v) => Math.max(0, v));
+    });
+  }
   const palette = {
-    rampe,
+    rampe, carte, CARTES: Object.keys(CARTES),
     // corps noir de T0 à T1 ; eclat : exposant de compression de la luminance (0 : couleur seule ; le Feu prend 0,4)
     corpsNoir(T0 = 800, T1 = 6500, eclat = 0.4) {
       const Yr = eclatCorpsNoir(T1);
@@ -324,6 +343,17 @@ vec2 boucle(vec2 p, int n){ vec2 v = vec2(0.); float a = 1.; for (int i = 0; i <
 vec2 voronoi(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8., d2 = 8.;
   for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++){ vec2 g = vec2(x, y), r = g + alea2(i + g) - f; float d = dot(r, r); if (d < d1){ d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
   return sqrt(vec2(d1, d2)); }
+// Voronoï dont les germes tournent lentement (t en secondes) : base des réseaux mouvants
+vec2 voronoiT(vec2 p, float t){ vec2 i = floor(p), f = fract(p); float d1 = 8., d2 = 8.;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++){ vec2 g = vec2(x, y), h = alea2(i + g), r = g + .5 + .38 * sin(t * (.6 + .5 * h) + 6.2831853 * h) - f; float d = dot(r, r); if (d < d1){ d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
+  return sqrt(vec2(d1, d2)); }
+// caustiques procédurales (sans simulation de surface) : un réseau de lignes vives qui ondule, deux échelles superposées ;
+// renvoie l'éclairement relatif du fond, de l'ordre de 1 en moyenne (multiplier par la lumière du soleil)
+float caustique(vec2 p, float t){
+  vec2 a = voronoiT(p, t), b = voronoiT(p * 1.7 + 3.1, t * 1.3 + 5.);
+  float la = pow(clamp(1. - (a.y - a.x) * 2.4, 0., 1.), 6.), lb = pow(clamp(1. - (b.y - b.x) * 2.6, 0., 1.), 6.);
+  return .45 + 1.6 * la + .9 * lb + 1.8 * la * lb;
+}
 // déformation de domaine (Quilez) : des volutes organiques à partir d'un fbm
 vec2 gauchir(vec2 p, float k, int n){ return p + k * vec2(fbmG(p + vec2(1.7, 9.2), n), fbmG(p + vec2(8.3, 2.8), n)); }
 `;
@@ -351,6 +381,17 @@ vec3 tonLupton(vec3 c, float q, float e){
   float m = max(o.r, max(o.g, o.b));
   return m > 1. ? o / m : o;
 }
+// AgX (Troy Sobotka) dans sa version minimale de Benjamin Wrensch (2023, licence MIT) : les lumières saturées
+// très fortes blanchissent sans virer de teinte. Sortie : affichage linéaire.
+vec3 tonAgX(vec3 v){
+  const mat3 M = mat3(.842479062253094, .0423282422610123, .0423756549057051, .0784335999999992, .878468636469772, .0784336, .0792237451477643, .0791661274605434, .879142973793104);
+  const mat3 Mi = mat3(1.19687900512017, -.0528968517574562, -.0529716355144438, -.0980208811401368, 1.15190312990417, -.0980434501171241, -.0990297440797205, -.0989611768448433, 1.15107367264116);
+  v = clamp(log2(max(M * v, vec3(1e-10))), -12.47393, 4.026069);
+  v = (v + 12.47393) / 16.5;
+  vec3 v2 = v * v, v4 = v2 * v2;
+  v = 15.5 * v4 * v2 - 40.14 * v4 * v + 31.96 * v4 - 6.868 * v2 * v + .4298 * v2 + .1191 * v - .00232;
+  return pow(max(Mi * v, vec3(0.)), vec3(2.2));
+}
 // Reinhard étendu, sur la luminance (w : blanc)
 vec3 tonReinhard(vec3 c, float w){ float l = luminance(c); float m = l * (1. + l / (w * w)) / (1. + l); return clamp(c * (m / max(l, 1e-7)), 0., 1.); }
 `;
@@ -362,6 +403,18 @@ float halo(float d, float r){ return 1. / (1. + d * d / (r * r)); }
 // profil de Moffat (1969) : celui des étoiles photographiées, un cœur et de longues ailes
 float moffat(float d, float a, float b){ return pow(1. + d * d / (a * a), -b); }
 float schlick(float ct, float f0){ return f0 + (1. - f0) * pow(1. - clamp(ct, 0., 1.), 5.); }
+// Fresnel exact d'un dioptre (lumière non polarisée) : ci = cos de l'angle d'incidence, eta = n₂/n₁ (eau vue de l'air : 1,333).
+// L'eau renvoie 2 % de la lumière vue d'en haut (on voit le fond), et devient un miroir en vue rasante.
+float fresnelDielectrique(float ci, float eta){
+  ci = clamp(ci, 0., 1.); float st2 = (1. - ci * ci) / (eta * eta);
+  if (st2 >= 1.) return 1.;                       // réflexion totale (vue depuis l'eau)
+  float ct = sqrt(1. - st2), rs = (ci - eta * ct) / (ci + eta * ct), rp = (eta * ci - ct) / (eta * ci + ct);
+  return .5 * (rs * rs + rp * rp);
+}
+// caustiques d'une surface d'eau de relief h, au fond à la profondeur d (mêmes unités que le relief) : le soleil vertical est
+// réfracté selon la pente ; là où la surface est bombée (laplacien négatif), les rayons se resserrent et le fond s'éclaire.
+// Éclairement relatif = 1 / |det J| ≈ 1 / |1 + d (1 − 1/n) ∇²h| (Jacobien de la projection ; borné aux plis)
+float caustiqueJacobien(float laplacien, float d, float n){ return 1. / max(abs(1. + d * (1. - 1. / n) * laplacien), .06); }
 // fonctions de phase : Henyey-Greenstein (g > 0 : diffusion vers l'avant, poussières, gouttes, plancton) et Rayleigh (molécules)
 float phaseHG(float ct, float g){ float g2 = g * g; return (1. - g2) / (12.566371 * pow(1. + g2 - 2. * g * ct, 1.5)); }
 float phaseRayleigh(float ct){ return .0596831 * (1. + ct * ct); }
@@ -428,27 +481,35 @@ vec3 traverse(vec3 sigma, float d){ return exp(-sigma * max(d, 0.)); }
   const fs = (noms, corps) => G.tete + (noms && noms.length ? glsl(...noms) : '') + '\n' + corps;
 
   /* ═══════════════ 4. La cabine (WebGL2) ═══════════════ */
+  // les fonds de la DA : le noir comme écrin, légèrement teinté
+  const FONDS = { defaut: '#05060A', eau: '#04080C', cosmos: '#07050A' };
+  // réglages par défaut : ceux de la DA commune (Fausta, 13/11 à 0 h 22, 059035f) ; chaque machine peut les ajuster
   const DEFAUTS = {
     echelle: 1,              // fraction de la résolution de travail
     plafond: 1.25,           // densité de pixels maximale du tampon HDR (tablette modeste ; ces images douces n'y perdent rien)
-    fond: [0.0015, 0.0016, 0.003], // le vide : un noir bleuté, jamais #000
+    fond: deCss(FONDS.defaut), // le vide : #05060A, jamais #000
     expo: 1,                 // exposition (× la lumière)
-    tons: 'film',            // 'film' (défaut), 'aces' (celui du Feu), 'lupton' (astronomie), 'reinhard'
+    tons: 'agx',             // 'agx' (DA), 'film' (Lottes, teinte conservée), 'aces' (celui du Feu), 'lupton' (astronomie), 'reinhard'
     courbe: { contraste: 1.25, epaule: 0.97, milieu: 0.18, sortie: 0.2, max: 24 },
     blanc: 2,                // tons 'film' : les lumières plus fortes que ceci commencent à pâlir vers le blanc (blanc complet à courbe.max)
     lupton: { q: 8, etirement: 0.5 },
-    saturation: 1.06,        // dans OkLab, après la courbe
-    halo: 0.7,               // force du halo (bloom), ajouté à la lumière
+    saturation: 1,           // dans OkLab, après la courbe
+    contraste: 1,            // autour du gris moyen, en espace d'affichage
+    teinte: [1, 1, 1],       // balance des blancs (× la lumière, avant la courbe)
+    releve: [0, 0, 0],       // relevé des noirs (ajouté avant la courbe)
+    halo: 0.06,              // force du halo (DA : 0,04 à 0,08 ; « le bloom révèle les sources »)
     rayon: 0.72,             // étendue du halo : 0 serré, 1 très large
-    seuil: 0, genou: 0.5,    // seuil du halo (0 : physique, tout ce qui brille bave un peu)
-    niveaux: 6,              // étages de la pyramide du halo
+    seuil: 1, genou: 0.5,    // seul ce qui dépasse le blanc diffuse (DA) ; 0 : tout bave un peu (physique, comme le Feu)
+    niveaux: 5,              // étages de la pyramide du halo, depuis la demi-résolution (DA : 5)
     eclairage: 0,            // les lumières éclairent la scène (calque ou cible « scène ») ; 0 : non
     ambiant: [1, 1, 1],      // éclairage de base de la scène
-    vignetage: 0.35,
-    grain: 0.02,
+    vignetage: 0.39,         // cos⁴ : coins assombris d'environ 25 % (DA)
+    grain: 0.05,             // grain animé : ±2,5 % dans les tons moyens (DA : 2 à 3 %)
+    grainNoir: 0.25,         // part du grain dans les noirs
+    remanence: 0,            // phosphore : part de la trace gardée d'une image à l'autre (DA : 0,90 à 0,97), voir R.phosphore()
     gain2D: 4,               // calque 2D des lumières : un blanc pur y vaut cette luminance
   };
-  const TONS = { film: 0, aces: 1, lupton: 2, reinhard: 3 };
+  const TONS = { film: 0, aces: 1, lupton: 2, reinhard: 3, agx: 4 };
   function courbeLottes(o) {
     const a = o.contraste, d = o.epaule, mi = o.milieu, mo = o.sortie, hm = o.max, P = Math.pow, ad = a * d;
     const b = (-P(mi, a) + P(hm, a) * mo) / ((P(hm, ad) - P(mi, ad)) * mo);
@@ -459,7 +520,9 @@ vec3 traverse(vec3 sigma, float d){ return exp(-sigma * max(d, 0.)); }
   const FS_BAS = fs(['couleur'], `
 uniform sampler2D uSrc, uSrc2; uniform vec2 uTx; uniform float uGain2, uPremier, uSeuil, uGenou;
 out vec4 o;
-vec3 lire(vec2 uv){ vec3 c = texture(uSrc, uv).rgb; if (uGain2 > 0.) c += versLineaire(texture(uSrc2, uv).rgb) * uGain2; return c; }
+vec3 lire(vec2 uv){ vec3 c = texture(uSrc, uv).rgb; if (uGain2 > 0.) c += versLineaire(texture(uSrc2, uv).rgb) * uGain2;
+  return clamp(c, 0., 6e4) * step(0., c.r + c.g + c.b);   // ni NaN ni infini dans le halo
+}
 void main(){
   vec3 c0 = lire(vUv), c1 = lire(vUv - uTx), c2 = lire(vUv + uTx), c3 = lire(vUv + vec2(uTx.x, -uTx.y)), c4 = lire(vUv + vec2(-uTx.x, uTx.y));
   vec3 c;
@@ -467,10 +530,14 @@ void main(){
     // moyenne de Karis : un point minuscule et très brillant ne fait pas clignoter le halo
     float w0 = 4. / (1. + luminance(c0)), w1 = 1. / (1. + luminance(c1)), w2 = 1. / (1. + luminance(c2)), w3 = 1. / (1. + luminance(c3)), w4 = 1. / (1. + luminance(c4));
     c = (c0 * w0 + c1 * w1 + c2 * w2 + c3 * w3 + c4 * w4) / (w0 + w1 + w2 + w3 + w4);
-    if (uSeuil > 0.){ float l = luminance(c), s = clamp(l - uSeuil + uGenou, 0., 2. * uGenou); s = s * s / (4. * uGenou + 1e-5); c *= max(s, l - uSeuil) / max(l, 1e-5); }
+    // seuil doux sur le canal le plus fort (une lumière bleue vive dépasse le seuil même si sa luminance est faible)
+    if (uSeuil > 0.){ float l = max(c.r, max(c.g, c.b)), s = clamp(l - uSeuil + uGenou, 0., 2. * uGenou); s = s * s / (4. * uGenou + 1e-5); c *= max(s, l - uSeuil) / max(l, 1e-5); }
   } else c = (c0 * 4. + c1 + c2 + c3 + c4) * .125;
   o = vec4(max(c, 0.), 1.);
 }`);
+  const FS_COPIE = fs([], `
+uniform sampler2D uT; uniform float uK; out vec4 o;
+void main(){ o = vec4(texture(uT, vUv).rgb * uK, 1.); }`);
   const FS_HAUT = fs([], `
 uniform sampler2D uPetit, uCourant; uniform vec2 uTx; uniform float uRayon;
 out vec4 o;
@@ -482,8 +549,8 @@ void main(){
 }`);
   const FS_TIRAGE = fs(['couleur', 'bruit', 'tons', 'finition'], `
 uniform sampler2D uLum, uLum2, uScene, uHalo, uIllum;
-uniform float uGain2, uScMode, uForce, uNH, uNI, uEcl, uExpo, uTon, uSat, uVig, uGrain, uTemps, uAspect;
-uniform vec3 uFond, uAmb; uniform vec4 uCourbe; uniform vec2 uLup, uBlanc;
+uniform float uGain2, uScMode, uForce, uNH, uNI, uEcl, uExpo, uTon, uSat, uVig, uGrain, uGrainN, uTemps, uAspect, uCon;
+uniform vec3 uFond, uAmb, uTeinte, uReleve; uniform vec4 uCourbe; uniform vec2 uLup, uBlanc;
 out vec4 o;
 void main(){
   vec3 lum = texture(uLum, vUv).rgb;
@@ -495,17 +562,20 @@ void main(){
     col = alb * (uAmb + uEcl * texture(uIllum, vUv).rgb * uNI);
   }
   col += lum + uForce * uNH * texture(uHalo, vUv).rgb;
-  col *= uExpo;
+  col = col * uTeinte * uExpo + uReleve;
   vec3 t;
-  if (uTon < .5) t = tonFilm(col, uCourbe, uBlanc);
+  if (uTon > 3.5) t = tonAgX(col);
+  else if (uTon < .5) t = tonFilm(col, uCourbe, uBlanc);
   else if (uTon < 1.5) t = tonACES(col);
   else if (uTon < 2.5) t = tonLupton(col, uLup.x, uLup.y);
   else t = tonReinhard(col, exp2(uBlanc.x + 1. / uBlanc.y));
   if (abs(uSat - 1.) > .001) t = saturer(t, uSat);
   t *= vignetage(vUv, uAspect, uVig);
   vec3 s = versSrgb(clamp(t, 0., 1.));
+  if (abs(uCon - 1.) > .001) s = clamp((s - .5) * uCon + .5, 0., 1.);   // contraste autour du gris moyen, en espace d'affichage
   vec2 px = gl_FragCoord.xy;
-  if (uGrain > 0.){ float l = dot(s, vec3(.3, .59, .11)); s += (alea(px + fract(uTemps * 7.31) * 517.) - .5) * uGrain * 4. * l * (1. - l); }
+  // grain argentique animé : surtout dans les tons moyens, un peu dans les noirs
+  if (uGrain > 0.){ float l = dot(s, vec3(.2126, .7152, .0722)); s += (alea(px + fract(uTemps * 7.31) * 517.) - .5) * uGrain * (4. * l * (1. - l) + uGrainN * (1. - l)); }
   o = vec4(tramer(s, px, fract(uTemps)), 1.);
 }`);
   // lueurs : chaque instance est un segment arrondi (un point si ses deux bouts se confondent) au profil doux
@@ -567,9 +637,9 @@ void main(){
     const K = opt.K || window.FKGL.GLKit(Math.max(2, Math.round(W * cs)), Math.max(2, Math.round(H * cs)));
     const gl = K.gl, cw = K.canvas.width, ch = K.canvas.height;
     const sx = cw / W;
-    const pg = { bas: K.program(FS_BAS), haut: K.program(FS_HAUT), tirage: K.program(FS_TIRAGE), lueur: K.program(FS_LUEUR, VS_LUEUR) };
+    const pg = { bas: K.program(FS_BAS), haut: K.program(FS_HAUT), tirage: K.program(FS_TIRAGE), lueur: K.program(FS_LUEUR, VS_LUEUR), copie: K.program(FS_COPIE) };
     const lum = K.target(cw, ch);
-    let sceneGL = null;
+    let sceneGL = null, trace = null;
     // la pyramide du halo : de la demi-résolution jusqu'à quelques pixels
     const bas = [], haut = [];
     let n = Math.max(1, opt.niveaux | 0);
@@ -700,11 +770,19 @@ void main(){
         }
         return R;
       },
-      // début d'image : la lumière repart de zéro (et la scène WebGL du fond, si elle existe)
-      debut() {
+      // une cible de phosphore : ce qu'on y dessine persiste et s'éteint lentement (remanence par image à 60 i/s) ;
+      // elle s'ajoute à la lumière au tirage. Pour les traits mathématiques (harmonographe, attracteur, oscilloscope).
+      phosphore() { if (!trace) trace = K.target(cw, ch); return trace; },
+      // début d'image : la lumière repart de zéro (et la scène WebGL du fond, si elle existe) ; le phosphore décroît
+      debut(dt) {
         if (perdu) return R;
         K.clear(lum);
         if (sceneGL) K.clear(sceneGL);
+        if (trace) {
+          const k = opt.remanence > 0 ? Math.pow(clamp(opt.remanence, 0, 0.9999), (dt || 1 / 60) * 60) : 0;
+          if (k <= 0) K.clear(trace);
+          else { gl.enable(gl.BLEND); gl.blendFunc(gl.ZERO, gl.CONSTANT_COLOR); gl.blendColor(k, k, k, 1); pg.copie.use().t('uT', noir).f('uK', 0); K.run(pg.copie, trace); gl.disable(gl.BLEND); }
+        }
         return R;
       },
       // fin d'image : halo, tirage, copie dans env.ctx
@@ -716,6 +794,7 @@ void main(){
         if (c2 && (!c2.fixe || c2.sale)) c2.envoyer();
         if (cS && (!cS.fixe || cS.sale)) cS.envoyer();
         const g2 = c2 ? opt.gain2D : 0;
+        if (trace) { gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); pg.copie.use().t('uT', trace).f('uK', 1); K.run(pg.copie, lum); gl.disable(gl.BLEND); }
         // la pyramide descend…
         for (let i = 0; i < n; i++) {
           const src = i === 0 ? lum : bas[i - 1];
@@ -739,6 +818,7 @@ void main(){
           .f('uExpo', opt.expo).f('uTon', TONS[opt.tons] != null ? TONS[opt.tons] : 0).f('uBlanc', Math.log2(opt.blanc), 1 / Math.max(0.1, Math.log2(opt.courbe.max / opt.blanc))).f('uSat', opt.saturation)
           .f('uVig', opt.vignetage).f('uGrain', opt.grain).f('uTemps', temps % 1000).f('uAspect', W / H)
           .f('uFond', opt.fond[0], opt.fond[1], opt.fond[2]).f('uAmb', opt.ambiant[0], opt.ambiant[1], opt.ambiant[2])
+          .f('uCon', opt.contraste).f('uGrainN', opt.grainNoir).f('uTeinte', opt.teinte[0], opt.teinte[1], opt.teinte[2]).f('uReleve', opt.releve[0], opt.releve[1], opt.releve[2])
           .f('uCourbe', k[0], k[1], k[2], k[3]).f('uLup', opt.lupton.q, opt.lupton.etirement);
         K.run(pg.tirage, null);
         if (env.ctx && opt.copie !== false) {
@@ -753,6 +833,129 @@ void main(){
     };
     return R;
   }
+
+  /* ═══════════════ 4 bis. FKGL.cabine : la cabine de rendu A, portée à l'identique ═══════════════ */
+  // Mêmes nuanceurs et mêmes réglages que app/js/fkcabine.js (rendu A, 79f63a2) : une machine qui l'utilise peut charger
+  // fkrendu.js à la place sans rien changer. Usage : const cab = FKGL.cabine(K, { levels: 6 }) ; on dessine dans cab.scene ;
+  // cab.finish({ expo, bloom, thr, knee, radius, clampV, sat, con, vig, grain, grainBlack, tone: 'agx'|'aces', ink, tint, paper, lift, glowSrc, src, out }).
+  function cabineK(K, opt) {
+    const HEAD = window.FKGL.HEAD;
+    const FS_DOWN = HEAD + `
+uniform sampler2D uT; uniform vec2 uPx; uniform float uThr, uKnee, uFirst, uClampV;
+out vec4 o;
+vec3 pre(vec3 c){
+  c = min(c, vec3(uClampV));
+  if (uFirst < .5) return c;
+  float br = max(c.r, max(c.g, c.b));
+  float soft = clamp(br - uThr + uKnee, 0., 2. * uKnee); soft = soft * soft / (4. * uKnee + 1e-5);
+  return c * max(soft, br - uThr) / max(br, 1e-5);
+}
+void main(){
+  vec3 s = pre(texture(uT, vUv).rgb) * 4.;
+  s += pre(texture(uT, vUv - uPx).rgb) + pre(texture(uT, vUv + uPx).rgb);
+  s += pre(texture(uT, vUv + vec2(uPx.x, -uPx.y)).rgb) + pre(texture(uT, vUv - vec2(uPx.x, -uPx.y)).rgb);
+  o = vec4(s * .125, 1.);
+}`;
+    const FS_UP = HEAD + `
+uniform sampler2D uT, uD; uniform vec2 uPx; uniform float uScat;
+out vec4 o;
+void main(){
+  vec3 s = texture(uT, vUv + vec2(-2. * uPx.x, 0.)).rgb + texture(uT, vUv + vec2(2. * uPx.x, 0.)).rgb
+         + texture(uT, vUv + vec2(0., 2. * uPx.y)).rgb + texture(uT, vUv + vec2(0., -2. * uPx.y)).rgb;
+  s += 2. * (texture(uT, vUv + uPx).rgb + texture(uT, vUv - uPx).rgb + texture(uT, vUv + vec2(uPx.x, -uPx.y)).rgb + texture(uT, vUv - vec2(uPx.x, -uPx.y)).rgb);
+  o = vec4(mix(texture(uD, vUv).rgb, s / 12., uScat), 1.);
+}`;
+    const FS_FIN = HEAD + `
+uniform sampler2D uS, uB; uniform vec2 uRes; uniform float uExpo, uBloom, uSat, uCon, uVig, uGrain, uTime, uTone, uInk, uBlack;
+uniform vec3 uTint, uPaper, uLift;
+out vec4 o;
+vec3 aces(vec3 x){ return clamp((x * (2.51 * x + .03)) / (x * (2.43 * x + .59) + .14), 0., 1.); }
+// AgX minimal (Benjamin Wrensch, 2023) : les couleurs saturées très lumineuses blanchissent sans virer de teinte
+vec3 agx(vec3 v){
+  const mat3 M = mat3(.842479062253094, .0423282422610123, .0423756549057051, .0784335999999992, .878468636469772, .0784336, .0792237451477643, .0791661274605434, .879142973793104);
+  const mat3 Mi = mat3(1.19687900512017, -.0528968517574562, -.0529716355144438, -.0980208811401368, 1.15190312990417, -.0980434501171241, -.0990297440797205, -.0989611768448433, 1.15107367264116);
+  v = clamp(log2(max(M * v, vec3(1e-10))), -12.47393, 4.026069);
+  v = (v + 12.47393) / 16.5;
+  vec3 v2 = v * v, v4 = v2 * v2;
+  v = 15.5 * v4 * v2 - 40.14 * v4 * v + 31.96 * v4 - 6.868 * v2 * v + .4298 * v2 + .1191 * v - .00232;
+  return pow(max(Mi * v, vec3(0.)), vec3(2.2));
+}
+float tpdf(vec2 p){ return hash12(p) + hash12(p + 17.31) - 1.; }
+void main(){
+  vec3 c = texture(uS, vUv).rgb;
+  c += texture(uB, vUv).rgb * uBloom;
+  c = c * uTint * uExpo + uLift;
+  vec2 d = (vUv - .5) * vec2(uRes.x / uRes.y, 1.);
+  float r2 = dot(d, d) * uVig;
+  c *= 1. / ((1. + r2) * (1. + r2));
+  float l = dot(c, vec3(.2126, .7152, .0722));
+  c = max(mix(vec3(l), c, uSat), 0.);
+  vec3 t = uTone > .5 ? agx(c) : aces(c);
+  t = pow(t, vec3(1. / 2.2));
+  t = clamp((t - .5) * uCon + .5, 0., 1.);
+  float lum = dot(t, vec3(.2126, .7152, .0722));
+  if (uInk > .5){
+    float a = clamp(max(t.r, max(t.g, t.b)) * 1.3, 0., 1.);
+    vec3 ink = clamp(mix(vec3(lum), t, 1.45) * .92 - .04, 0., 1.);
+    t = mix(uPaper, ink, a);
+  }
+  vec2 px = vUv * uRes;
+  float gm = 4. * lum * (1. - lum) + uBlack * (1. - lum);
+  t += (hash12(px + fract(uTime * 7.31) * 113.) - .5) * uGrain * gm;
+  t += tpdf(px + fract(uTime * 3.17) * 71.) / 255.;
+  o = vec4(t, 1.);
+}`;
+    opt = opt || {};
+    const gl = K.gl;
+    const W = opt.w || K.canvas.width, H = opt.h || K.canvas.height;
+    const pd = K.program(FS_DOWN), pu = K.program(FS_UP), pf = K.program(FS_FIN);
+    const scene = K.target(W, H, 'h', gl.LINEAR);
+    const levels = [];
+    let w = W, h = H;
+    const nl = opt.levels || 6;
+    for (let i = 0; i < nl; i++) {
+      w = Math.max(2, w >> 1); h = Math.max(2, h >> 1);
+      levels.push({ d: K.target(w, h, 'h', gl.LINEAR), u: K.target(w, h, 'h', gl.LINEAR) });
+      if (w <= 4 || h <= 4) break;
+    }
+    const C = {
+      scene, levels, W, H, t: 0,
+      glow(src, o) {
+        o = o || {};
+        let s2 = src || scene;
+        for (let i = 0; i < levels.length; i++) {
+          const L = levels[i];
+          pd.use().t('uT', s2).f('uPx', 1 / s2.w, 1 / s2.h).f('uThr', o.thr != null ? o.thr : 1).f('uKnee', o.knee != null ? o.knee : 0.5)
+            .f('uFirst', i === 0 ? 1 : 0).f('uClampV', o.clampV || 64);
+          K.run(pd, L.d);
+          s2 = L.d;
+        }
+        let u = levels[levels.length - 1].d;
+        for (let i = levels.length - 2; i >= 0; i--) {
+          const L = levels[i];
+          pu.use().t('uT', u).t('uD', L.d).f('uPx', 0.5 / L.d.w, 0.5 / L.d.h).f('uScat', o.radius != null ? o.radius : 0.72);
+          K.run(pu, L.u);
+          u = L.u;
+        }
+        return u;
+      },
+      finish(o) {
+        o = o || {};
+        C.t += 1 / 60;
+        const b = (o.bloom == null ? 0.7 : o.bloom) > 0 ? C.glow(o.glowSrc, o) : levels[0].d;
+        const tint = o.tint || [1, 1, 1], paper = o.paper || [0.9, 0.87, 0.8], lift = o.lift || [0, 0, 0];
+        pf.use().t('uS', o.src || scene).t('uB', b).f('uRes', K.canvas.width, K.canvas.height)
+          .f('uExpo', o.expo == null ? 1 : o.expo).f('uBloom', o.bloom == null ? 0.7 : o.bloom)
+          .f('uSat', o.sat == null ? 1 : o.sat).f('uCon', o.con == null ? 1 : o.con).f('uVig', o.vig == null ? 0.35 : o.vig)
+          .f('uGrain', o.grain == null ? 0.035 : o.grain).f('uBlack', o.grainBlack == null ? 0.25 : o.grainBlack).f('uTime', C.t)
+          .f('uTone', o.tone === 'agx' ? 1 : 0).f('uInk', o.ink ? 1 : 0)
+          .f('uTint', tint[0], tint[1], tint[2]).f('uPaper', paper[0], paper[1], paper[2]).f('uLift', lift[0], lift[1], lift[2]);
+        K.run(pf, o.out || null);
+      },
+    };
+    return C;
+  }
+  if (window.FKGL && !window.FKGL.cabine) window.FKGL.cabine = cabineK;
 
   /* ═══════════════ 5. Repli en canvas 2D ═══════════════ */
   // même contrat (debut, calque, lot, fin, regler, detruire), sans tirage filmique : le halo est un flou du calque des lumières
@@ -847,5 +1050,7 @@ void main(){
     return c;
   }
 
-  window.FKR = { version: '1.1.0', couleur, palette, GLSL: G, glsl, fs, cabine, cabine2D, cabineOuRepli, sprite, DEFAUTS, courbeLottes };
+  // fond(nom) : un fond de la DA en linéaire ('defaut', 'eau', 'cosmos')
+  const fond = (nom) => deCss(FONDS[nom] || nom || FONDS.defaut);
+  window.FKR = { version: '1.2.0', couleur, palette, GLSL: G, glsl, fs, cabine, cabine2D, cabineOuRepli, cabineK, sprite, DEFAUTS, FONDS, fond, courbeLottes };
 })();

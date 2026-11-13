@@ -218,9 +218,10 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 .accueil > .tete { background: none; }
 .accueil .tete { width: 100%; display: flex; align-items: center; justify-content: space-between; }
 .grandeq { font-size: clamp(28px, 4.5vw, 44px); margin: 18px 0 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
-.ages { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 14px; width: min(760px, 100%); }
+.ages { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; width: min(780px, 100%); }
+.ages .age { width: 96px; }
 .age { min-height: 112px; border-radius: 22px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.age b { font-size: 40px; line-height: 1; }
+.age b { font-size: 40px; line-height: 1; font-family: 'Andika', 'Atkinson', sans-serif; }   /* Andika : pas de zéro barré */
 .age.on { border-color: #7ee8a9; }
 .niveaux { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; width: min(760px, 100%); }
 .niveau { min-height: 120px; border-radius: 22px; padding: 16px 18px; background: rgba(255, 255, 255, .07); border: 2px solid var(--trait); display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 14px; text-align: left; align-items: center; }
@@ -254,8 +255,11 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 .joueur.on .avatar { box-shadow: 0 0 0 5px rgba(255, 255, 255, .25); }
 .joueur.pris { opacity: .45; }
 .age { position: relative; }
-.bougies { display: flex; gap: 3px; justify-content: center; margin-bottom: 6px; flex-wrap: wrap; max-width: 78px; }
-.bougies i { width: 5px; height: 18px; border-radius: 2px; background: linear-gradient(#ffd36e 0 30%, #f3f1ea 30%); }
+.bougies { display: flex; gap: 4px 5px; justify-content: center; margin: 6px 0 6px; flex-wrap: wrap; max-width: 76px; }
+.bougies.deux { max-width: 56px; }
+/* une bougie d'anniversaire : un corps de 6 × 16 px et sa flamme, une goutte jaune */
+.bougies i { position: relative; width: 6px; height: 16px; margin-top: 7px; border-radius: 2px; background: repeating-linear-gradient(160deg, #f3f1ea 0 3px, #ff86c8 3px 5px); }
+.bougies i::before { content: ''; position: absolute; left: 50%; top: -8px; width: 5px; height: 7px; transform: translateX(-50%); border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%; background: radial-gradient(circle at 50% 70%, #fff6c9, #ffd36e 55%, #ff9a3c); box-shadow: 0 0 5px rgba(255, 211, 110, .8); }
 .joueursGrands { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 14px; }
 .joueurGrand { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px; border-radius: 14px; background: rgba(255, 255, 255, .04); border: 1px solid var(--trait); }
 .joueurGrand.on { border-color: #7ee8a9; }

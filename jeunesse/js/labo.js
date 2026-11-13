@@ -50,7 +50,7 @@
      Conseils de chef-design (13/11) : l'âge n'est jamais affiché hors du coin des grands ; sous 9 ans, le niveau
      « Je découvre » est posé d'office (il se change derrière la porte des grands) ; plusieurs joueurs par tablette. */
   const NIVEAUX = [
-    { n: 1, nom: 'Je découvre', sous: 'Je regarde, je touche, et une phrase m’explique.', icone: 'graines' },
+    { n: 1, nom: 'Je découvre', sous: 'Je regarde, je touche, et une phrase m’explique.', icone: 'graine' },
     { n: 2, nom: 'J’aime comprendre', sous: 'Des explications courtes et des défis « Et si… ? ».', icone: 'pousse' },
     { n: 3, nom: 'Je veux tous les détails', sous: 'Tous les réglages et les textes pour les curieux.', icone: 'arbre' },
     { n: 4, nom: 'Je connais déjà', sous: 'Les vrais noms, les vraies valeurs, le Labo ouvert.', icone: 'foret' },
@@ -134,7 +134,7 @@
       const g = h('div', { class: 'ages' }); box.append(g);
       for (const a of AGES) {
         // des bougies comme sur un gâteau : un enfant se reconnaît sans lire
-        const bougies = a <= 9 ? h('span', { class: 'bougies', 'aria-hidden': 'true' }, ...Array.from({ length: a }, () => h('i'))) : null;
+        const bougies = a <= 9 ? h('span', { class: 'bougies' + (a >= 7 ? ' deux' : ''), 'aria-hidden': 'true' }, ...Array.from({ length: a }, () => h('i'))) : null;
         g.append(h('button', { class: 'age', 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
           bougies, h('b', null, a === 16 ? '16 +' : String(a))));
       }

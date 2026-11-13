@@ -1246,7 +1246,6 @@ void main(){
       if ((label.rt = (label.rt || 0) + 1) % 20 === 0) label.m = readAt(label.x, label.y);
       const [name, role, col] = describe(label), v = view();
       const side = label.x > v.x0 + v.w * 0.5 ? -1 : 1, y0 = (env.view && env.view.y0) || 0;
-      let ly = label.y - 36 - 16 < y0 + 4 ? label.y + 46 : label.y - 36;
       ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(label.x, label.y, 11, 0, TAU); ctx.stroke();
       // un fond sombre sous le texte : il reste lisible même posé sur le disque doré du Soleil ou sur la lave ;
@@ -1261,7 +1260,11 @@ void main(){
       // l'étiquette reste dans l'écran : en 390 px, celle de l'auréole sortait par le bord et coupait la fin du texte
       const bh = 26 + lines.length * 12;
       const bx = clamp(side > 0 ? label.x + 32 : label.x - 32 - bw, v.x0 + 6, v.x0 + v.w - 6 - bw);
-      ly = Math.min(ly, H - 8 - bh + 16);
+      // tout entière au-dessus du cercle du toucher (avec quatre lignes, elle le recouvrait) ; en dessous si elle
+      // passerait sous la bande du haut
+      let top = label.y - 18 - bh;
+      if (top < y0 + 4) top = Math.min(label.y + 18, H - 8 - bh);
+      const ly = top + 16;
       const lx = bx + 8;
       ctx.fillStyle = 'rgba(6,6,12,.62)'; ctx.fillRect(bx, ly - 16, bw, bh);
       ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6; ctx.textAlign = 'left';

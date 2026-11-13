@@ -207,3 +207,10 @@ Proposée à Kurt, acceptée à quatre conditions, toutes tenues :
 4. **Même règle en paysage et en portrait.** Sur écran étroit, il y a deux orages au lieu de trois : à cette taille, trois se fondaient en un seul.
 
 Effet : des cumulonimbus environ 1,56 fois plus grands qu'en règle linéaire (et 1,8 fois plus grands que les objets au-dessus de 20 km), et une bande bleue de clair de lune plus haute. Le noir recule nettement. Captures : `foudre-atmo-labo.jpg` et `-tel.jpg`.
+
+## Recontrôle de Constance sur 47e38d7 (13/11, 20 h 15)
+
+La neige et le Soleil ne sont plus moches, ni les ronds en 1280. Suite :
+
+- **L'étiquette du Soleil** se place tout entière au-dessus du cercle du toucher. Avec quatre lignes, elle le recouvrait, et sous le disque elle passait sous « Regarde ». Si elle heurterait la bande du haut, elle passe en dessous. La capture `lave-soleil-aureole-labo-tel.jpg`, prise avant le correctif de la ligne d'état, est refaite. Nouvelle capture : `lave-soleil-sous-disque-labo-tel.jpg`.
+- **Ronds en 390, « des bandes douces »** : j'ai essayé une rampe de teinte plus raide sur l'azote. Les anneaux sont devenus plus sombres et boueux, pas plus nets : essai retiré. La douceur vient du modèle. L'azote libéré persiste environ 1,3 an derrière le front, d'où une bande large au bord intérieur flou. Les bandes vert sombre des vrais ronds font plutôt 10 à 30 cm, soit une persistance d'environ 0,5 à 1 an à 25 cm par an. Proposé à Kurt, pas fait.

@@ -4,8 +4,8 @@
    absorption de l'eau. Vie : gerris qui chassent aux ondes, gyrins en radeau, koïs sous la surface,
    nénuphars, mouches tombées. Expériences de la cuve à ondes : interférences, diffraction, réfraction, Doppler.
    Rendu (rendu B, FKR) : la machine écrit de la LUMIÈRE (HDR linéaire) que la cabine commune développe (halo, AgX, grain).
-   La mare est vue par un œil debout au bord (en bas de l'écran) : transparente à ses pieds, elle devient miroir du ciel
-   au loin (Fresnel exact, n = 1,333). Le fond est éclairé par les caustiques tirées de la surface simulée, l'eau mange le
+   La mare est vue de dessus, l'œil à la verticale : transparente, elle ne renvoie le ciel que sur le flanc incliné des
+   rides, où la vue devient rasante (Fresnel exact, n = 1,333). Le fond est éclairé par les caustiques tirées de la surface simulée, l'eau mange le
    rouge selon l'épaisseur traversée (eauTransmission, Pope et Fry 1997) ; c'est le fond qui donne la teinte.
    Repli automatique sur l'ancienne Eau en 2D si WebGL2 manque. */
 (function boot() {
@@ -357,7 +357,7 @@ void main(){
     if (uBarre.w > .5) E *= mix(.12, 1., smoothstep(uBarre.z * .5, uBarre.z * 1.3, abs(p.x - uBarre.x)));
     col = pap * (uLampe * E * 1.6 * uSoleil + vec3(.006, .007, .009));
   } else {
-    // l'œil : debout au bord de la mare, en bas de l'écran (sans décor : vu d'en haut)
+    // l'œil : à la verticale de la mare, très haut (vue de dessus) ; le reflet du ciel naît sur le flanc des rides
     vec3 V = uMode < .5 ? normalize(uOeil - vec3(p, 0.)) : vec3(0., 0., 1.);
     float cv = max(dot(n, V), .02);
     float F = fresnelDielectrique(cv, 1.333);         // 2 % vu d'en haut, un miroir en vue rasante
@@ -583,15 +583,16 @@ void main(){
       { color: COUL.css(VERT.map((v) => v * 2.6)), name: 'Nymphaea alba', role: 'nénuphar blanc', desc: 'Ses feuilles flottent grâce à des canaux pleins d’air et respirent par le dessus, cireux et hydrofuge. Elles amortissent les rides qui passent dessous.' },
       { color: '#8a8070', name: 'Musca domestica', role: 'mouche tombée à l’eau', desc: 'Prisonnière de la tension superficielle, elle se débat et fait vibrer la surface : un signal que les gerris et les koïs savent lire.' },
       { color: COUL.css(SUNCOL), name: 'Caustiques', role: 'lumière réfractée', desc: 'Chaque crête concentre la lumière du soleil comme une loupe, chaque creux l’étale. Au fond, cela dessine un filet lumineux qui danse. La lumière qui descend puis remonte perd un peu de rouge : l’eau peu profonde est presque incolore, c’est le fond qui donne la teinte.' },
-      { color: COUL.css(HORIZON.map((v) => v * 0.6)), name: 'Reflet du ciel', role: 'Fresnel', desc: 'Vue d’en haut, l’eau ne renvoie que 2 % de la lumière : on voit le fond. Vue de biais, au loin, elle en renvoie de plus en plus et devient un miroir où passent le ciel et ses nuages.' },
+      { color: COUL.css(HORIZON.map((v) => v * 0.6)), name: 'Reflet du ciel', role: 'Fresnel', desc: 'Vue d’en haut, l’eau ne renvoie que 2 % de la lumière : on voit le fond. Vue de biais, elle en renvoie de plus en plus et devient un miroir : sur le flanc incliné des rides passent le ciel et ses nuages.' },
       { color: '#c8d8ff', name: 'Gouttes de pluie', role: 'bulle de Minnaert', desc: 'Le « plic » d’une goutte ne vient pas du choc, mais d’une minuscule bulle d’air piégée qui vibre, à quelques milliers de hertz. Chaque goutte projette une couronne de gouttelettes et laisse parfois de petites bulles qui flottent.' },
       { color: COUL.css(window.FKR.palette.carte('magma')(0.7)), name: 'Amplitude moyenne', role: 'couche de fausse couleur', desc: 'Couleurs : amplitude moyenne des oscillations, échelle magma (sombre : nœud, l’eau reste calme ; clair : ventre). Une grandeur invisible à l’œil, montrée seulement si on l’active.' },
     ],
     about: [
       'À la surface d’une mare, deux forces ramènent l’eau à plat : la pesanteur pour les vagues, la tension superficielle pour les petites rides. Les ondes les plus lentes avancent à 23 cm/s, pour une longueur d’onde de 1,7 cm : en dessous, ce sont des ondes capillaires, au-dessus des ondes de gravité. Ici, la simulation résout l’équation d’onde ; la profondeur règle la vitesse, comme dans une cuve à ondes.',
-      'Les caustiques sont calculées d’après la forme de la surface : la lumière du soleil la traverse, se plie selon l’indice de l’eau (1,33) et frappe le fond. Là où la surface est bombée, les rayons se resserrent et le fond s’illumine ; vue de loin, l’eau devient un miroir du ciel (Fresnel). Les pattes des gerris creusent de petites fossettes qui agissent comme des lentilles divergentes : au fond, chaque patte projette une ombre ronde cerclée de lumière.',
+      'Les caustiques sont calculées d’après la forme de la surface : la lumière du soleil la traverse, se plie selon l’indice de l’eau (1,33) et frappe le fond. Là où la surface est bombée, les rayons se resserrent et le fond s’illumine ; sur le flanc incliné des rides, vu de biais, l’eau devient un miroir du ciel (Fresnel). Les pattes des gerris creusent de petites fossettes qui agissent comme des lentilles divergentes : au fond, chaque patte projette une ombre ronde cerclée de lumière.',
       'Comment les jeunes gerris avancent-ils, alors que leurs pattes vont moins vite que les ondes les plus lentes ? Ce « paradoxe de Denny » (1993) a été résolu en 2003 par David Hu, Brian Chan et John Bush : en ramant, le gerris lance surtout de petits tourbillons sous la surface. Ses pattes portent jusqu’à quinze fois son poids grâce à des milliers de poils striés.',
       'Au début des années 1800, Thomas Young fait passer la lumière par deux fentes et observe des franges : la lumière se comporte comme une onde. La cuve à ondes rend l’expérience visible. Deux sources font naître des lignes calmes (nœuds) et des lignes agitées (ventres), des hyperboles ; une fente étroite fait s’épanouir l’onde, une plaque immergée la ralentit et la dévie, comme un prisme.',
+      'En eau profonde, le sillage d’un bateau fait toujours environ 39° (sillage de Kelvin) ; ici, l’eau est peu profonde, toutes les vagues vont à la même vitesse, et l’angle du V se resserre quand on va plus vite.',
       'Quand on tape près d’une carpe, elle fuit en quelques millisecondes en se pliant en C : c’est le « départ en C », commandé par deux neurones géants, les cellules de Mauthner. Et le « plic » de la pluie vient d’une bulle d’air qui vibre à une fréquence d’environ 3,3 divisé par son rayon (Minnaert, 1933).',
     ],
     tools: [
@@ -696,7 +697,8 @@ void main(){
     }
     mkCab();
     // décalage du fond vu à travers une eau plane, par unité de profondeur (l'œil est debout au bord, en bas de l'écran)
-    const oeil = () => { const v = view(); return [v.cx, H * 1.2, H * 0.5]; };
+    // une carte vue de dessus : l'œil est à la verticale, très haut (au plus 14° d'écart dans les coins)
+    const oeil = () => { const v = view(); return [v.cx, H * 0.5, H * 3]; };
     function decalage(x, y) {
       const E = oeil(); let vx = E[0] - x, vy = E[1] - y; const vz = E[2], l = Math.hypot(vx, vy, vz);
       vx /= l; vy /= l;
@@ -1133,7 +1135,19 @@ void main(){
       if (!mode) drawSpray(A);
       cab.fin(rdt);
       if (!bare) drawSurface();
+      if (tank && cfg.exp === 'doppler') legendeDoppler();
       drawLabel(false);
+    }
+    // à l'écran, sur la scène « Plus vite que ses vagues » : la cuve est de l'eau peu profonde (V de Mach, pas de Kelvin)
+    function legendeDoppler() {
+      const v = view(), y = ((env.view && env.view.y0) || 0) + 22;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 6; ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(250,248,240,.95)'; ctx.font = '500 14px "Space Grotesk", sans-serif';
+      ctx.fillText('Plus vite que ses vagues (eau peu profonde)', v.x0 + 16, y);
+      ctx.fillStyle = 'rgba(250,248,240,.8)'; ctx.font = '500 9.5px "JetBrains Mono", monospace';
+      ctx.fillText('TOUTES LES VAGUES VONT À LA MÊME VITESSE : LE V SE RESSERRE QUAND LA SOURCE ACCÉLÈRE', v.x0 + 16, y + 15);
+      ctx.restore();
     }
     // les éclaboussures en lumière : chaque gouttelette en l'air renvoie le soleil (un point vif, étiré pendant la pose) ;
     // une bulle flottante renvoie le ciel sur son pourtour (Fresnel rasant) et le soleil en un point
@@ -1374,7 +1388,7 @@ void main(){
             double: 'L’expérience de Thomas Young (début des années 1800), avec de l’eau : derrière deux fentes, des franges alternent.',
             refraction: 'Une plaque immergée rend l’eau moins profonde : l’onde y ralentit et change de direction, comme la lumière dans du verre.',
             lentille: 'Une zone peu profonde en forme de lentille ralentit le centre de l’onde : le front se courbe et converge vers un foyer.',
-            doppler: 'La source se déplace : les crêtes se resserrent devant, s’espacent derrière. Plus vite que les ondes, elle trace un sillage en V, comme un bateau.',
+            doppler: 'Eau peu profonde : toutes les vagues vont à la même vitesse. La source se déplace : les crêtes se resserrent devant, s’espacent derrière. Plus vite que les ondes, elle trace un sillage en V, qui se resserre quand elle accélère.',
           }[cfg.exp] + ' Longueur d’onde ≈ ' + Math.round(lam) + ' px.' });
           L.push({ type: 'slider', label: 'Fréquence', min: 0, max: 1, step: 0.01, value: cfg.freq, fmt: (x) => (Math.round((0.12 + x * 0.32) * 120 / TAU * 10) / 10).toString().replace('.', ',') + ' Hz', set: (x) => { cfg.freq = x; } });
           if (cfg.exp !== 'refraction' && cfg.exp !== 'lentille' && cfg.exp !== 'doppler') L.push({ type: 'slider', label: cfg.exp === 'deux' ? 'Écart des sources' : 'Largeur des fentes', min: 0, max: 1, step: 0.01, value: cfg.gap, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { cfg.gap = x; setExp(cfg.exp); } });

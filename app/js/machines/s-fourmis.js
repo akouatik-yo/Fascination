@@ -62,17 +62,17 @@ float hMap(vec2 uv){ return (texture(uH, uv).r - .25) * 16.; }
 float hSol(vec2 m){
   float f = fbmG(m * .15 + uGraine, 4) * .6 + fbmG(m * .035 + 4.1, 3) * 1.1;
   vec2 v = voronoi(m * .95 + uGraine * 3.1);
-  float g = (1. - smoothstep(0., .72, v.x)) * .3;
+  float g = (1. - smoothstep(0., .72, v.x)) * .2;
   vec2 w = voronoi(m * .3 + 17.);
-  float c = smoothstep(.12, 0., w.y - w.x) * -.3;
+  float c = smoothstep(.1, 0., w.y - w.x) * -.12;
   return f + g + c;
 }
 // la couleur du sol : ocre, taches d'humus sombre, sable plus clair, quelques grains de quartz
 vec3 albSol(vec2 m){
   float n1 = fbmG(m * .02 + uGraine * .7, 4), n2 = fbmG(m * .085 + 7.3, 3);
-  vec3 c = mix(vec3(.2, .115, .052), vec3(.055, .034, .02), smoothstep(-.3, .5, n1));
-  c = mix(c, vec3(.36, .25, .13), smoothstep(.15, .8, n2) * .5);
-  c *= .72 + .56 * bruitV(m * 1.9 + 3.);
+  vec3 c = mix(vec3(.25, .15, .07), vec3(.075, .047, .027), smoothstep(-.1, .7, n1) * .85);
+  c = mix(c, vec3(.38, .27, .15), smoothstep(.15, .8, n2) * .5);
+  c *= .86 + .28 * bruitV(m * 1.9 + 3.);
   c = mix(c, vec3(.5, .46, .4), step(.985, alea(floor(m * 1.25 + 9.))) * .45);
   return c;
 }
@@ -101,7 +101,7 @@ void main(){
     float an = float(i) * .785398 + .3; vec2 dd = vec2(cos(an), sin(an)) * uPxMm * tx;
     ao += max(0., hMap(vUv + dd * 1.6) - h0) / 1.6 + max(0., hMap(vUv + dd * 5.) - h0) / 5.;
   }
-  ao = clamp(1. - ao * .075, .2, 1.) * mix(1., clamp(.8 + s0 * .35, .45, 1.), sol);
+  ao = clamp(1. - ao * .075, .2, 1.) * mix(1., clamp(.88 + s0 * .22, .62, 1.), sol);
   vec4 A = texture(uA, vUv);
   vec3 alb = mix(rug < .1 ? vec3(.006, .011, .014) : albSol(m), versLineaire(A.rgb), A.a);   // eau sombre ou terre
   float ndl = max(dot(n, uL), 0.), ndv = max(n.z, 1e-3);
@@ -159,7 +159,14 @@ uniform vec4 uCorps[12];
 out vec2 vUv; out vec2 vLoc; flat out vec4 vA, vB, vC, vD, vE, vG, vP, vT, vH;
 void main(){
   float L = aA.w; int nat = int(aB.w + .5);
-  vec4 bx = nat == 0 ? vec4(-.82, 1.08, -.86, .86) : vec4(-1.25, 1.25, -1.25, 1.25);
+  int s = clamp(int(aE.x + .5), 0, 2) * 4;
+  vec4 bx = vec4(-1.25, 1.25, -1.25, 1.25);
+  if (nat == 0){
+    float k = uCorps[s].w, ch = aC.w, hk = aB.z;
+    float yb = max(.44 * k + .04, ch > 1.5 && ch < 2.5 ? .82 : 0.);
+    float xb1 = max(uCorps[s + 3].x + uCorps[s + 3].y * .7 * hk + .32, max((int(aE.y + .5) & 2) != 0 ? .8 : 0., ch > .5 ? .92 : 0.));
+    bx = vec4(-max(.46 * k + .05, .68), xb1, -yb, yb);
+  }
   if (uOmbre > .5) bx += vec4(-.3, .3, -.3, .3);
   float m = 1.5 / L;
   vec2 loc = vec2(mix(bx.x - m, bx.y + m, aCoin.x * .5 + .5), mix(bx.z - m, bx.w + m, aCoin.y * .5 + .5));
@@ -169,7 +176,6 @@ void main(){
   gl_Position = vec4(p.x / uRes.x * 2. - 1., 1. - p.y / uRes.y * 2., 0., 1.);
   vUv = vec2(p.x / uRes.x, 1. - p.y / uRes.y);
   vLoc = loc; vA = aA; vB = aB; vC = aC; vD = aD; vE = aE;
-  int s = clamp(int(aE.x + .5), 0, 2) * 4;
   vG = uCorps[s]; vP = uCorps[s + 1]; vT = uCorps[s + 2]; vH = uCorps[s + 3];
 }`;
 
@@ -235,7 +241,11 @@ void main(){
     bool rep = (fl & 1) != 0, sold = (fl & 2) != 0;
     // six pattes (trépied alterné) et deux antennes, sous le corps
     float dl = 1e3;
-    for (int i = 0; i < 3; i++){
+    float rugE = clamp(sqrt(rug * rug + 4. * px * px), rug, .85);   // reflet filtré à la taille du pixel
+    if (L < 10.){
+      float fz = exp(-2.2 * (p.x * p.x) / (.2 * k * k) - 3. * (p.y * p.y) / (.16 * k * k)) * .38;
+      if (fz > .01) over(acc, eclaire(vec3(0., 0., 1.), alb * .85, .6, .04), fz);
+    } else for (int i = 0; i < 3; i++){
       vec4 lg = i == 0 ? vec4(.08, .42, .28, 0.) : i == 1 ? vec4(.02, .05, .4, 1.) : vec4(-.04, -.34, .36, 0.);
       float kxo = (i == 0 ? .05 : i == 2 ? -.04 : 0.) * k;
       for (int j = 0; j < 2; j++){
@@ -248,13 +258,13 @@ void main(){
       }
     }
     float hx0 = vH.x + vH.y * .7 * hk, da = 1e3;
-    for (int j = 0; j < 2; j++){
+    if (L >= 10.) for (int j = 0; j < 2; j++){
       float sg = j == 0 ? -1. : 1.;
       float w1 = sin(uT * 7. + vE.w + sg) * .05 * vB.y, w2 = sin(uT * 9.3 + vE.w * 2. + sg) * .07 * vB.y;
       vec2 b0 = vec2(hx0, .035 * sg), e0 = vec2(hx0 + .09, (.15 + w1) * sg), t0 = vec2(hx0 + .26 + w2 * .3, (.11 + w2) * sg);
       da = min(da, min(sdSegment(p, b0, e0), sdSegment(p, e0, t0)));
     }
-    float cl = max(trait(dl, .03, px), trait(da, .02, px));
+    float cl = L < 10. ? 0. : max(trait(dl, .03, px), trait(da, .02, px));
     if (cl > 0.) over(acc, eclaire(vec3(0., 0., 1.), alb * .85, .5, .04), cl);
     // le corps : abdomen (gonflé et rayé quand il est plein de sucre), pétiole, thorax, tête
     vec3 G = rep ? vec3(vG.x * 1.15, vG.y * 1.45, vG.z * 1.45) : vG.xyz;
@@ -272,7 +282,7 @@ void main(){
         a2 = mix(alb, vec3(.42, .24, .06), smoothstep(.55, .85, bnd) * .9);
       }
       if (part == 3 && sold) a2 = vec3(.62, .5, .26);   // soldat légionnaire : tête pâle
-      over(acc, eclaire(nb, a2, rug, .045), cb);
+      over(acc, eclaire(nb, a2, rugE, .045), cb);
     }
     if (sold){
       // les mandibules en crochet des soldats légionnaires
@@ -1173,7 +1183,7 @@ void main(){
         gr.addColorStop(0, hc(base + haut, 0.95, 1, 1)); gr.addColorStop(0.55, hc(base + haut * 0.7, 0.95, 1, 0.75)); gr.addColorStop(1, hc(base, 0.95, 1, 0));
         gH.fillStyle = gr; gH.beginPath(); gH.arc(n.x, n.y, R, 0, TAU); gH.fill();
         const ga = gA.createRadialGradient(n.x, n.y, 0, n.x, n.y, R);
-        ga.addColorStop(0, 'rgba(150,112,74,.6)'); ga.addColorStop(0.7, 'rgba(140,104,68,.3)'); ga.addColorStop(1, 'rgba(140,104,68,0)');
+        ga.addColorStop(0, 'rgba(176,136,92,.8)'); ga.addColorStop(0.65, 'rgba(160,122,82,.45)'); ga.addColorStop(1, 'rgba(160,122,82,0)');
         gA.fillStyle = ga; gA.beginPath(); gA.arc(n.x, n.y, R, 0, TAU); gA.fill();
         // les boulettes de terre déposées par les ouvrières autour des entrées
         gH.globalCompositeOperation = 'lighter';
@@ -1181,7 +1191,7 @@ void main(){
           const an = rnd(TAU), d = Math.abs(rnd(1, 0) + rnd(1, 0) - 1) * R * 1.05 + n.r * 0.25, r = rnd(1.7, 0.8) * kS * 0.75;
           const x = n.x + Math.cos(an) * d, y = n.y + Math.sin(an) * d;
           gH.fillStyle = `rgb(${Math.round((r / PXMM) * 0.8 * 16)},0,0)`; gH.beginPath(); gH.arc(x, y, r, 0, TAU); gH.fill();
-          gA.fillStyle = `hsl(${rnd(38, 26) | 0},${rnd(34, 18) | 0}%,${rnd(50, 32) | 0}%)`; gA.beginPath(); gA.arc(x, y, r, 0, TAU); gA.fill();
+          gA.fillStyle = `hsl(${rnd(38, 26) | 0},${rnd(36, 20) | 0}%,${rnd(60, 42) | 0}%)`; gA.beginPath(); gA.arc(x, y, r, 0, TAU); gA.fill();
         }
         gH.globalCompositeOperation = 'source-over';
         // les entrées : des puits sombres

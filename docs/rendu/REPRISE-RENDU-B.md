@@ -1,6 +1,6 @@
 # Rendu B : point de reprise
 
-Dernière mise à jour : 13/11/2026 vers 05 h 20, heure de Paris.
+Dernière mise à jour : 13/11/2026 vers 13 h 01, heure de Paris (après une seconde limite d'usage de 06 h à 10 h 10).
 
 Rendu B, c'est la relève B du chantier de rendu, Léa « Frame », branche `rendu-b`. À relire ensemble :
 - le brief de Kurt, `docs/RENDU-BRIEF.md` ;
@@ -21,17 +21,19 @@ Rendu B, c'est la relève B du chantier de rendu, Léa « Frame », branche `ren
 
   Pour les planches « avant », il faut une copie de référence : `git worktree add /home/user/fasc-avant 93ac705 --detach`.
 
-## En cours : chaque machine est reprise par un agent
+## En cours : chaque machine est reprise par un agent (état à 13 h 01)
 
 Chaque machine a sa branche de travail, poussée comme point de reprise. Ce ne sont pas des livraisons : leur contenu passera dans `rendu-b` par cherry-pick, après relecture et tests. Les branches seront supprimées ensuite.
 
 | Machine | Branche de travail | État |
 |---|---|---|
-| Bulles | `rendu-b-encours-bulles` | en cours (prioritaire) |
-| Eau | `rendu-b-encours-eau` | en cours ; une régression de vitesse sur la cuve à ondes est à corriger |
-| Ciel | `rendu-b-encours-ciel` | en cours |
+| Bulles | `rendu-b-encours-bulles` | v1 livrée sur `rendu-b` (`b0e4e72`, science validée) ; v2 en cours : plafond de coût (échelle 0,75, 8 bulles), reflet, éclat (retours du CEO et de la recette) |
+| Ciel | `rendu-b-encours-ciel` | v1 livrée sur `rendu-b` (`d9d82d0`, science validée, trop coûteux) ; correctif de coût et contraste de l'arc en cours ; aurores ensuite |
+| Eau | `rendu-b-encours-eau` | quatre scènes faites (la cuve en dernier), tests à passer ; la houle ensuite |
 | Fourmilière | `rendu-b-encours-fourmis` | en pause : sol fait, fourmis peu lisibles |
 | Galaxie | `rendu-b-encours-galaxie` | en pause : couleurs et poussière faites ; reste la lumière diffuse en blocs |
+
+**Règle de vitesse (Kurt, brief 89f61bf)** : banc `tools/avant-apres.mjs <id> <scène> --secondes=3,15,30`. Pas de déclin, et au moins la moitié des i/s de l'original sous la même charge. Ni le Ciel ni les Bulles ne sont intégrés à l'artefact tant qu'ils ne tiennent pas.
 
 **Pour reprendre une machine** :
 1. `git checkout -b travail origin/rendu-b-encours-<machine>` ;

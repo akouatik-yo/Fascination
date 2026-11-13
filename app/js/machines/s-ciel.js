@@ -561,7 +561,8 @@ void main(){
       if (sonde) { tSonde = now; cleSonde = keep.look + keep.planet; }
       const r = atmo.calc(C, P, s, { haze: hz, alt, oz: keep.ozone ? P.oz : 0, cone: 55 * D2R, sonde });
       // exposition automatique : on vise une luminance moyenne du ciel vu, plus sombre la nuit
-      const target = keep.el > 0 ? 0.24 : 0.24 * Math.exp(keep.el / 5);
+      // soleil bas : l'horizon orangé est très lumineux ; exposé plus bas, il reste hors de l'épaule d'AgX (qui le pâlirait) et le zénith reste bleu profond
+      const bas = 0.42 + 0.58 * smoothstep(4, 20, keep.el), target = keep.el > 0 ? 0.24 * bas : 0.24 * 0.42 * Math.exp(keep.el / 5);
       expo = clamp(target / Math.max(1e-7, r.moy), 0.05, keep.planet === 'lune' ? 1 : 5e4);
       atmo.exposer(expo);
       info = {

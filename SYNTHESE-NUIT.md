@@ -1,9 +1,23 @@
 # La nuit du 12 au 13/11 : synthèse pour Yoann
 
+**▶ À ouvrir sur ta tablette : https://claude.ai/artifact/X3nwzJbLgt7zPvzXWmSbyR** (l'artefact « Fascinations », mis à jour le 13/11 vers 13 h 10 avec l'application unique, commit 62dea1c). Il est privé : toi seul peux l'ouvrir.
+
+**État à 13 h (Paris)** : le travail s'est arrêté deux fois sur la limite d'usage, de 1 h 46 à 5 h 10 puis de 7 h 31 à 13 h. L'artefact prévu à 7 h 45 n'est donc publié qu'à 13 h 10.
+- **La recette de Constance** (le regard d'un enfant de 5 ans) dit « pas moche » pour tous les écrans sur tablette. Au téléphone, ses derniers retours sont corrigés.
+- **Deux points restent ouverts** :
+  - certaines machines écrivent encore à l'écran des légendes techniques (en petites capitales monospace), même pour les 5 ans ;
+  - en rendu logiciel, le Feu démarre en braises. À vérifier sur ta tablette.
+
+**Machines refaites et intégrées** : les **Lucioles** (vraies couleurs, mode doux) et le **Cristal** (flocon transparent). Les autres attendent :
+- le **Ciel** et les **Bulles** sont justes en science, mais trop lents (leur vitesse chute après quelques secondes) ;
+- la **Lampe à lave avec les volcans** attend deux corrections ;
+- la **Danse des abeilles** attend ses mesures.
+
+
 Session Fascinations, chef de projet et garant de la science. **Rien n'est sur `main` depuis la fusion de 0 h 40.** Tout est sur `jeunesse`, et l'application unique sur `app-unique` (voir `POUR-YOANN.md`). Le travail s'est arrêté de 1 h 46 à 5 h 10 (limite d'usage).
 
 ## À regarder en premier sur ta tablette (dans cet ordre)
-1. **L'accueil.** Ouvre `dist/fascination.html` sur la branche `app-unique`. Choisis **6 ans** (les bougies), un signe, puis regarde l'écran. Ensuite, dans la carte, ajoute un joueur **16 +** au niveau **Je connais déjà** : c'est l'ancienne version adulte. Compare les deux.
+1. **L'accueil.** Ouvre le lien ci-dessus. La Galaxie ou le Feu tourne derrière les tuiles. Choisis **6 ans** (les bougies), puis un signe, et regarde l'écran. Ensuite, dans la carte, ajoute un joueur **16 +** au niveau **Je connais déjà** : c'est l'ancienne version adulte. Compare les deux.
 2. **Une question à plusieurs machines** : « Comment les insectes se parlent-ils ? ». Suis le chemin en bas : on passe des lucioles aux fourmis.
 3. **Le fil « Pourquoi ? »** (en bas à gauche) : une phrase, puis « encore ».
 4. **La main fantôme** : ne touche à rien pendant 20 secondes.

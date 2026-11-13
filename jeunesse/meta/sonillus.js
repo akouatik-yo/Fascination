@@ -78,6 +78,7 @@ FJ.fiche('sonillus', {
   ],
   pourquoi: {
     etincelle: 'Ton oreille capte des vibrations, mais c’est ton cerveau qui en fait des notes, et on peut le piéger.',
+    petit: 'C’est ton cerveau qui fabrique les notes que tu entends. On peut le tromper.',
     texte: 'Un son, c’est de l’air qui vibre. Ton oreille capte ces vibrations, puis ton cerveau en fait une note : grave ou aiguë, qui monte ou qui descend. Comme pour les yeux, il interprète, et on peut le tromper.\n\nDans l’escalier sans fin, dix sons montent ensemble. Chacun vibre deux fois plus vite que le précédent : on dit qu’ils sont à une **octave** l’un de l’autre. Le plus aigu s’éteint doucement pendant qu’un nouveau naît tout en bas. Tu entends monter sans arrêt, alors que tout revient au point de départ. Le son est coupé au début : allume-le pour l’entendre.',
     vraie: 'Dans le jeu vidéo Super Mario 64 (1996), un escalier ne finit jamais tant qu’on n’a pas récolté assez d’étoiles. Sa musique utilise l’escalier sans fin de Shepard : elle monte, monte… sans jamais arriver en haut.',
   },

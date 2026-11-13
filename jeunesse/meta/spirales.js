@@ -68,6 +68,7 @@ FJ.fiche('spirales', {
   ],
   pourquoi: {
     etincelle: 'Une onde qui s’allume puis se repose ne peut pas revenir en arrière : coupée, elle s’enroule en spirale.',
+    petit: 'Derrière une onde, il y a une zone qui se repose. Si on coupe l’onde, elle tourne en spirale.',
     texte: 'Ici, chaque point s’allume quand son voisin s’allume, puis il doit se reposer un moment. L’onde avance sans s’affaiblir, et ne peut pas repartir en arrière : derrière elle, tout se repose. Deux ondes qui se croisent s’éteignent. Coupe un front : ses deux bouts s’enroulent et tournent sans fin. C’est un milieu **excitable**.\n\nLa même règle se cache dans une potion chimique, chez des amibes qui se rassemblent, et dans ton cœur : chaque battement est une onde électrique. Si elle s’enroule, le cœur bat trop vite. Si les spirales se brisent en morceaux, il ne pompe plus bien : un défibrillateur rallume tout le muscle d’un coup, et le rythme normal peut repartir.',
     vraie: 'En 1951, le chimiste soviétique Boris Belousov découvre un mélange qui change de couleur tout seul, en rythme. Les revues refusent son article : pour elles, c’est impossible. Dans les années 1960, Anatol Zhabotinsky reprend ses travaux. Vers 1970, on voit des cercles puis des spirales apparaître dans une boîte.',
   },

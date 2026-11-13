@@ -59,6 +59,7 @@ FJ.fiche('fourmis', {
   ],
   pourquoi: {
     etincelle: 'Chaque fourmi suit l’odeur laissée par les autres et la renforce : les chemins les plus empruntés sentent de plus en plus fort.',
+    petit: 'Chaque fourmi laisse une odeur et suit celle des autres. Le chemin court est parcouru plus souvent : il sent plus fort.',
     texte: 'Aucune fourmi ne connaît le chemin. Les éclaireuses errent au hasard. Celle qui trouve du sucre rentre au nid en laissant au sol une trace odorante, une **phéromone**. D’autres suivent cette odeur, trouvent le sucre et renforcent la trace en revenant. Plus une piste est suivie, plus elle sent fort, et plus elle attire.\n\nL’odeur s’évapore : une piste qu’on n’entretient plus disparaît. Sur un chemin court, les allers-retours sont plus rapides, donc la trace s’y renforce plus vite. Sans que personne ne mesure rien, la colonie finit souvent par emprunter le chemin le plus court.',
     vraie: 'En 1989, des chercheurs de Bruxelles posent un pont à deux branches, une courte et une longue, entre un nid de fourmis d’Argentine et de la nourriture. En quelques minutes, la grande majorité passe par la courte. Cette idée a ensuite inspiré des programmes informatiques qui calculent des itinéraires.',
   },

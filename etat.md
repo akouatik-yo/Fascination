@@ -1,6 +1,6 @@
 # État — point de reprise
 
-maj : 12/11/2026 15:52 (heure de Paris, horloge de la session)
+maj : 13/11/2026 01:40 (heure de Paris, horloge de la session)
 
 ## Où en est le dépôt
 - **Branche de référence : `jeunesse`.** Elle contient `main` et `ccr-ba505dc0-e427km` (la branche de session d'origine, APK adulte 0.1.33). Rien n'est fusionné dans `main` : c'est Yoann qui décide de la fusion.
@@ -22,6 +22,11 @@ maj : 12/11/2026 15:52 (heure de Paris, horloge de la session)
 - **Retours de Yoann** : ses tests sur tablette des deux APK 0.1.65.
 - **Tutoiement** : la passe sur les textes que les machines écrivent sur l'image attend la réponse de Yoann.
 - **Reprise visuelle** de certaines machines : en attente depuis l'audit du 11/11.
+
+## Nuit du 12 au 13/11
+- **Fusion** : `jeunesse` est fusionnée dans `main` (26bfa38, en avance rapide), avec l'accord de Yoann. L'ancienne clé n'est plus dans `main`.
+- **Chantier rendu** : brief et répartition dans [`docs/RENDU-BRIEF.md`](docs/RENDU-BRIEF.md). Rendu A travaille sur `rendu-a`, rendu B sur `rendu-b` ; cette session relit la justesse scientifique. Feu, Eau et Fourmilière sont intouchables.
+- **Âge et niveau** (le rêve de Yoann) : un écran d'accueil demande l'âge (dès 5 ans) puis le niveau ; l'interface s'adapte. Le détail est dans `docs/JEUNESSE-FICHES.md`. Chaque fiche a reçu un texte `petit` (5-8 ans). L'avis de Fausta sur l'ergonomie enfant est attendu.
 
 ## Engagement en cours
 Aucun.

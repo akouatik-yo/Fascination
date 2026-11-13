@@ -69,6 +69,7 @@ FJ.fiche('mycelium', {
   ],
   pourquoi: {
     etincelle: 'Chaque filament pousse par sa pointe et se ramifie là où il y a à manger : ensemble, ils tissent un réseau sous le sol.',
+    petit: 'Le champignon pousse en fils très fins sous la terre. Les fils se divisent là où il y a à manger.',
     texte: 'Un champignon, c’est surtout des fils plus fins qu’un cheveu, cachés dans le sol : les **hyphes**. Ensemble, ils forment le mycélium. Le champignon qu’on cueille n’en est que le fruit. Personne ne dessine le réseau : chaque pointe pousse là où il y a à manger, évite ses propres fils, et le sol se couvre tout seul.\n\nBeaucoup de champignons vivent collés aux racines des arbres. Ils leur apportent eau et minéraux, et reçoivent du sucre en échange. Les arbres se partagent-ils aussi du sucre par ce réseau ? Les scientifiques en débattent encore. Dans la machine, des années passent en quelques secondes.',
     vraie: 'En 1928, Alexander Fleming rentre de vacances et trouve une moisissure, un Penicillium, dans une boîte où il cultivait des bactéries. Autour d’elle, les bactéries ont disparu. Il vient de découvrir la pénicilline. Plus de dix ans après, d’autres chercheurs en feront un médicament.',
   },

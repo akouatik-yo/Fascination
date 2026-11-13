@@ -58,6 +58,7 @@ FJ.fiche('bulles', {
   ],
   pourquoi: {
     etincelle: 'La lumière se reflète sur les deux faces du film ; les deux reflets se mélangent, et certaines couleurs s’effacent.',
+    petit: 'La lumière rebondit sur les deux côtés de la bulle. Les reflets se mélangent et font des couleurs.',
     texte: 'Une bulle est une couche d’eau savonneuse des centaines de fois plus fine qu’un cheveu. La lumière s’y reflète deux fois : sur la face de devant et sur celle de derrière. Les deux reflets se superposent. Pour certaines couleurs, ils s’additionnent ; pour d’autres, ils s’annulent. C’est l’**interférence**. La couleur dépend donc de l’épaisseur du film.\n\nL’eau coule vers le bas : le haut s’amincit et ses couleurs changent. Juste avant d’éclater, le film devient si mince que les reflets s’annulent pour toutes les couleurs : il paraît noir. Le savon ne colore rien, il aide seulement le film à tenir.',
     vraie: 'En 1704, Isaac Newton décrit les couleurs des bulles de savon dans son livre « Opticks ». Il remarque qu’elles se suivent toujours dans le même ordre, et que le haut de la bulle devient noir juste avant d’éclater. L’explication par l’interférence viendra un siècle plus tard, avec Thomas Young.',
   },

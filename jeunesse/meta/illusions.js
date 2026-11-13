@@ -75,6 +75,7 @@ FJ.fiche('illusions', {
   ],
   pourquoi: {
     etincelle: 'Ton cerveau ne photographie pas le monde : il le devine à toute vitesse, et parfois il se trompe.',
+    petit: 'Ton cerveau devine ce que tes yeux voient. Parfois, il se trompe.',
     texte: 'Tes yeux ne reçoivent que de la lumière. Tout le reste, ton cerveau le déduit très vite : la taille des choses, leur couleur, si elles bougent. Ce travail s’appelle la **perception**. Il se trompe rarement. Ici, les images sont fabriquées exprès pour le piéger.\n\nLe plus étrange : connaître le trucage n’y change rien, tu continues de voir les traits inégaux. Certaines illusions naissent dans l’œil, quand des cellules se fatiguent. D’autres viennent de la façon dont le cerveau interprète l’image. Pour beaucoup d’entre elles, les scientifiques proposent des explications, mais en discutent encore.',
     vraie: 'Dans les années 1970, un membre de l’équipe du psychologue Richard Gregory remarque la façade carrelée d’un café de Bristol, en Angleterre : ses lignes semblent pencher. Elles sont parfaitement horizontales. Gregory étudie l’effet et le publie en 1979 : c’est l’illusion du « mur du café ».',
   },

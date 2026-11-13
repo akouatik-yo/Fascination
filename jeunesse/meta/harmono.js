@@ -56,6 +56,7 @@ FJ.fiche('harmono', {
   ],
   pourquoi: {
     etincelle: 'Deux pendules qui se balancent à des rythmes en rapport simple guident une plume : leurs mouvements s’additionnent en figure.',
+    petit: 'Deux pendules qui se balancent guident un crayon. Ensemble, ils dessinent une figure.',
     texte: 'Deux pendules se balancent, chacun à son rythme. L’un pousse la plume de gauche à droite, l’autre de haut en bas. Si leurs rythmes sont dans un rapport simple, comme 2 allers-retours contre 3, la plume repasse presque au même endroit : une figure apparaît. Ce sont les mêmes rapports que ceux des notes qui sonnent bien ensemble.\n\nLes frottements font rapetisser peu à peu les balancements : la plume s’enroule vers le centre. C’est l’**amortissement**. Dans le Spirographe, une roue dentée roule dans un anneau : le dessin se referme quand les dents de la roue retombent en face des mêmes dents de l’anneau.',
     vraie: 'Vers 1844, le mathématicien écossais Hugh Blackburn suspend un entonnoir de sable à des pendules : le sable dessine ces figures. Plus tard, les harmonographes à plume deviennent une attraction des salons de l’époque victorienne.',
   },

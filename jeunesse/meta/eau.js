@@ -76,6 +76,7 @@ FJ.fiche('eau', {
   ],
   pourquoi: {
     etincelle: 'Chaque ride est une petite loupe : elle rassemble la lumière du soleil en filets brillants qui dansent au fond.',
+    petit: 'Chaque petite vague fait comme une loupe. Elle rassemble la lumière en traits brillants au fond.',
     texte: 'Quand la lumière passe de l’air à l’eau, elle se plie un peu. Une ride bombée agit comme une loupe : elle rassemble les rayons du soleil en une ligne brillante au fond. Un creux, lui, les étale. Comme les rides bougent sans cesse, ces filets de lumière dansent. On les appelle des **caustiques**.\n\nLes rides sont des ondes : quand deux se croisent, elles s’ajoutent ou s’annulent. Les gerris s’en servent pour repérer une proie tombée à l’eau. Et dans la cuve, on rejoue avec de l’eau l’expérience qui a montré, au début des années 1800, que la lumière se comporte aussi comme une onde.',
     vraie: 'Les jeunes gerris remuent les pattes moins vite que les plus lentes des rides : en théorie, ils ne pourraient pas avancer en ramant sur elles. Ce « paradoxe de Denny » a été résolu en 2003 par David Hu, Brian Chan et John Bush : en ramant, le gerris lance surtout de petits tourbillons sous la surface.',
   },

@@ -70,6 +70,7 @@ FJ.fiche('galaxie', {
   ],
   pourquoi: {
     etincelle: 'Les bras d’une galaxie sont des embouteillages d’étoiles : elles y entrent, ralentissent, puis en ressortent, et le bras demeure.',
+    petit: 'Les étoiles tournent autour du centre. Dans les bras, elles se serrent comme dans un embouteillage.',
     texte: 'Une galaxie, ce sont des centaines de milliards d’étoiles qui tournent autour de son centre. Celles du milieu font le tour plus vite que celles du bord : des bras faits toujours des mêmes étoiles s’enrouleraient vite. L’idée la plus connue : les bras sont des embouteillages, où les étoiles entrent puis ressortent. On parle d’**onde de densité**. Les astronomes en discutent encore.\n\nQuand deux galaxies se rencontrent, leurs étoiles ne se heurtent presque jamais, tant elles sont éloignées. Mais la gravité les étire en longues queues. Dans la machine, le temps est énormément accéléré : en vrai, le Soleil met 230 millions d’années à faire un tour.',
     vraie: 'Jusqu’en 1924, beaucoup d’astronomes pensaient que la Voie lactée était tout l’Univers. Cette année-là, Edwin Hubble mesure la distance de la « nébuleuse » d’Andromède : elle est bien trop loin pour faire partie de la Voie lactée. C’est une autre galaxie, et l’Univers en compte des centaines de milliards.',
   },

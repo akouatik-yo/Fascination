@@ -56,6 +56,7 @@ FJ.fiche('feu', {
   ],
   pourquoi: {
     etincelle: 'Une flamme est pointue parce que l’air chaud, plus léger, monte et l’étire vers le haut.',
+    petit: 'L’air chaud est léger, alors il monte. Il étire la flamme vers le haut.',
     texte: 'Le bois chauffé dégage des gaz, et ce sont eux qui brûlent avec l’oxygène de l’air. Les gaz brûlés sont très chauds, donc plus légers que l’air autour : ils montent, et de l’air frais arrive par le bas. C’est la **convection**. Elle donne à la flamme sa forme de goutte pointue.\n\nSans gravité, rien ne monte plus : la flamme devient une petite boule bleue, comme dans les stations spatiales. Pour brûler, il faut toujours trois choses : un combustible, de l’oxygène et de la chaleur. Retire-en une, le feu s’éteint.',
     vraie: 'En 1848, Michael Faraday donne à Londres des conférences de Noël pour les enfants, sur un seul objet : une bougie. Il y montre que c’est la vapeur de cire qui brûle, pas la mèche. Ces conférences existent toujours, chaque hiver, à la Royal Institution.',
   },

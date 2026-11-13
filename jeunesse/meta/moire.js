@@ -61,6 +61,7 @@ FJ.fiche('moire', {
   ],
   pourquoi: {
     etincelle: 'Superpose deux motifs presque pareils : de grandes bandes apparaissent, alors qu’elles ne sont dessinées sur aucun des deux.',
+    petit: 'Mets deux dessins presque pareils l’un sur l’autre. De grandes bandes apparaissent.',
     texte: 'Pose deux films couverts de traits l’un sur l’autre. Là où les traits tombent les uns sur les autres, la lumière passe entre eux. Là où ils sont décalés, ils bouchent tout. Ces zones claires et sombres forment de larges bandes : c’est le **moiré**.\n\nTourne le film du dessus d’un tout petit angle : les bandes deviennent énormes, et elles bougent bien plus vite que ton doigt. On s’en sert pour repérer de minuscules déformations, et sur les billets contre les faussaires. Tu en vois aussi en photographiant un écran : la grille de ses pixels se superpose à celle de l’appareil photo.',
     vraie: 'Le mot vient d’un tissu, la moire : une soie aux reflets ondulés. Pour la fabriquer, on plie l’étoffe en deux et on l’écrase entre de lourds rouleaux. Les fils des deux couches, superposés, dessinent des vagues.',
   },

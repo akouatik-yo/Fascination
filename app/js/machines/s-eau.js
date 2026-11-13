@@ -317,7 +317,7 @@ float nenuphar(vec2 p, vec4 A, vec4 B, vec3 V, vec3 Es, vec3 Ec, out vec3 c){
     om = fleur((dl + so) / rf, B.z, 1. / rf).a;
     f = fleur(dl / rf, B.z, 1. / rf);
   }
-  c = alb * Ec + soleil * (1. - .75 * om) + (uCielZ + uCielH) * .5 * schlick(max(dot(nrm, V), 0.), .045) * .7;
+  c = alb * Ec + soleil * (1. - .75 * om) + (uCielZ + uCielH) * .5 * schlick(max(dot(nrm, V), 0.), .045) * .3;
   // pétales : diffusion enveloppante et un peu de lumière transmise ; la lumière du jour les fait presque briller
   if (f.a > 0.) c = mix(c, f.rgb * (Es * .95 / max(uL.z, .2) * .78 + Ec * 1.1), f.a);
   return cov;
@@ -372,6 +372,7 @@ void main(){
       for (int i = 0; i < 48; i++){
         if (i >= uNC) break;
         vec4 C = uC[i]; float dd = length(q - C.xy - uOmbre);
+        if (dd > C.z * 1.8) continue;
         if (C.w < .5) sh *= 1. - .78 * (1. - smoothstep(C.z * .82, C.z * 1.1, dd));
         else if (C.w < 1.5) sh *= 1. - .62 * (1. - smoothstep(C.z * .55, C.z, dd)) + .9 * exp(-pow((dd - C.z * 1.12) / (C.z * .22), 2.));
         else sh *= 1. - .5 * (1. - smoothstep(C.z * .5, C.z, dd));
@@ -391,7 +392,7 @@ void main(){
         }
       }
       // un léger voile : la lumière renvoyée par les particules en suspension, déjà filtrée par l'eau
-      sous += (Es * .5 + Ec) * .05 * eauTransmission(pm * .7 + .15) * (1. - exp(-pm / ct * 1.4));
+      sous += (Es * .5 + Ec) * .03 * eauTransmission(pm * .7 + .15) * (1. - exp(-pm / ct * 1.4));
       col = sous * (1. - F) + Lc * F + eclat;
       // une paroi construite (outil mur) : une planche sombre posée dans l'eau
       col = mix(col, vec3(.09, .08, .07) * (Es + Ec), smoothstep(.3, .7, D.g));
@@ -408,6 +409,8 @@ void main(){
     }
   }
   // couche de fausse couleur, désactivable : l'amplitude moyenne des oscillations (échelle magma)
+  // le tirage AgX pâlit les tons moyens : on rend d'avance à la lumière du jour sa couleur (saturation en linéaire, peu coûteuse)
+  if (uMode < .5) col = max(mix(vec3(luminance(col)), col, 1.28), 0.);
   if (uMean > .5){ float m = clamp(sqrt(W4.b) * 2.2, 0., 1.); col = mix(col, texture(uLut, vec2(m, .5)).rgb * 1.5, .78); }
   o = vec4(col, 1.);
 }`);
@@ -463,7 +466,7 @@ void main(){
   }
   // l'écran de la cuve à ondes : une feuille de papier blanc sous la cuve, avec un quadrillage léger pour mesurer
   function paintTank(g, W, H) {
-    g.fillStyle = '#d6d2c8'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#e6e4de'; g.fillRect(0, 0, W, H);
     grain(g, 0, 0, W, H, W * H / 30, 0.05, false);
     grain(g, 0, 0, W, H, W * H / 60, 0.08, true);
     g.strokeStyle = 'rgba(60,70,90,.12)'; g.lineWidth = 1;
@@ -547,7 +550,7 @@ void main(){
   const SUNCOL = COUL.corpsNoir(5600);                       // la lumière directe du soleil, haut dans le ciel
   const BLEU = COUL.rayleigh();                              // le bleu du ciel : diffusion Rayleigh (∝ λ⁻⁴)
   const HORIZON = BLEU.map((v, i) => (v * 0.45 + SUNCOL[i] * 0.55) * 1.5);  // vers l'horizon, le ciel pâlit et s'éclaircit
-  const LAMPE = COUL.corpsNoir(4300);                        // la lampe de la cuve à ondes : un blanc chaud
+  const LAMPE = COUL.corpsNoir(5000);                        // la lampe de la cuve à ondes : un blanc chaud
   const VERT = [0.04, 0.09, 0.022];                          // une feuille de nénuphar : vert chlorophylle mat (albédo)
   const mixv = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 
@@ -611,7 +614,8 @@ void main(){
     let R = null;
     function initGL(qk) {
       const Q = QUAL[qk];
-      const cs = Math.min(dpr, Q.comp);
+      // le tampon de lumière est plafonné à 1,25 pixel par pixel css (FKR) : ces images douces n'y perdent rien
+      const cs = Math.min(dpr, Q.comp, 1.25);
       const cw = Math.max(2, Math.round(W * cs)), ch = Math.max(2, Math.round(H * cs));
       const K = GLKit(cw, ch);
       const gl = K.gl;
@@ -674,7 +678,7 @@ void main(){
     // la cabine commune (FKR) partage le contexte de la machine : halo, tirage AgX, grain, vignetage
     let cab = null, lots = null;
     function mkCab() {
-      cab = window.FKR.cabine(env, { K: R.K, fond: window.FKR.fond('eau'), halo: 0.07, rayon: 0.7, saturation: 1.04 });
+      cab = window.FKR.cabine(env, { K: R.K, fond: window.FKR.fond('eau'), halo: 0.07, rayon: 0.7 });
       lots = { gouttes: cab.lot({ forme: 'gauss' }), bulles: cab.lot({ forme: 'gauss' }) };
       R.lut = cab.lut(window.FKR.palette.carte('magma'));
     }
@@ -875,7 +879,8 @@ void main(){
       // brise : de petites rides partout, qui dessinent au fond le filet de lumière
       if (cfg.scene !== 'cuve') {
         const nb = Math.min(8, Math.round(cfg.breeze * 9 * (0.6 + 0.4 * n1(VT * 0.2))));
-        for (let k = 0; k < nb; k++) addSrc(rnd(W), rnd(H), rnd(0.75, -0.75) * cfg.breeze, rnd(22, 12) * kS);
+        // (des impulsions fines, de l'ordre du centimètre : des rides capillaires, qui tissent un filet de caustiques)
+        for (let k = 0; k < nb; k++) addSrc(rnd(W), rnd(H), rnd(0.6, -0.6) * cfg.breeze, rnd(10, 5.5) * kS);
       }
       let nd = weather.rain * 70 * dt * (v.w * H / 1e6 + 0.3);
       while (nd > 0) { if (Math.random() < nd) drop(v.x0 + rnd(v.w), rnd(H), false); nd -= 1; }
@@ -1066,7 +1071,7 @@ void main(){
     let rdt = 1 / 60;
     // la profondeur optique, en px : dans la mare, celle qu'affiche le réglage (10 à 60 cm, 1 px ≈ 0,5 cm) ;
     // dans la cuve, la distance entre l'eau et l'écran de projection
-    const profPx = () => (cfg.scene === 'cuve' ? 46 * (0.5 + cfg.depth * 0.7) : 20 + 100 * cfg.depth) * kS;
+    const profPx = () => (cfg.scene === 'cuve' ? 110 * (0.5 + cfg.depth * 0.7) : 20 + 100 * cfg.depth) * kS;
     function render() {
       const { K, gl, pg } = R;
       const bare = env.decor === false, ink = bare && env.theme === 'light';
@@ -1097,7 +1102,7 @@ void main(){
       }
       // la lumière (HDR linéaire), développée par la cabine commune
       const A = ambiance(), E = oeil(), mode = tank ? 1 : bare ? 2 : 0;
-      cab.regler({ fond: window.FKR.fond(tank ? 'defaut' : 'eau'), vignetage: tank ? 0.5 : 0.39, saturation: tank ? 1.05 : 1.22, contraste: tank ? 1.04 : 1.06 });
+      cab.regler({ fond: window.FKR.fond(tank ? 'defaut' : 'eau'), vignetage: tank ? 0.5 : 0.39, contraste: tank ? 1.06 : 1.12 });
       cab.debut(rdt);
       pg.eau.use().t('uW', R.Wv.r).t('uD', R.D).t('uCau', R.cau).t('uFloor', R.floor).t('uNuages', R.nuages).t('uLut', R.lut)
         .f('uRes', W, H).f('uWt', 1 / R.GW, 1 / R.GH).f('uCauT', 1 / R.cau.w, 1 / R.cau.h)

@@ -578,8 +578,8 @@
     // a un budget de temps (rapide sur une machine puissante, écourté sur une tablette lente) ; en portrait, l'écran
     // est haut et étroit : on pousse un peu plus loin.
     {
-      const want = port ? 340 : 230, t0 = performance.now();
-      for (let k = 0; k < want && (k < 60 || performance.now() - t0 < 160); k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
+      const want = port ? 360 : 240, least = port ? 220 : 140, t0 = performance.now();
+      for (let k = 0; k < want && (k < least || performance.now() - t0 < 450); k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
     }
     flush(); stainPaint();
     let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);

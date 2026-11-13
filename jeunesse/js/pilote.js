@@ -107,9 +107,12 @@
     return plage;
   }
   /* le tirage d'une machine : une scène (pondérée), parfois une graine remarquable, sinon des réglages dans les plages */
-  function tirage(meta, seed) {
+  // permises (facultatif) : les seules scènes tirables (les chapitres que le niveau ouvre, ou une scène imposée)
+  function tirage(meta, seed, permises) {
     const R = rng(seed == null ? graine() : seed), t = { seed: R.seed, scene: null, regle: {}, nom: null, outil: null };
-    const scenes = meta.scenes || {}, cles = Object.keys(scenes);
+    const scenes = meta.scenes || {};
+    let cles = Object.keys(scenes);
+    if (permises && permises.length) { const p = cles.filter((k) => permises.includes(k)); if (p.length) cles = p; }
     if (cles.length) { const poids = {}; for (const k of cles) poids[k] = scenes[k].poids == null ? 1 : scenes[k].poids; t.scene = pondere(R, poids); }
     const sc = (t.scene && scenes[t.scene]) || {};
     const graines = (meta.graines || []).filter((g) => !g.scene || !cles.length || g.scene === t.scene);

@@ -36,11 +36,143 @@
     son: false, spectacle: false, tiroir: null, ecran: null, hist: [], hpos: -1, lb: false, ouverture: 0, nom: null,
     vus: new Set(lireJSON('fj-vus', [])), outilsMontres: new Set(), etsiVu: new Set(lireJSON('fj-etsi', [])),
     prefs: Object.assign({ doux: true, calme: false }, lireJSON('fj-prefs', {})), constructions: 0, doigts: 0,
+    q: null,   // la question en cours (FJ.QUESTIONS)
+    profils: [], profil: null,   // les joueurs de la tablette { id, avatar, age, niveau } ; tout reste dans l'appareil
   };
   let defs = [], audio = null, sac = null, raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null;
   const canvas = $('cv'), app = $('fj');
   const pilote = FJ.Pilote(() => S.sim);
   const images = (n) => new Promise((ok) => { let k = 0; const f = () => (++k >= n ? ok() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+
+  /* ───────── l'âge et le niveau ─────────
+     L'âge règle l'ergonomie (taille des cibles, nombre de gestes et de leviers, police, lecture à voix haute) ;
+     le niveau règle la profondeur (quels textes, quels réglages, vrais noms ou noms d'enfant).
+     La science est la même à tous les niveaux : seuls la quantité et le vocabulaire changent.
+     Conseils de chef-design (13/11) : l'âge n'est jamais affiché hors du coin des grands ; sous 9 ans, le niveau
+     « Je découvre » est posé d'office (il se change derrière la porte des grands) ; plusieurs joueurs par tablette. */
+  const NIVEAUX = [
+    { n: 1, nom: 'Je découvre', sous: 'Je regarde, je touche, et une phrase m’explique.', icone: 'graine' },
+    { n: 2, nom: 'J’aime comprendre', sous: 'Des explications courtes et des défis « Et si… ? ».', icone: 'pousse' },
+    { n: 3, nom: 'Je veux tous les détails', sous: 'Tous les réglages et les textes pour les curieux.', icone: 'arbre' },
+    { n: 4, nom: 'Je connais déjà', sous: 'Les vrais noms, les vraies valeurs, le Labo ouvert.', icone: 'foret' },
+  ];
+  const AVATARS = [['oiseau', '#6fd4ff'], ['insecte', '#7ee8a9'], ['feuille', '#b6e86f'], ['flocon', '#cfe6ff'], ['planete', '#c9a0ff'], ['fusee', '#ff86c8'], ['goutte', '#4fb3ff'], ['flamme', '#ffb35c']];
+  const AGES = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];   // 16 = « 16 ans et plus »
+  const niveauPropose = (age) => (age <= 8 ? 1 : age <= 14 ? 2 : 3);
+  const palier = () => { const a = S.profil ? S.profil.age : 11; return a <= 6 ? 1 : a <= 9 ? 2 : a <= 14 ? 3 : 4; };
+  const niveau = () => (S.profil ? S.profil.niveau : 2);
+  const ZOOM = { 1: 1.3, 2: 1.15, 3: 1, 4: 1 };
+  // le chemin d'une question : le niveau ouvre 2 chapitres (Je découvre), 4 (J'aime comprendre), ou tous
+  const questionParId = (qid) => FJ.QUESTIONS.find((q) => q.id === qid) || null;
+  function chapitresVisibles(q) {
+    const tous = FJ.chapitresDe(q), n = niveau();
+    return n <= 1 ? tous.slice(0, 2) : n === 2 ? tous.slice(0, 4) : tous;
+  }
+  (function chargerProfils() {
+    let ps = lireJSON('fj-profils', null);
+    if (!Array.isArray(ps)) { const ancien = lireJSON('fj-profil', null); ps = ancien && ancien.age ? [Object.assign({ id: 'p1', avatar: 0 }, ancien)] : []; }
+    S.profils = ps.filter((p) => p && p.id && p.age);
+    S.profil = S.profils.find((p) => p.id === store.get('fj-profil-actif')) || S.profils[0] || null;
+  })();
+  function appliquerProfil() {
+    for (let i = 1; i <= 4; i++) { app.classList.toggle('age-' + i, palier() === i); app.classList.toggle('niv-' + i, niveau() === i); }
+    // sur un téléphone, la place manque : on agrandit moins (et la tablette reste conseillée aux plus jeunes)
+    const etroit = Math.min(window.innerWidth, window.innerHeight) < 520;
+    document.documentElement.style.setProperty('--k', etroit ? Math.min(ZOOM[palier()], 1.12) : ZOOM[palier()]);
+    app.classList.toggle('etroit', etroit);
+  }
+  function sauverProfils() { store.set('fj-profils', JSON.stringify(S.profils)); if (S.profil) store.set('fj-profil-actif', S.profil.id); }
+  // un profil créé ou modifié devient le joueur actif
+  function enregistrerProfil(p) {
+    const k = S.profils.findIndex((x) => x.id === p.id);
+    if (!p.id) p.id = 'p' + Date.now().toString(36);
+    if (p.avatar == null) p.avatar = S.profils.length % AVATARS.length;
+    if (k >= 0) S.profils[k] = p; else S.profils.push(p);
+    S.profil = p; sauverProfils(); appliquerProfil();
+    laboOuvert = niveau() >= 4;
+  }
+  // changer de joueur : si la taille des commandes change et que rien n'a encore été fait, la machine est recréée à l'identique
+  function devenir(p) {
+    const avant = palier();
+    enregistrerProfil(p); son('scene'); ecran(null);
+    if (palier() !== avant && !S.touche && S.def) ouvrir(S.id, { etat: etatCourant() }); else if (S.def) rendre();
+  }
+  const avatar = (i, grand) => { const a = AVATARS[i % AVATARS.length] || AVATARS[0]; return h('span', { class: 'avatar' + (grand ? ' grand' : ''), style: '--c:' + a[1] }, FJ.icone(a[0])); };
+  // lecture à voix haute (synthèse de l'appareil, en français ; le bouton est caché si l'appareil n'a pas de voix française)
+  const voix = (function () {
+    const ok = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined';
+    let fr = null;
+    const choisir = () => { try { const vs = window.speechSynthesis.getVoices() || []; fr = vs.find((v) => /^fr(-|_|$)/i.test(v.lang)) || null; } catch (e) { fr = null; } };
+    if (ok) { choisir(); try { window.speechSynthesis.addEventListener('voiceschanged', choisir); } catch (e) { /* rien */ } }
+    return {
+      get dispo() { return ok && !!fr; },
+      dire(txt) {
+        if (!ok || !fr) return;
+        try {
+          window.speechSynthesis.cancel();
+          const u = new window.SpeechSynthesisUtterance(String(txt).replace(/\*\*/g, ''));
+          u.lang = 'fr-FR'; u.voice = fr; u.rate = 0.9;
+          window.speechSynthesis.speak(u);
+        } catch (e) { /* rien */ }
+      },
+      taire() { if (ok) { try { window.speechSynthesis.cancel(); } catch (e) { /* rien */ } } },
+    };
+  })();
+  const boutonEcouter = (txt) => (voix.dispo ? h('button', { class: 'ecouter', 'aria-label': 'Écouter', onclick: () => voix.dire(typeof txt === 'function' ? txt() : txt) }, FJ.icone('sonOn'), h('span', null, 'Écouter')) : null);
+
+  // l'accueil : qui joue ? puis, pour un nouveau joueur, l'âge, le signe, et le niveau (seulement à partir de 9 ans)
+  function ouvrirAccueil() {
+    ecran('accueil');
+    const box = $('accueil'); box.textContent = '';
+    let question = '', dejaLu = false;
+    // la parole n'est permise qu'après un geste (iOS, Chrome) : on lit la question au premier toucher
+    box.onpointerdown = () => { if (!dejaLu && question) { dejaLu = true; voix.dire(question); } };
+    const tete = (retour) => h('div', { class: 'tete' }, retour ? h('button', { class: 'bt', onclick: retour }, FJ.icone('prec'), h('span', null, 'Retour')) : h('div', { class: 'logo' }, h('b', null, 'Fascinations'), h('span', null, 'labo')),
+      S.profil ? h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer')) : null);
+    const titre = (q) => { question = q; dejaLu = false; return h('h2', { class: 'grandeq' }, q, boutonEcouter(q)); };
+    const neuf = {};
+    const etapeQui = () => {
+      box.textContent = '';
+      box.append(tete(null), titre('Qui joue ?'));
+      const g = h('div', { class: 'joueurs' }); box.append(g);
+      for (const p of S.profils) g.append(h('button', { class: 'joueur' + (S.profil && p.id === S.profil.id ? ' on' : ''), 'aria-label': 'Joueur ' + (AVATARS[p.avatar % AVATARS.length] || AVATARS[0])[0], onclick: () => devenir(p) }, avatar(p.avatar, true)));
+      g.append(h('button', { class: 'joueur nouveau', 'aria-label': 'Nouveau joueur', onclick: etapeAge }, h('span', { class: 'avatar grand plus' }, '+')));
+    };
+    const etapeAge = () => {
+      box.textContent = '';
+      box.append(tete(S.profils.length ? etapeQui : null), titre('Quel âge as-tu ?'));
+      const g = h('div', { class: 'ages' }); box.append(g);
+      for (const a of AGES) {
+        // des bougies comme sur un gâteau : un enfant se reconnaît sans lire
+        const bougies = a <= 9 ? h('span', { class: 'bougies' + (a >= 7 ? ' deux' : ''), 'aria-hidden': 'true' }, ...Array.from({ length: a }, () => h('i'))) : null;
+        g.append(h('button', { class: 'age', 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
+          bougies, h('b', null, a === 16 ? '16 +' : String(a))));
+      }
+    };
+    const etapeSigne = () => {
+      box.textContent = '';
+      box.append(tete(etapeAge), titre('Choisis ton signe'));
+      const g = h('div', { class: 'joueurs' }); box.append(g);
+      const pris = new Set(S.profils.map((p) => p.avatar % AVATARS.length));
+      AVATARS.forEach((a, i) => g.append(h('button', { class: 'joueur' + (pris.has(i) ? ' pris' : ''), 'aria-label': a[0], onclick: () => {
+        neuf.avatar = i;
+        if (neuf.age < 9) devenir({ age: neuf.age, avatar: i, niveau: 1 });   // sous 9 ans : pas de question de niveau
+        else etapeNiveau();
+      } }, avatar(i, true))));
+    };
+    const etapeNiveau = () => {
+      box.textContent = '';
+      box.append(tete(etapeSigne), titre('Et la science, pour toi ?'));
+      const g = h('div', { class: 'niveaux' }); box.append(g);
+      const prop = niveauPropose(neuf.age);
+      for (const n of NIVEAUX) {
+        g.append(h('button', { class: 'niveau' + (n.n === prop ? ' propose' : ''), onclick: () => devenir({ age: neuf.age, avatar: neuf.avatar, niveau: n.n }) },
+          FJ.icone(n.icone), h('b', null, n.nom), h('span', null, n.sous)));
+      }
+      box.append(h('p', { class: 'petit' }, 'Le choix entouré est proposé, mais c’est toi qui décides. La science reste exacte partout : seuls la quantité de détails et les mots changent.'));
+    };
+    if (S.profils.length) etapeQui(); else etapeAge();
+  }
 
   /* ───────── les fiches ───────── */
   // une machine sans fiche reçoit une fiche minimale tirée de ses propres réglages (rubrique des scènes)
@@ -69,10 +201,9 @@
   const DPR_STEPS = [2, 1.5, 1.25, 1];
   let dprMap = lireJSON('fj-dpr', {});
   const dprCap = (id) => (id && dprMap[id]) || 2;
-  function colonnes() {
-    const g = $('colG'), d = $('colD');
-    return { g: g ? g.offsetWidth : 0, d: d ? d.offsetWidth : 0 };
-  }
+  // plus de colonnes (refonte du 13/11) : la machine occupe toute la largeur ; seul le titre réserve le haut
+  function colonnes() { return { g: 0, d: 0 }; }
+  function hautReserve() { const t = $('haut'); return t ? Math.ceil(t.getBoundingClientRect().bottom) + 8 : 84; }
   function nouvelEnv(def) {
     const W = Math.max(320, window.innerWidth), H = Math.max(320, window.innerHeight);
     const dpr = Math.min(dprCap(def.id), window.devicePixelRatio || 1);
@@ -83,7 +214,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
     const col = colonnes();
     // constant pendant la visite ; y0 : sous le titre et les pastilles de scènes (les messages des machines s'y décalent)
-    const view = { x0: col.g, x1: Math.max(col.g + 200, W - col.d), y0: 104, y1: H };
+    const view = { x0: col.g, x1: Math.max(col.g + 200, W - col.d), y0: hautReserve(), y1: H };
     return { ctx, canvas, w: W, h: H, dpr, t: 0, audio, view, get tool() { return S.outil; }, get paused() { return S.pause; },
       get decor() { return true; }, sonParLeShell: true, get doux() { return S.prefs.doux; }, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
   }
@@ -103,6 +234,16 @@
   /* ───────── ouvrir une machine ───────── */
   let jeton = 0;
   async function ouvrir(id, opt = {}) {
+    // arrivée sans scène imposée : on reste dans les chapitres que le niveau ouvre
+    let permises = opt.scene ? [opt.scene] : null;
+    if (!opt.etat && !opt.scene) {
+      const q = (opt.q && questionParId(opt.q)) || FJ.questionDe(id);
+      const vis = q ? chapitresVisibles(q) : [];
+      const miens = vis.filter(([m]) => m === id);
+      if (vis.length && !miens.length) { const [m, sc] = vis[Math.floor(Math.random() * vis.length)]; id = m; permises = sc ? [sc] : null; }
+      else if (miens.length) permises = miens.map(([, sc]) => sc).filter(Boolean);
+      if (q) opt = Object.assign({}, opt, { q: q.id });
+    }
     const def = defs.find((d) => d.id === id); if (!def) return;
     const mon = ++jeton;
     S.id = id; S.def = def; S.meta = FJ.META[id] || ficheAuto(def); S.pause = false;
@@ -117,7 +258,7 @@
       pilote.restaurer(opt.etat.inst);
       S.outil = opt.etat.outil || outilDefaut(); S.nom = opt.etat.nom || null;
     } else {
-      t = FJ.tirage(S.meta, opt.seed);
+      t = FJ.tirage(S.meta, opt.seed, permises);
       S.scene = t.scene;
       if (S.scene && S.meta.scenes[S.scene]) { pilote.scene(S.meta.scenes[S.scene].via); await images(2); }
       if (mon !== jeton) return;
@@ -126,20 +267,14 @@
       S.nom = t.nom;
     }
     if (mon !== jeton) return;
+    { const q = (opt.q && questionParId(opt.q)) || FJ.questionDe(S.id, S.scene); S.q = q ? q.id : null; }
     S.ouverture = performance.now(); S.touche = false; govReset();
     S.vus.add(id); store.set('fj-vus', JSON.stringify([...S.vus]));
     if (sac) sac.vu(id);
-    rendre();
+    rendre(); filCran = 0; rendreFil();
     carton(opt.etat ? null : t);
     amorce();
-    // si l'enfant ne touche à rien, la main montre le geste (une fois par machine et par session)
-    const sim0 = S.sim;
-    setTimeout(() => {
-      if (S.sim !== sim0 || S.touche || S.tiroir || S.ecran || !S.outil) return;
-      const cle = S.id + '/' + S.outil;
-      if (S.outilsMontres.has(cle)) return;
-      S.outilsMontres.add(cle); montrerMain(S.outil);
-    }, 4600);
+    mainDuChapitre();
     if (TEST) window.FJ_TEST.ouvertures++;
   }
   function securite() {
@@ -155,7 +290,13 @@
   function outilsVisibles() {
     const sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
     const ids = (sc && sc.outils) || S.meta.outilsMontres || null;
-    return S.def.tools.filter((t) => !ids || ids.includes(t.id));
+    let vis = S.def.tools.filter((t) => !ids || ids.includes(t.id));
+    if (palier() === 1 && vis.length > 2) {   // 5-6 ans : le geste de la scène, plus un seul autre
+      const pref = (sc && sc.outil) || S.meta.outil;
+      const tri = vis.filter((t) => t.id === pref).concat(vis.filter((t) => t.id !== pref && t.id !== 'observer' && t.id !== 'regarder'));
+      vis = (tri.length ? tri : vis).slice(0, 2);
+    }
+    return vis;
   }
   function outilDefaut() {
     const sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
@@ -199,8 +340,24 @@
     securite();
     if (!outilsVisibles().some((t) => t.id === S.outil)) S.outil = outilDefaut();
     S.touche = true;
-    rendre(); son('scene'); amorce();
+    rendre(); son('scene'); amorce(); mainDuChapitre();
+    filCran = 0; rendreFil();
   }
+  /* la main fantôme rend l'appli utilisable sans lire : elle montre le geste au début de chaque chapitre
+     (une fois par chapitre et par session), puis revient après 20 s sans contact */
+  let mainChapT = 0, dernierContact = performance.now();
+  function mainDuChapitre() {
+    clearTimeout(mainChapT);
+    const sim0 = S.sim, cle = S.id + '/' + S.scene;
+    mainChapT = setTimeout(() => {
+      if (S.sim !== sim0 || S.tiroir || S.ecran || S.spectacle || !S.outil || S.outilsMontres.has(cle)) return;
+      S.outilsMontres.add(cle); montrerMain(S.outil);
+    }, 1800);
+  }
+  setInterval(() => {
+    if (!S.sim || S.tiroir || S.ecran || S.spectacle || !S.outil) return;
+    if (performance.now() - dernierContact > 20000) { dernierContact = performance.now(); montrerMain(S.outil); }
+  }, 1000);
 
   /* ───────── la boucle ───────── */
   function boucle(now) {
@@ -254,6 +411,7 @@
   let rz = 0;
   window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(redimension, 250); });
   function redimension() {
+    appliquerProfil();
     if (!S.env) return;
     const W = window.innerWidth, H = window.innerHeight;
     if (Math.abs(W - S.env.w) < 2 && Math.abs(H - S.env.h) < 2) { boiteAuxLettres(false); return; }
@@ -280,7 +438,7 @@
   }
   canvas.addEventListener('pointerdown', (e) => {
     if (!S.sim) return;
-    doigt = true; px = null; py = null; S.touche = true; S.doigts++;
+    doigt = true; px = null; py = null; S.touche = true; S.doigts++; dernierContact = performance.now();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
     effacerCarton(); masquerMain();
     const p = pt(e); p.down = true;
@@ -323,19 +481,23 @@
   function rendre() {
     rendreHaut(); rendreGestes(); rendreActions(); rendreDroite();
     if (S.tiroir) rendreTiroir();
-    document.documentElement.style.setProperty('--accent', FJ.mondeDe(S.id).couleur);
+    document.documentElement.style.setProperty('--accent', (S.q ? FJ.mondeDeQuestion(S.q) : FJ.mondeDe(S.id)).couleur);
   }
   function nomMachine() { return (S.meta && S.meta.nom) || S.def.name; }
   function rendreHaut() {
     $('nom').textContent = nomMachine();
     const box = $('scenes'); box.textContent = '';
-    const cles = Object.keys(S.meta.scenes || {});
-    if (cles.length < 2) { box.hidden = true; return; }
+    // le chemin de la question : un chapitre = une machine et une scène, du plus simple au plus profond
+    const q = questionParId(S.q), chap = q ? chapitresVisibles(q) : Object.keys(S.meta.scenes || {}).map((k) => [S.id, k]);
+    if (chap.length < 2) { box.hidden = true; return; }
     box.hidden = false;
-    for (const k of cles) {
-      const sc = S.meta.scenes[k];
-      box.append(h('button', { class: 'pil' + (k === S.scene ? ' on' : ''), onclick: () => changerScene(k), 'aria-pressed': k === S.scene ? 'true' : 'false' }, sc.nom || k));
-    }
+    chap.forEach(([m, k], i) => {
+      const meta = FJ.META[m] || {}, sc = (meta.scenes && meta.scenes[k]) || {};
+      const ici = m === S.id && (k === S.scene || !k);
+      box.append(h('button', { class: 'pil' + (ici ? ' on' : '') + (m !== S.id ? ' autre' : ''), 'aria-pressed': ici ? 'true' : 'false', 'aria-label': 'Chapitre ' + (i + 1) + ' : ' + (sc.nom || meta.nom || m),
+        onclick: () => { if (ici) return; if (m === S.id && k) changerScene(k); else aller(m, { scene: k || undefined, q: S.q }); } },
+        h('i', { class: 'num' }, String(i + 1)), sc.nom || meta.nom || m));
+    });
     const on = box.querySelector('.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ } }
   }
   function verbe(t) {
@@ -348,7 +510,7 @@
     for (const t of outilsVisibles()) {
       const o = ficheOutil(t.id) || {};
       box.append(h('button', { class: 'geste' + (t.id === S.outil ? ' on' : ''), title: t.desc || '', 'aria-pressed': t.id === S.outil ? 'true' : 'false',
-        onclick: () => choisirOutil(t.id) }, FJ.icone(o.icone || FJ.iconeOutil(t.id)), h('span', null, verbe(t))));
+        'aria-label': verbe(t), onclick: () => choisirOutil(t.id) }, FJ.icone(o.icone || FJ.iconeOutil(t.id)), h('span', null, verbe(t))));
     }
   }
   function choisirOutil(id) {
@@ -371,6 +533,7 @@
     }
   }
   function rendreDroite() {
+    const j = $('bJoueur'); if (j) { j.textContent = ''; j.append(S.profil ? avatar(S.profil.avatar) : FJ.icone('mains')); }
     const b = $('bSon'); b.textContent = ''; b.append(FJ.icone(S.son ? 'sonOn' : 'sonOff'), h('span', null, S.son ? 'Son' : 'Muet'));
     b.setAttribute('aria-pressed', S.son ? 'true' : 'false');
     const p = $('bPause'); p.textContent = ''; p.append(FJ.icone(S.pause ? 'lecture' : 'pause'), h('span', null, S.pause ? 'Reprendre' : 'Pause'));
@@ -385,7 +548,8 @@
     c.append(h('b', null, nomMachine()));
     if (S.nom) c.append(h('span', { class: 'graine' }, '✦ ' + S.nom));
     else if (sc && sc.nom && Object.keys(S.meta.scenes).length > 1) c.append(h('span', { class: 'graine' }, sc.nom));
-    if (S.meta.question) c.append(h('i', null, S.meta.question));
+    const q = questionParId(S.q);
+    if (q || S.meta.question) c.append(h('i', null, q ? q.q : S.meta.question));
     c.hidden = false; c.classList.remove('part'); void c.offsetWidth; c.classList.add('vient');
     clearTimeout(cartonT); cartonT = setTimeout(effacerCarton, 4200);
   }
@@ -413,13 +577,54 @@
     clearTimeout(bulleT); bulleT = setTimeout(() => { b.classList.add('part'); setTimeout(() => { b.hidden = true; }, 400); }, long ? 4200 : 2600);
   }
 
+  /* ───────── « Pourquoi ? » : un fil qui se déroule (chef-design, 13/11) ─────────
+     une phrase, puis « encore » jusqu'à 3 crans, puis « Pour les curieux » (le tiroir complet).
+     Le premier cran dépend du niveau : la phrase « petit » pour Je découvre, l'étincelle sinon. */
+  let filCran = 0;
+  function morceauxDuFil() {
+    const m = S.meta || {}, P = m.pourquoi || {}, sc = S.scene && m.scenes ? m.scenes[S.scene] : null;
+    const ess = (sc && sc.essaie) || m.essaie;
+    const paras = P.texte ? String(P.texte).split('\n\n') : [];
+    const out = [];
+    const premier = (niveau() === 1 && P.petit) || P.etincelle;
+    if (premier) out.push({ t: premier, k: 'etincelle' });
+    if (ess) out.push({ t: ess, k: 'essaie', titre: 'Essaie ça' });
+    if (niveau() >= 2) { for (const p of paras.slice(0, 2)) out.push({ t: p, k: 'texte' }); if (P.vraie) out.push({ t: P.vraie, k: 'histoire', titre: 'Une histoire vraie' }); }
+    return out.slice(0, 4);
+  }
+  function basculerFil() {
+    const f = $('fil');
+    if (!f.hidden) { fermerFil(); return; }
+    fermerTiroir(); filCran = 0; f.hidden = false; rendreFil(); son('tiroir');
+    $('bPourquoi').classList.add('on');
+  }
+  function fermerFil() { const f = $('fil'); if (f) { f.hidden = true; f.textContent = ''; } voix.taire(); const b = $('bPourquoi'); if (b) b.classList.remove('on'); }
+  function rendreFil() {
+    const f = $('fil'); if (!f || f.hidden) return;
+    f.textContent = '';
+    const q = questionParId(S.q), mx = morceauxDuFil();
+    filCran = Math.min(filCran, Math.max(0, mx.length - 1));
+    const vus = mx.slice(0, filCran + 1);
+    f.append(h('div', { class: 'tete' }, h('b', null, q ? q.q : (S.meta.question || nomMachine())),
+      boutonEcouter(() => [q ? q.q : '', ...vus.map((x) => (x.titre ? x.titre + ' : ' : '') + x.t)].join(' ')),
+      h('button', { class: 'x', 'aria-label': 'Fermer', onclick: fermerFil }, FJ.icone('fermer'))));
+    for (const x of vus) f.append(h('p', { class: 'cran ' + x.k }, x.titre ? h('b', null, x.titre + ' · ') : null, ...texteRiche(x.t)));
+    const pied = h('div', { class: 'pied' }); f.append(pied);
+    if (filCran < mx.length - 1) pied.append(h('button', { class: 'bt grand', onclick: () => { filCran++; rendreFil(); son('outil'); } }, FJ.icone('suiv'), h('span', null, 'encore')));
+    if (niveau() >= 2 || filCran >= mx.length - 1) pied.append(h('button', { class: 'bt doux', onclick: () => { fermerFil(); ouvrirTiroir('pourquoi'); } }, FJ.icone('pourquoi'), h('span', null, niveau() >= 2 ? 'Pour les curieux' : 'Tout lire')));
+    const crans = f.querySelectorAll('.cran'), dernier = crans[crans.length - 1];
+    if (dernier) { dernier.classList.add('neuf'); if (filCran > 0) f.scrollTop = f.scrollHeight; }
+  }
+
   /* ───────── les tiroirs ───────── */
   function ouvrirTiroir(nom) {
     if (S.tiroir === nom) { fermerTiroir(); return; }
+    fermerFil();
     S.tiroir = nom; $('tiroir').hidden = false; app.classList.add('tiroir-ouvert');
     rendreTiroir(); rendreDroite(); son('tiroir');
   }
   function fermerTiroir() {
+    voix.taire();
     S.tiroir = null; const t = $('tiroir'); if (t) { t.hidden = true; t.textContent = ''; }
     app.classList.remove('tiroir-ouvert'); if (S.def) rendreDroite();
   }
@@ -436,7 +641,10 @@
   /* Bidouiller : les leviers parlants, les recettes, la vitesse, puis le Labo (tous les vrais réglages) */
   function exposes() {
     const sc = S.scene && S.meta.scenes[S.scene];
-    return (sc && sc.exposes) || S.meta.exposes || [];
+    let ks = ((sc && sc.exposes) || S.meta.exposes || []).slice();
+    if (niveau() >= 3) for (const k of Object.keys(S.meta.leviers || {})) if (!ks.includes(k)) ks.push(k);
+    const max = palier() === 1 ? 2 : palier() === 2 ? 3 : 99;
+    return ks.slice(0, max);
   }
   function rendreBidouiller(corps) {
     const box = h('div', { class: 'leviers' }); corps.append(box);
@@ -456,7 +664,8 @@
     outils.append(h('button', { class: 'bt', onclick: epingler }, FJ.icone('epingle'), h('span', null, 'Épingler ce moment')));
     outils.append(h('button', { class: 'bt', onclick: () => { fermerTiroir(); spectacle(true); } }, FJ.icone('spectacle'), h('span', null, 'Spectacle')));
     outils.append(boutonMaintenu('Tout recommencer', 'recommencer', () => { fermerTiroir(); ouvrir(S.id, { etat: { scene: S.scene, inst: null, outil: S.outil } }); bulle('La machine repart de zéro.'); }));
-    // le Labo
+    // le Labo (caché pour les moins de 10 ans, sauf s'ils veulent tous les détails)
+    if (palier() <= 2 && niveau() < 3) return;
     const lab = h('details', { class: 'labo', open: laboOuvert || null, ontoggle: (e) => { laboOuvert = e.target.open; if (laboOuvert) remplirLabo(); } },
       h('summary', null, FJ.icone('labo'), h('span', null, 'Le Labo : tous les vrais réglages')));
     corps.append(lab);
@@ -491,9 +700,13 @@
       const inp = h('input', { type: 'range', min: lo, max: hi, step: c.step || (hi - lo) / 200, 'aria-label': nom });
       inp.value = c.value;
       inp.addEventListener('input', () => { pilote.set(l.chemin, parseFloat(inp.value)); S.touche = true; });
-      const el = h('label', { class: 'levier' }, h('span', { class: 'nom' }, nom), inp,
+      const vrai = niveau() >= 4 ? h('span', { class: 'vrai' }) : null;   // niveau 4 : le vrai nom et la vraie valeur
+      const majVrai = () => { if (!vrai) return; const rr = pilote.get(l.chemin); if (rr) vrai.textContent = rr.c.label + ' = ' + (rr.c.fmt ? rr.c.fmt(rr.c.value) : fr(rr.c.value, 2)); };
+      inp.addEventListener('input', majVrai);
+      const el = h('label', { class: 'levier' }, h('span', { class: 'nom' }, nom, vrai), inp,
         h('span', { class: 'bouts' }, h('span', null, (l.bouts && l.bouts[0]) || ''), h('span', null, (l.bouts && l.bouts[1]) || '')));
-      return { el, maj() { const rr = pilote.get(l.chemin); if (rr && document.activeElement !== inp) inp.value = rr.c.value; } };
+      majVrai();
+      return { el, maj() { const rr = pilote.get(l.chemin); if (rr && document.activeElement !== inp) inp.value = rr.c.value; majVrai(); } };
     }
     if (r.kind === 'toggle') {
       const b = h('button', { class: 'bascule', onclick: () => { const rr = pilote.get(l.chemin); pilote.set(l.chemin, !(rr && rr.c.value)); S.touche = true; maj(); setTimeout(remplirLeviers, 0); } }, h('i'), h('span', null, nom));
@@ -596,20 +809,29 @@
   function rendrePourquoi(corps) {
     const m = S.meta, P = m.pourquoi || {};
     const sc = S.scene && m.scenes[S.scene];
-    if (m.question) corps.append(h('p', { class: 'question' }, m.question));
-    if (P.etincelle) corps.append(h('p', { class: 'etincelle' }, P.etincelle));
+    const niv = niveau(), pal = palier();
     const ess = (sc && sc.essaie) || S.meta.essaie;   // une machine sans scènes peut avoir son « essaie » à elle
+    // la phrase des plus jeunes : « petit » si la fiche l'a, sinon l'étincelle
+    const court = (niv === 1 && P.petit) || P.etincelle;
+    const aDire = [m.question, court, ess ? 'Essaie ça : ' + ess : ''].filter(Boolean).join(' ');
+    if (m.question) corps.append(h('p', { class: 'question' }, m.question, (pal <= 2 || niv === 1) ? boutonEcouter(aDire) : null));
+    if (court) corps.append(h('p', { class: 'etincelle' }, court));
     if (ess) corps.append(h('div', { class: 'essaie' }, h('b', null, 'Essaie ça'), h('span', null, ess)));
-    if (P.texte) corps.append(h('div', { class: 'texte' }, ...String(P.texte).split('\n\n').map((p) => h('p', null, ...texteRiche(p)))));
-    const etsi = (m.etsi || []).filter((e) => !e.scene || e.scene === S.scene || !m.scenes[e.scene]);
+    if (P.texte) {
+      const txt = h('div', { class: 'texte' }, ...String(P.texte).split('\n\n').map((p) => h('p', null, ...texteRiche(p))));
+      if (niv === 1) corps.append(h('details', { class: 'curieux' }, h('summary', null, 'Lire la suite'), txt, boutonEcouter(String(P.texte))));
+      else { corps.append(txt); if (pal <= 2) { const b = boutonEcouter(String(P.texte)); if (b) corps.append(b); } }
+    }
+    const etsi = pal === 1 && niv === 1 ? [] : (m.etsi || []).filter((e) => !e.scene || e.scene === S.scene || !m.scenes[e.scene]);
     if (etsi.length) {
       corps.append(h('h3', null, 'Et si… ?'));
       for (const e of etsi) corps.append(carteEtSi(e));
     }
-    if (P.vraie) corps.append(h('div', { class: 'histoire' }, h('b', null, 'Une histoire vraie'), h('p', null, P.vraie)));
+    if (P.vraie && niv >= 2) corps.append(h('div', { class: 'histoire' }, h('b', null, 'Une histoire vraie'), h('p', null, P.vraie)));
     const about = S.def.about || [];
-    if (P.curieux || about.length) {
-      corps.append(h('details', { class: 'curieux' }, h('summary', null, 'Pour les curieux'),
+    if ((P.curieux || about.length || (niv >= 4 && S.def.intro)) && niv >= 2) {
+      corps.append(h('details', { class: 'curieux', open: niv >= 3 || null }, h('summary', null, niv >= 4 ? 'Le texte de la version adulte' : 'Pour les curieux'),
+        ...(niv >= 4 && S.def.intro ? [h('p', null, S.def.intro)] : []),
         ...(P.curieux ? [h('p', null, P.curieux)] : []), ...about.map((p) => h('p', null, p))));
     }
     if (!m.question && !P.texte) corps.append(h('p', { class: 'etincelle' }, S.def.intro || ''));
@@ -765,21 +987,26 @@
     const box = $('carte'); box.textContent = '';
     const logo = h('div', { class: 'logo', title: 'Appui long : le coin des grands' }, h('b', null, 'Fascinations'), h('span', null, 'labo'));
     appuiLong(logo, ouvrirParents);
-    box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${S.vus.size} / ${defs.length} découvertes`),
+    box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${FJ.QUESTIONS.filter((q) => FJ.chapitresDe(q).some(([m]) => S.vus.has(m))).length} / ${FJ.QUESTIONS.length} questions explorées`),
       h('button', { class: 'bt', onclick: () => { ecran(null); aller(sac.suivant()); } }, FJ.icone('encore'), h('span', null, 'Au hasard')),
       h('button', { class: 'bt', onclick: () => ouvrirCarnet() }, FJ.icone('carnet'), h('span', null, 'Mon carnet')),
+      h('button', { class: 'bt profil', 'aria-label': 'Qui joue ?', onclick: ouvrirAccueil }, S.profil ? avatar(S.profil.avatar) : FJ.icone('mains'), h('span', null, 'Qui joue ?')),
       h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer'))));
-    for (const m of FJ.MONDES) {
-      const sec = h('section', { class: 'monde', style: '--c:' + m.couleur });
-      sec.append(h('div', { class: 'mh' }, FJ.icone(m.icone), h('div', null, h('h3', null, m.nom), h('p', null, m.idee))));
+    for (const w of FJ.MONDES) {
+      const sec = h('section', { class: 'monde', style: '--c:' + w.couleur });
+      sec.append(h('div', { class: 'mh' }, FJ.icone(w.icone), h('div', null, h('h3', null, w.nom), h('p', null, w.idee))));
       const rang = h('div', { class: 'vignettes' }); sec.append(rang);
-      for (const id of m.machines) {
-        const def = defs.find((d) => d.id === id); if (!def) continue;
-        const meta = FJ.META[id] || {};
-        const img = (FJ.VIGNETTES && FJ.VIGNETTES[id]) || null;
-        const v = h('button', { class: 'vignette' + (S.vus.has(id) ? '' : ' neuve') + (id === S.id ? ' ici' : ''), onclick: () => { ecran(null); if (id !== S.id) aller(id); } },
-          img ? h('img', { src: img, alt: '' }) : h('div', { class: 'ph' }, FJ.icone(m.icone)),
-          h('b', null, meta.nom || def.name), meta.question ? h('span', null, meta.question) : null);
+      for (const qid of w.questions) {
+        const q = questionParId(qid); if (!q) continue;
+        const ch = chapitresVisibles(q); if (!ch.length) continue;
+        const [m0, s0] = ch[0];
+        const ms = [...new Set(FJ.chapitresDe(q).map(([m]) => m))];
+        const vue = ms.some((m) => S.vus.has(m)), ici = qid === S.q;
+        // vignettes fixes (images en cache) : 25 machines vivantes à la fois feraient fondre la tablette
+        const img = (FJ.VIGNETTES && FJ.VIGNETTES[m0]) || null;
+        const v = h('button', { class: 'vignette' + (vue ? ' vue' : '') + (ici ? ' ici' : ''), onclick: () => { ecran(null); if (!ici) aller(m0, { scene: s0 || undefined, q: qid }); } },
+          img ? h('img', { src: img, alt: '' }) : h('div', { class: 'ph' }, FJ.icone(w.icone)),
+          h('b', null, q.q), ms.length > 1 ? h('span', null, ms.length + ' machines · ' + FJ.chapitresDe(q).length + ' chapitres') : null);
         rang.append(v);
       }
       box.append(sec);
@@ -787,7 +1014,7 @@
   }
   function ecran(nom) {
     S.ecran = nom;
-    for (const k of ['carte', 'carnet', 'parents']) $(k).hidden = k !== nom;
+    for (const k of ['carte', 'carnet', 'parents', 'accueil']) $(k).hidden = k !== nom;
     app.classList.toggle('ecran-ouvert', !!nom);
     if (nom) { fermerTiroir(); $('pastille').hidden = true; } else last = 0;
   }
@@ -806,12 +1033,29 @@
       const b = h('button', { class: 'bascule' + (S.prefs[k] ? ' on' : ''), onclick: () => { S.prefs[k] = !S.prefs[k]; store.set('fj-prefs', JSON.stringify(S.prefs)); b.classList.toggle('on', S.prefs[k]); app.classList.toggle('calme', S.prefs.calme); } }, h('i'), h('span', null, txt));
       box.append(b, h('p', { class: 'petit' }, aide));
     };
+    box.append(h('h3', null, 'Les joueurs : âge et niveau'), h('p', { class: 'petit' }, 'L’âge règle la taille des boutons, la police, le nombre de gestes et de réglages ; le niveau règle la profondeur des explications. Sous 9 ans, « Je découvre » est posé d’office : vous pouvez le changer ici. L’âge n’est affiché nulle part ailleurs.'));
+    const liste = h('div', { class: 'joueursGrands' }); box.append(liste);
+    const majListe = () => {
+      liste.textContent = '';
+      for (const p of S.profils) {
+        const ligne = h('div', { class: 'joueurGrand' + (S.profil && p.id === S.profil.id ? ' on' : '') });
+        const ageTxt = h('b', null, p.age >= 16 ? '16 ans et +' : p.age + ' ans');
+        const changeAge = (d) => { p.age = clamp(p.age + d, 5, 16); if (S.profil && p.id === S.profil.id) enregistrerProfil(p); else sauverProfils(); majListe(); };
+        ligne.append(avatar(p.avatar), h('button', { class: 'bt', 'aria-label': 'Un an de moins', onclick: () => changeAge(-1) }, '−'), ageTxt, h('button', { class: 'bt', 'aria-label': 'Un an de plus', onclick: () => changeAge(1) }, '+'));
+        const nv = h('div', { class: 'opts' });
+        for (const n of NIVEAUX) nv.append(h('button', { class: n.n === p.niveau ? 'on' : '', title: n.sous, onclick: () => { p.niveau = n.n; if (S.profil && p.id === S.profil.id) enregistrerProfil(p); else sauverProfils(); majListe(); } }, FJ.icone(n.icone), ' ', n.nom));
+        ligne.append(nv, h('button', { class: 'bt doux', onclick: () => { if (!confirm('Oublier ce joueur ?')) return; S.profils = S.profils.filter((x) => x !== p); if (S.profil === p) S.profil = S.profils[0] || null; sauverProfils(); appliquerProfil(); majListe(); } }, FJ.icone('gomme'), h('span', null, 'Oublier')));
+        liste.append(ligne);
+      }
+    };
+    majListe();
+    box.append(h('button', { class: 'bt', onclick: ouvrirAccueil }, FJ.icone('mains'), h('span', null, 'Qui joue ? / Nouveau joueur')));
     pref('doux', 'Flashs adoucis', 'Atténue les éclairs et les scintillements rapides (photosensibilité). Recommandé.');
     pref('calme', 'Moins d’animations dans l’interface', 'Pas de main qui montre les gestes, transitions réduites.');
     box.append(h('h3', null, 'Le carnet'), h('button', { class: 'bt', onclick: async () => { if (confirm('Effacer tout le carnet (photos, épingles, paris) ?')) { await carnet.effacer(); bulle('Carnet effacé.'); } } }, FJ.icone('gomme'), h('span', null, 'Effacer le carnet')));
     box.append(h('button', { class: 'bt', onclick: () => { S.vus = new Set(); store.set('fj-vus', '[]'); S.etsiVu = new Set(); store.set('fj-etsi', '[]'); bulle('Découvertes remises à zéro.'); } }, FJ.icone('recommencer'), h('span', null, 'Oublier les découvertes')));
     box.append(h('button', { class: 'bt', onclick: () => { dprMap = {}; store.set('fj-dpr', '{}'); bulle('Résolution maximale rétablie pour toutes les machines.'); } }, FJ.icone('spectacle'), h('span', null, 'Rétablir la pleine résolution')));
-    box.append(h('h3', null, 'À propos'), h('p', { class: 'petit' }, 'Fascinations Labo : 32 machines de science à toucher, pour les 10-14 ans (et les autres). Tout fonctionne hors ligne ; rien ne sort de l’appareil. Les simulations sont simplifiées et souvent accélérées : les textes « Pourquoi ? » disent ce qui est vrai, ce qui est simplifié et ce que les scientifiques ne savent pas encore.'));
+    box.append(h('h3', null, 'À propos'), h('p', { class: 'petit' }, 'Fascinations Labo : 32 machines de science à toucher, de 5 ans à l’âge adulte : l’interface s’adapte à l’âge et au niveau choisis. Tout fonctionne hors ligne ; rien ne sort de l’appareil. Les simulations sont simplifiées et souvent accélérées : les textes « Pourquoi ? » disent ce qui est vrai, ce qui est simplifié et ce que les scientifiques ne savent pas encore.'));
   }
 
   /* ───────── le son, la pause, le spectacle ───────── */
@@ -843,6 +1087,7 @@
     audio = new FK.SoundKit();
     sac = FJ.Sac(ids, store);
     app.classList.toggle('calme', S.prefs.calme);
+    appliquerProfil(); laboOuvert = niveau() >= 4;
     $('bCarte').append(FJ.icone('carte'), h('span', null, 'Carte'));
     $('bPrec').append(FJ.icone('prec')); $('bSuiv').append(FJ.icone('suiv'));
     $('bPourquoi').append(FJ.icone('pourquoi'), h('span', null, 'Pourquoi ?'));
@@ -852,10 +1097,11 @@
     $('remplir').append(FJ.icone('spectacle'), h('span', null, 'Remplir l’écran'));
     $('sortie').append(FJ.icone('fermer'));
     $('bCarte').onclick = ouvrirCarte;
+    $('bJoueur').onclick = ouvrirAccueil;
     $('bPrec').onclick = precedent; $('bSuiv').onclick = suivant;
     $('nom').onclick = () => ouvrirTiroir('pourquoi');
     $('bSon').onclick = basculerSon; $('bPause').onclick = basculerPause;
-    $('bPourquoi').onclick = () => ouvrirTiroir('pourquoi'); $('bBidouiller').onclick = () => ouvrirTiroir('bidouiller');
+    $('bPourquoi').onclick = basculerFil; $('bBidouiller').onclick = () => ouvrirTiroir('bidouiller');
     $('bEncore').onclick = encore; $('bPhoto').onclick = photo;
     $('remplir').onclick = () => { if (confirm('Remplir l’écran ? La machine sera recréée avec les mêmes réglages, mais ce que tu as construit sera perdu.')) ouvrir(S.id, { etat: etatCourant() }); };
     $('sortie').onclick = () => spectacle(false);
@@ -871,9 +1117,11 @@
     raf = requestAnimationFrame(boucle);
     const voulu = (location.hash || '').replace('#', '');
     aller(defs.some((d) => d.id === voulu) ? voulu : sac.suivant());
+    // première ouverture : la machine tourne déjà derrière, on demande l'âge puis le niveau
+    if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }
   if (TEST) {
-    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre };
+    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, chapitresVisibles, basculerFil, ouvrirAccueil, exposes, outilsVisibles };
   }
   init();
 })();

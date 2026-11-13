@@ -52,6 +52,7 @@ FJ.fiche('rd', {
   ],
   pourquoi: {
     etincelle: 'Deux substances qui réagissent et s’étalent à des vitesses différentes suffisent à faire naître des taches et des rayures.',
+    petit: 'Deux produits s’étalent, l’un vite, l’autre lentement. Des taches et des rayures apparaissent.',
     texte: 'Imagine un liquide où l’on verse sans cesse de la nourriture. Un colorant s’y multiplie en la mangeant, mais il s’étale lentement. La nourriture, elle, se répand vite. Autour de chaque tache, elle vient à manquer : aucune autre tache ne peut naître juste à côté. D’un mélange tout lisse sortent ainsi des taches bien espacées. C’est la **réaction-diffusion**.\n\nC’est confirmé pour quelques cas, comme les rayures du poisson-zèbre, et sans doute l’espacement des doigts dans l’embryon. Pour le zèbre ou le guépard, c’est une piste sérieuse, pas une preuve. Ici, ce sont des équations simplifiées, pas la vraie chimie d’un animal.',
     vraie: 'En 1952, Alan Turing, qui avait aidé à casser les codes secrets allemands pendant la guerre, propose cette idée dans un article sur la forme des êtres vivants. En 1995, les Japonais Shigeru Kondo et Rihito Asai voient de nouvelles rayures apparaître entre les anciennes quand un poisson-ange grandit, comme le prévoit le modèle.',
   },

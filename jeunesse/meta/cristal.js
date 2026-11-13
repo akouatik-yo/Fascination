@@ -60,6 +60,7 @@ FJ.fiche('cristal', {
   ],
   pourquoi: {
     etincelle: 'Les molécules d’eau s’empilent en hexagones : voilà pourquoi les flocons en étoile ont six branches.',
+    petit: 'L’eau gèle en petits hexagones, des formes à six côtés. Alors le flocon a six branches.',
     texte: 'Dans un nuage, la vapeur d’eau se dépose sur un minuscule grain de glace. Ses molécules s’empilent en hexagones, d’où les six branches. Les pointes, plus exposées, attrapent plus de vapeur et poussent plus vite : le flocon se ramifie. Ses six branches traversent le même air au même moment, alors elles se ressemblent. Deux flocons, eux, ne suivent jamais exactement le même chemin.\n\nUn liquide peut aussi rester liquide sous son point de gel, s’il n’a rien pour commencer à cristalliser. C’est la **surfusion**. Au moindre germe, tout devient solide d’un coup, en rendant de la chaleur : c’est le secret de la chaufferette.',
     vraie: 'En 1885, Wilson Bentley, un fermier du Vermont, aux États-Unis, réussit la première photo d’un flocon au microscope. Il en photographiera plus de cinq mille au cours de sa vie.',
   },

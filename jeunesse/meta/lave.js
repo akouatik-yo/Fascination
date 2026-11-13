@@ -56,6 +56,7 @@ FJ.fiche('lave', {
   ],
   pourquoi: {
     etincelle: 'Chauffée par en bas, la cire devient plus légère que le liquide et monte ; refroidie en haut, elle redescend.',
+    petit: 'En bas, la cire chauffe et devient plus légère : elle monte. En haut, elle refroidit et redescend.',
     texte: 'L’ampoule chauffe la cire au fond. En chauffant, la cire gonfle un tout petit peu : à volume égal, elle devient plus légère que le liquide, alors elle monte. En haut, loin de l’ampoule, elle refroidit, s’alourdit et redescend. Ce grand manège s’appelle la **convection**.\n\nOn le retrouve partout : dans une casserole d’eau, très lentement dans les roches chaudes sous nos pieds, et à la surface du Soleil. Là-bas, du gaz brûlant monte au centre de grains grands comme la France, puis replonge dans les couloirs sombres, un peu moins chauds. Dans la machine, le Soleil est accéléré.',
     vraie: 'L’Anglais Edward Craven Walker lance la lampe à lave en 1963. On raconte que l’idée lui est venue dans un pub, en voyant un minuteur pour œufs bricolé avec des liquides qui bougeaient en chauffant.',
   },

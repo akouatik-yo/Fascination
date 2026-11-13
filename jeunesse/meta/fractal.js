@@ -72,6 +72,7 @@ FJ.fiche('fractal', {
   ],
   pourquoi: {
     etincelle: 'Une règle toute simple, répétée des milliers de fois, dessine une forme dont les détails ne finissent jamais.',
+    petit: 'On répète une règle très simple, encore et encore. On trouve toujours de nouveaux détails.',
     texte: 'Chaque point de l’écran est un nombre un peu spécial, à deux coordonnées. On part de zéro, on le met au carré, on ajoute le nombre du point, et on recommence encore et encore. Pour certains points, le résultat reste petit : ils forment l’ensemble de Mandelbrot. Pour les autres, il s’envole, et la couleur dit à quelle vitesse.\n\nZoome sur le bord : de nouveaux détails apparaissent sans fin, et parfois une copie de la forme entière. Une forme qui se ressemble à toutes les échelles s’appelle une **fractale**. La nature en est pleine : fougères, chou romanesco, côtes rocheuses, éclairs. Mais dans la nature, les détails s’arrêtent un jour, au plus tard aux atomes.',
     vraie: 'En 1967, Benoît Mandelbrot publie un article au titre étonnant : « Combien mesure la côte de la Grande-Bretagne ? » Sa réponse : ça dépend de ta règle. Plus elle est petite, plus elle suit de recoins, et plus la côte paraît longue. En 1975, il invente le mot « fractale ».',
   },

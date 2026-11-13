@@ -84,6 +84,7 @@ FJ.fiche('sable', {
   ],
   pourquoi: {
     etincelle: 'Le sable coule comme un liquide, puis s’arrête net sur une pente toujours pareille. Le vent, grain par grain, le sculpte en dunes.',
+    petit: 'Le sable coule, puis s’arrête sur une pente toujours pareille. Le vent le pousse, grain par grain, en dunes.',
     texte: 'Verse du sable sec : il forme un cône. Sa pente ne dépasse jamais un certain angle, entre 30 et 40° selon le sable. Si elle devient plus raide, une avalanche la ramène. C’est l’**angle de repos**. Les grains anguleux s’accrochent entre eux : leurs tas sont plus pointus.\n\nMouillé, le sable tient debout : de minuscules ponts d’eau collent les grains. Le vent, lui, arrache des grains qui rebondissent et retombent à l’abri des crêtes : des dunes naissent et avancent. Dans la machine, tout va très vite. Une vraie dune avance de quelques mètres à quelques dizaines de mètres par an.',
     vraie: 'Certaines dunes chantent ! Quand une grande avalanche dévale leur pente, elles émettent un grondement grave, comme un bourdon, qu’on entend de loin. Au XIIIᵉ siècle, Marco Polo le raconte déjà, en l’attribuant à des esprits du désert.',
   },

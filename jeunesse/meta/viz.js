@@ -49,6 +49,7 @@ FJ.fiche('viz', {
   ],
   pourquoi: {
     etincelle: 'Un son, c’est de l’air qui vibre : la machine dessine ces vibrations pour te les faire voir.',
+    petit: 'Un son, c’est de l’air qui tremble. La machine dessine ce tremblement.',
     texte: 'Un son, c’est de l’air qui vibre, des centaines de fois par seconde. Plus il vibre vite, plus le son est aigu.\n\nDans les figures, un son pur pousse le point de gauche à droite, un autre de haut en bas. Si leurs vitesses sont dans un rapport simple, comme 2 pour 3, la courbe se referme sur elle-même. Une note d’instrument n’est jamais pure : elle empile des vibrations 2, 3, 4 fois plus rapides, ses **harmoniques**. Chaque barre en règle une. Leur dosage donne la forme du son et sa couleur : c’est pour ça qu’une flûte et une trompette ne sonnent pas pareil.',
     vraie: 'En 1857, le physicien français Jules Lissajous colle de petits miroirs sur deux diapasons. Un rayon de lumière rebondit sur l’un, puis sur l’autre, et dessine ces courbes sur un écran. On pouvait ainsi voir si deux diapasons étaient bien accordés.',
   },

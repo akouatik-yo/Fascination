@@ -14,26 +14,28 @@
 <!--build:body-->
 <div id="fj">
   <canvas id="cv"></canvas>
-  <nav class="col" id="colG" aria-label="Gestes">
-    <button class="cb" id="bCarte" aria-label="La carte des machines"></button>
-    <div id="gestes" role="toolbar" aria-label="Que fait ton doigt ?"></div>
-    <div class="sep"></div>
-    <button class="cb" id="bPause"></button>
-  </nav>
-  <nav class="col" id="colD" aria-label="Commandes">
-    <button class="cb" id="bSon"></button>
-    <div class="sep"></div>
-    <button class="cb" id="bPourquoi"></button>
-    <button class="cb" id="bBidouiller"></button>
+  <!-- refonte de la navigation (13/11, chef-design) : plus de colonnes ; des grappes de boutons ronds dans les coins, à 24 px des bords -->
+  <nav class="grappe" id="hg" aria-label="Aller ailleurs">
+    <button class="cb" id="bCarte" aria-label="La carte des questions"></button>
     <button class="cb" id="bEncore" aria-label="Encore : la même machine, autrement"></button>
-    <div class="sep"></div>
+  </nav>
+  <nav class="grappe" id="hd" aria-label="Commandes">
+    <button class="cb" id="bJoueur" aria-label="Qui joue ?"></button>
+    <button class="cb" id="bSon"></button>
+    <button class="cb" id="bPause"></button>
     <button class="cb" id="bPhoto"></button>
   </nav>
+  <nav class="grappe" id="bg" aria-label="Comprendre et bidouiller">
+    <button class="cb" id="bPourquoi"></button>
+    <button class="cb" id="bBidouiller"></button>
+  </nav>
+  <div class="grappe" id="gestes" role="toolbar" aria-label="Que fait ton doigt ?"></div>
   <header id="haut">
-    <div class="titre"><button class="fl" id="bPrec" aria-label="Machine précédente"></button><button id="nom" aria-label="Pourquoi ?"></button><button class="fl" id="bSuiv" aria-label="Machine suivante"></button></div>
-    <div id="scenes" role="tablist" aria-label="Scènes"></div>
+    <div class="titre"><button class="fl" id="bPrec" aria-label="Retour en arrière"></button><button id="nom" aria-label="Pourquoi ?"></button><button class="fl" id="bSuiv" aria-label="Question suivante"></button></div>
   </header>
+  <nav id="scenes" aria-label="Le chemin de la question"></nav>
   <div id="actions"></div>
+  <section id="fil" hidden aria-live="polite"></section>
   <div id="carton" hidden></div>
   <div id="bulle" hidden role="status"></div>
   <div id="pastille" hidden></div>
@@ -42,6 +44,7 @@
   <section class="ecran" id="carte" hidden></section>
   <section class="ecran" id="carnet" hidden></section>
   <section class="ecran" id="parents" hidden></section>
+  <section class="ecran accueil" id="accueil" hidden></section>
   <button id="sortie" hidden aria-label="Quitter le spectacle"></button>
   <div id="main" hidden></div>
   <div id="flash" hidden></div>

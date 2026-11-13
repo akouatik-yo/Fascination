@@ -132,6 +132,113 @@ void main(){
   }
   o = vec4(pow(col, vec3(1. / 2.2)), 1.);
 }`;
+  /* La lampe en lumière linéaire (HDR), développée par la cabine commune, avec son décor : pièce sombre,
+     verre cylindrique (effet de loupe du liquide, reflets de Fresnel, lumière piégée dans la paroi),
+     liquide qui diffuse la lumière de l'ampoule, cire translucide (les parties minces s'illuminent),
+     socle et chapeau métalliques qui reflètent la lampe, table laquée où elle se reflète. */
+  const FS_LAMP_HDR = HEAD + `
+uniform sampler2D uS; uniform vec2 uRes, uPx; uniform vec4 uBox, uBase, uCap; uniform vec3 uWax, uLiq; uniform float uOn, uT, uWarm, uHeat, uCx, uTab;
+out vec4 o;
+const vec3 BULB = vec3(1., .6, .28);   // ampoule à incandescence (~2 700 K)
+// l'œil s'adapte à la lumière chaude de l'ampoule (adaptation chromatique) : on n'en garde qu'une part de la teinte
+const vec3 WB = vec3(1., .86, .72);
+float hw(float y){ return .17 + .29 * exp(-pow((y - .24) / .4, 2.)); }
+vec3 wax, liq;
+float power(){ return (.06 + .94 * uOn) * (.3 + .7 * uHeat); }   // l'ampoule éclaire dès qu'on l'allume ; c'est la cire qui met du temps à chauffer
+// lumière de l'ampoule dans le liquide : intense en bas, diffusée puis absorbée en montant
+float bulbL(float Y){ return (.16 + 2.6 * exp(-Y * 3.3) + .9 * exp(-Y * 12.)) * power(); }
+vec3 glow(){ return (liq * .65 + wax * .35) * power(); }
+// le métal reflète la pièce : la lampe au-dessus, une fenêtre à gauche, le reste dans l'ombre
+vec3 env(vec3 r, float k){
+  vec3 c = vec3(.004, .0035, .0045);
+  vec3 gl = mix(vec3(dot(glow(), vec3(.3, .5, .2))), glow(), .55);                     // le métal argenté désature les reflets
+  c += gl * 1.8 * k * smoothstep(.05, -.75, r.y) * exp(-r.x * r.x * 3.);           // la lampe elle-même
+  c += gl * .16 * (1. - abs(r.y)) + vec3(.012, .012, .014) * smoothstep(.6, -.2, r.y);  // le mur qu'elle éclaire, le plafond
+  c += vec3(.9, .95, 1.05) * smoothstep(.1, .0, abs(r.x + .62)) * smoothstep(.75, .1, abs(r.y + .1)) * .6;
+  c += BULB * .02 * uOn * smoothstep(0., .8, r.y);
+  return c;
+}
+vec3 metal(float Xm, float slope, float t, bool base){
+  float k = base ? 1. : .12;   // le socle voit la lampe au-dessus de lui ; le chapeau ne voit que la pièce
+  float ct = sqrt(max(1. - Xm * Xm, 0.));
+  vec3 n = normalize(vec3(Xm, -slope * ct, ct));
+  vec3 r = vec3(2. * n.z * n.x, 2. * n.z * n.y, 2. * n.z * n.z - 1.);
+  vec3 c = vec3(.8, .78, .76) * env(r, k) * (.55 + .45 * ct);
+  c *= .88 + .24 * vnoise(vec2(Xm * 2.5, t * 90.));                  // aluminium brossé : des stries très fines autour du cône
+  if (base){
+    // fentes d'aération : la lumière de l'ampoule s'en échappe
+    float a = asin(clamp(Xm, -1., 1.)) * 2.228;
+    float slot = smoothstep(.2, .15, abs(fract(a + .5) - .5)) * smoothstep(.02, .0, abs(t - .5) - .06) * smoothstep(.05, .2, ct);
+    c = mix(c, BULB * vec3(1., .8, .6) * 1.7 * uOn * ct + vec3(.002), slot);
+  }
+  return c;
+}
+vec3 scene(vec2 px){
+  vec3 col = vec3(.0032, .0028, .0036) * (.85 + .3 * smoothstep(0., uRes.y, px.y));
+  vec2 c = vec2(uCx, uBox.y + uBox.w * .5), d = (px - c) / uRes.y;
+  col += glow() * .11 / (1. + dot(d * vec2(1.3, .75), d * vec2(1.3, .75)) * 12.);       // le mur, éclairé par la lampe
+  // le verre et ce qu'il contient
+  float Y = 1. - (px.y - uBox.y) / uBox.w;
+  if (Y > 0. && Y < 1.){
+    float H = hw(Y) * uBox.z, X = (px.x - uCx) / H;
+    float cov = clamp((1. - abs(X)) * H + .5, 0., 1.);
+    if (cov > 0.){
+      float ct = sqrt(max(1. - X * X, 0.));
+      vec2 suv = vec2(.5 + hw(Y) * X * (1. - .18 * ct * ct), Y);   // le liquide fait loupe : centre grossi, bords serrés
+      vec4 s = texture(uS, suv);
+      // contour arrondi : la phase moyennée sur une case autour
+      float ph = s.r * .4 + (texture(uS, suv + vec2(uPx.x, 0.)).r + texture(uS, suv - vec2(uPx.x, 0.)).r + texture(uS, suv + vec2(0., uPx.y)).r + texture(uS, suv - vec2(0., uPx.y)).r) * .15;
+      float w = smoothstep(-.3, .3, ph);
+      vec2 g = vec2(texture(uS, suv + vec2(uPx.x, 0.)).r - texture(uS, suv - vec2(uPx.x, 0.)).r, texture(uS, suv + vec2(0., uPx.y)).r - texture(uS, suv - vec2(0., uPx.y)).r);
+      float pR = texture(uS, suv + vec2(3. * uPx.x, 0.)).r, pL = texture(uS, suv - vec2(3. * uPx.x, 0.)).r, pT = texture(uS, suv + vec2(0., 3. * uPx.y)).r, pB = texture(uS, suv - vec2(0., 3. * uPx.y)).r;
+      float th = clamp((pR + pL + pT + pB) * .125 + .5, 0., 1.);
+      // la goutte vue comme un relief : sa normale vient de la phase lissée
+      vec3 nw = normalize(vec3(-(pR - pL) * .9, -(pT - pB) * .9, 1.));
+      float L = bulbL(Y);
+      vec3 lq = liq * WB * L * (.3 + .55 * ct) + liq * .015;   // un peu de lumière de la pièce, même lampe éteinte
+      float hot = clamp((s.g - .55) * 2.2, 0., 1.), rim = clamp(length(g) * 2.2, 0., 1.), under = clamp(-g.y * 3., 0., 1.);
+      vec3 wc = mix(wax, vec3(1., .5, .18), hot * .35);   // la cire la plus chaude pâlit vers l'orange clair
+      // cire translucide : la lumière la traverse là où elle est mince, son cœur reste plus sombre ; le dessous, face à l'ampoule, s'allume
+      float below = clamp(-nw.y, 0., 1.);                                    // face tournée vers l'ampoule
+      float spec = pow(max(dot(nw, normalize(vec3(-.55, .35, 1.))), 0.), 36.);   // reflet de la fenêtre sur la cire
+      // la cire reçoit aussi la lumière diffusée par le liquide tout autour d'elle
+      vec3 wx = wc * WB * L * (.45 + 1.6 * exp(-2.2 * th) + .6 * rim + 1.1 * below + .8 * hot) + wc * (.03 + .5 * dot(lq, vec3(.3, .5, .2))) + vec3(1., .95, .9) * spec * (.08 + .25 * L);
+      vec3 inside = mix(lq, wx, w);
+      // le verre : reflets de Fresnel, une fenêtre à gauche, la lumière piégée dans la paroi qui fait briller les bords
+      float F = .04 + .96 * pow(1. - ct, 5.);
+      vec3 refl = vec3(.02, .022, .03) * F + vec3(1.1, 1.15, 1.25) * (smoothstep(.07, .0, abs(X + .46)) * .5 + smoothstep(.03, .0, abs(X - .63)) * .22) * smoothstep(.0, .2, Y) * smoothstep(1., .85, Y);
+      inside = inside * (1. - F) + refl + lq * smoothstep(.78, 1., abs(X)) * .9;
+      col = mix(col, inside, cov);
+    }
+  }
+  // le socle (tronc de cône qui s'élargit vers le bas) et le chapeau
+  if (px.y > uBase.x - 1. && px.y < uBase.y + 1.){
+    float t = (px.y - uBase.x) / (uBase.y - uBase.x), Hb = mix(uBase.z, uBase.w, t), Xm = (px.x - uCx) / Hb;
+    float cov = clamp((1. - abs(Xm)) * Hb + .5, 0., 1.) * clamp(min(px.y - uBase.x, uBase.y - px.y) + .5, 0., 1.);
+    if (cov > 0.) col = mix(col, metal(Xm, (uBase.w - uBase.z) / (uBase.y - uBase.x), t, true), cov);
+  }
+  if (px.y > uCap.y - 1. && px.y < uCap.x + 1.){
+    float t = (px.y - uCap.y) / (uCap.x - uCap.y), Hc = mix(uCap.w, uCap.z, t), Xm = (px.x - uCx) / Hc;
+    float cov = clamp((1. - abs(Xm)) * Hc + .5, 0., 1.) * clamp(min(px.y - uCap.y, uCap.x - px.y) + .5, 0., 1.);
+    if (cov > 0.) col = mix(col, metal(Xm, (uCap.z - uCap.w) / (uCap.x - uCap.y), t, false), cov);
+  }
+  return col;
+}
+void main(){
+  wax = pow(uWax, vec3(2.2)); liq = pow(uLiq, vec3(2.2));
+  vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  vec3 col;
+  if (px.y < uTab) col = scene(px);
+  else {
+    // table laquée : la lampe s'y reflète (de moins en moins loin du pied), une flaque de lumière autour du socle
+    float dy = px.y - uTab;
+    vec3 rf = scene(vec2(px.x, 2. * uTab - px.y));
+    float dx = (px.x - uCx) / uRes.y;
+    col = vec3(.0025, .002, .0022) + rf * (.06 + .16 * exp(-dy / (uRes.y * .05)));
+    col += glow() * .05 / (1. + dx * dx * 30.) + BULB * uOn * .02 * exp(-abs(dx) * 9.) * exp(-dy / (uRes.y * .03));
+  }
+  o = vec4(col, 1.);
+}`;
   const FS_BEN = HEAD + `
 uniform sampler2D uS; uniform vec2 uRes, uPx; uniform float uView, uInk; out vec4 o;
 vec3 heat(float t){ t = clamp(t, 0., 1.); return mix(mix(vec3(.04, .1, .45), vec3(.55, .2, .55), smoothstep(.15, .5, t)), vec3(1., .55, .12), smoothstep(.5, .9, t)); }
@@ -252,7 +359,10 @@ void main(){
       const s = Math.min(dpr, 1.5), K = GLKit(Math.round(W * s), Math.round(H * s));
       const pg = {}; for (const k in FS) pg[k] = K.program(FS[k]);
       pg.lamp = K.program(FS_LAMP); pg.ben = K.program(FS_BEN); pg.sun = K.program(FS_SUN);
-      return { K, gl: K.gl, s, pg };
+      // la cabine commune (halo, courbe filmique, grain) : seulement si elle est chargée
+      let cab = null;
+      if (window.FKGL.cabine) { try { pg.lampH = K.program(FS_LAMP_HDR); cab = window.FKGL.cabine(K); } catch (e) { console.warn('Lampe à lave : rendu simple', e); cab = null; } }
+      return { K, gl: K.gl, s, pg, cab };
     }
     G = initGL();
 
@@ -313,8 +423,9 @@ void main(){
 
     /* ───────── géométrie à l'écran ───────── */
     function lampBox() {
-      const v = view(), hh = H * 0.74, ww = hh * (R.GW / R.GH);
-      return { x: v.cx - ww / 2, y: H * 0.1, w: ww, h: hh };
+      // le verre, puis son socle (22 % de sa hauteur) qui pose sur une table : de quoi voir la lampe s'y refléter
+      const v = view(), hh = H * 0.66, ww = hh * (R.GW / R.GH);
+      return { x: v.cx - ww / 2, y: H * 0.075, w: ww, h: hh };
     }
     function toGrid(x, y) {
       if (cfg.scene === 'lampe') { const b = lampBox(); return [((x - b.x) / b.w) * R.GW, (1 - (y - b.y) / b.h) * R.GH, R.GW / b.w]; }
@@ -343,8 +454,18 @@ void main(){
       const bare = env.decor === false, ink = bare && env.theme === 'light', v = view();
       if (cfg.scene === 'lampe') {
         const b = lampBox(), C = WAX[cfg.wax];
+        if (!bare && G.cab) {
+          const cx = (b.x + b.w / 2) * s, wb = hw(0) * b.w * 1.02 * s, wt = hw(1) * b.w * 1.04 * s;
+          const baseTop = (b.y + b.h - 1) * s, baseBot = (b.y + b.h * 1.22) * s, capBot = (b.y + 1) * s, capTop = (b.y - b.h * 0.07) * s;
+          pg.lampH.use().t('uS', R.S.r).f('uRes', cw, ch).f('uPx', R.px[0], R.px[1]).f('uBox', b.x * s, b.y * s, b.w * s, b.h * s)
+            .f('uBase', baseTop, baseBot, wb, wb * 1.55).f('uCap', capBot, capTop, wt, wt * 0.55).f('uWax', ...C.wax).f('uLiq', ...C.liq)
+            .f('uOn', cfg.on ? 1 : 0).f('uT', T).f('uWarm', warm).f('uHeat', cfg.heat).f('uCx', cx).f('uTab', baseBot);
+          K.run(pg.lampH, G.cab.scene);
+          G.cab.finish({ expo: 1.3, bloom: 1.0, thr: 0.7, knee: 0.6, radius: 0.8, vig: 0.4, grain: 0.03, grainBlack: 0.4 });
+        } else {
         pg.lamp.use().t('uS', R.S.r).t('uM', R.M).f('uRes', cw, ch).f('uPx', R.px[0], R.px[1]).f('uBox', b.x * s, b.y * s, b.w * s, b.h * s).f('uWax', ...C.wax).f('uLiq', ...C.liq).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uOn', cfg.on ? 1 : 0.15).f('uT', T);
         K.run(pg.lamp, null);
+        }
       } else if (cfg.scene === 'benard') {
         pg.ben.use().t('uS', R.S.r).f('uRes', cw, ch).f('uPx', R.px[0], R.px[1]).f('uView', cfg.benView).f('uInk', ink ? 1 : 0);
         K.run(pg.ben, { fb: null, w: cw, h: ch });
@@ -361,7 +482,7 @@ void main(){
         if (!bare) { ctx.fillStyle = '#7a1e10'; ctx.fillRect(v.x0, y0 + hh, v.w, 8); ctx.fillStyle = '#1c3c7a'; ctx.fillRect(v.x0, y0 - 8, v.w, 8); }
       } else ctx.drawImage(K.canvas, 0, 0, W, H);
       ctx.restore();
-      if (cfg.scene === 'lampe' && !bare) drawMetal();
+      if (cfg.scene === 'lampe' && !bare && !G.cab) drawMetal();
       hud(ink);
       drawLabel();
     }

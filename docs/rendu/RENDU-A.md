@@ -97,3 +97,33 @@ Machine 2D héritée de `jeunesse` (réseau de filaments, diffusion de nutriment
 - **L'Écoulement (`s-flux.js`)** : il paraissait à moitié vide sur mes captures (l'allée de von Kármán ne se formait pas, la moitié droite restait grise). Diagnostic : **artefact du banc de capture**. Il tourne sous SwiftShader (rendu logiciel, sans GPU), trop lent pour développer l'allée en temps réel ; en 12 s de capture, le solveur n'avait calculé qu'une poignée d'images. Avec des pas de temps fixes (crochet `FASC_DEBUG.flux.run`), ce que voit une vraie carte graphique en 8 à 10 s, l'allée se forme et remplit tout l'écran, aux réglages par défaut. La machine est donc déjà belle sur l'appareil cible ; je n'ai rien changé (modifier la vitesse, la viscosité et la vorticité par défaut aurait déplacé le nombre de Reynolds et la fréquence de Strouhal affichés, et touché les autres scènes — Kelvin-Helmholtz, Rayleigh-Taylor — pour un gain nul).
 - **Leçon générale** : mes captures Playwright sous SwiftShader **sous-estiment les machines GPU** (celles dont l'image dépend du nombre d'images calculées : fluides, réaction-diffusion à forte itération). Pour juger une machine GPU, utiliser un crochet `FASC_DEBUG` à pas de temps fixes, pas une capture en temps réel.
 - **Le Blob, les Pendules, l'Harmonographe (2D), le Quantique (GPU)** : examinés, corrects. L'Harmonographe fait déjà varier l'épaisseur de l'encre avec la vitesse de la plume (une vraie encre victorienne) ; le Quantique est à revoir sur une vraie carte (capture logicielle sous-estimée). Aucun ne dirait « c'est moche » à un enfant de 5 ans ; je n'y touche pas sans raison.
+
+## Recette qualité pour la v31 (13/11, après-midi)
+
+Retours de la recette (« un enfant de 5 ans dirait-il c'est moche ? »), repris un par un :
+
+- **Lucioles, le bois** : il restait des dents de scie. Je les avais moi-même introduites avec un feuillage « bosselé » (`sin(i*bump)` échantillonné tous les 3 px, soit une période de 5 à 13 px : une dent par couronne). Les feuillus sont maintenant des dômes à 2 à 4 lobes larges, à l'échelle de la couronne. Les conifères sont plus rares (22 %) et isolés. Une masse de forêt continue empêche les trous en V. Un léger lissage enlève les aspérités de 3 px. **En portrait**, les arbres se mesurent à la largeur du paysage (`min(H, 0,75 W)`), et non plus à la hauteur de l'écran, qui en faisait des montagnes.
+- **Foudre, l'attente** : « 2/3 de noir et des nuages brun boue ».
+  - Le corps des nuages est bleu ardoise ; seul leur bas reçoit un liseré ambré de la ville.
+  - Des **lueurs dans le nuage** (éclairs intranuages cachés, trois fois plus fréquents que les coups au sol dans la nature) l'allument de l'intérieur entre deux coups, environ une par seconde. Elles sont locales et douces : montée en 40 ms (120 ms avec `env.doux`), amplitude divisée par deux en doux, sans effet sur le sol ni sur le voile des flashs adoucis.
+  - Des **rideaux de pluie** pendent sous la base et reçoivent la lueur.
+- **Foudre, haute atmosphère** (« moche ») : le sommet des orages ne montait que lorsqu'un éclair l'éclairait, donc on voyait des jets et des farfadets sortir de rien. Il y a maintenant **trois cumulonimbus permanents**, chacun avec :
+  - une colonne bosselée jusqu'à 11-15 km ;
+  - une enclume plate sous la tropopause, étirée par le vent ;
+  - un dôme qui la perce ;
+  - un sommet éclairé par la lueur du ciel, et un intérieur que les éclairs allument.
+
+  La couche verte de l'oxygène (557,7 nm, vers 95 km) est devenue une couche lumineuse (un cœur et un halo), ondulée par les ondes de gravité.
+- **Foudre, 390 px** : le bloc de Lichtenberg et le globe à plasma restaient dimensionnés sous le panneau. Le globe suit maintenant en douceur la partie visible (taille et centre). Le bloc se recalcule tout de suite s'il est vide ; s'il est gravé, il attend le début de la figure suivante, pour ne jamais effacer une figure qu'on regarde.
+- **Lave, le Soleil entier** (« plat, orange, sans halo ni couronne ») :
+  - auréole de lumière diffusée autour du disque, comme sur les photographies ;
+  - liseré de la chromosphère, et protubérances (flammes et arches) groupées autour de quelques régions actives ;
+  - centre or pâle et bord orangé : une boule, pas une assiette.
+
+  Le halo de la cabine (bloom) teintait en rouge la petite tache solaire ; il est réduit dans cette vue, puisque l'auréole est maintenant dessinée. En gros plan, la tache n'est plus un oursin : bords irréguliers, filaments de pénombre de longueurs et de largeurs variées, un peu courbés.
+- **Turing, thème clair** (« rose bonbon sur gris ») : le motif est un pigment posé sur du papier, qui absorbe la lumière comme une aquarelle (Beer-Lambert) : sanguine pour le corail, indigo pour la nacre, sépia pour l'ambre, vert-bleu pour le néon. Le pigment s'accumule un peu au bord des taches. La consigne de l'Atlas est centrée, et raccourcie sous 640 px (elle était coupée en 390 px).
+- **Mycélium** :
+  - Combat : le pré-développement a un budget de temps (160 ms, au moins 60 pas) ; en portrait, il va plus loin (340 pas) avec plus de bourgeons par colonie.
+  - Réseau : les étiquettes des arbres ne se chevauchent plus (une rangée de plus quand deux se touchent, texte court sur écran étroit).
+  - Ronds de sorcières : l'herbe de l'anneau, plus haute et plus drue, a un côté au soleil et un côté dans son ombre (du relief au lieu d'un aplat), et sa bande verte est un peu plus franche.
+- **Hors de mon périmètre** : le mode PSYCHÉ, actif par défaut (`shell.js`), fait tourner la teinte de ±16° et décale toutes les couleurs. La qualité l'a signalé à Kurt.

@@ -380,10 +380,16 @@
     }
     function labels() {
       ctx.save(); ctx.font = '500 10.5px "JetBrains Mono", monospace'; ctx.textAlign = 'center';
-      for (const t of trees) {
-        const y = GY + 16, txt = `${t.nom.toUpperCase()} · VIGUEUR ${Math.round(Math.min(1, t.vig) * 100)} %`, w = ctx.measureText(txt).width;
-        ctx.fillStyle = 'rgba(14,10,6,.6)'; ctx.fillRect(t.x - w / 2 - 6, y - 12, w + 12, 17);
-        ctx.fillStyle = t.vig > 0.6 ? 'rgba(230,240,210,.92)' : 'rgba(240,200,150,.92)'; ctx.fillText(txt, t.x, y);
+      // les étiquettes ne se chevauchent plus : texte court sur écran étroit, et une rangée de plus quand deux se touchent
+      const vv = V(), narrow = vv.w < 560, rows = [];
+      for (const t of [...trees].sort((a, b) => a.x - b.x)) {
+        const pc = Math.round(Math.min(1, t.vig) * 100), txt = narrow ? `${t.nom.toUpperCase()} ${pc} %` : `${t.nom.toUpperCase()} · VIGUEUR ${pc} %`, w = ctx.measureText(txt).width;
+        const x = clamp(t.x, vv.x0 + w / 2 + 8, vv.x1 - w / 2 - 8);
+        let r = 0; while (rows[r] !== undefined && rows[r] > x - w / 2 - 6) r++;
+        rows[r] = x + w / 2 + 6;
+        const y = GY + 16 + r * 19;
+        ctx.fillStyle = 'rgba(14,10,6,.6)'; ctx.fillRect(x - w / 2 - 6, y - 12, w + 12, 17);
+        ctx.fillStyle = t.vig > 0.6 ? 'rgba(230,240,210,.92)' : 'rgba(240,200,150,.92)'; ctx.fillText(txt, x, y);
       }
       const v = V(), x0 = v.x0 + 16; let y = H - 18;
       ctx.textAlign = 'left';

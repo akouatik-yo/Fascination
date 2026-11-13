@@ -73,7 +73,7 @@ Questions à te poser :
 
 **Pas intégré** :
 - la **Galaxie** reprise (rectangle beige à 390 px, voile brun, elliptique en paliers) ;
-- l'**Eau** v2 (revenue à l'originale) ;
+- l'**Eau** v2 (rendu-b e328a84, arrivée après la v38) : la mare au repos est lumineuse, mais le fichier contient la **houle et les tsunamis**, que je n'ai pas relus et qui ont un bouton dans le Labo. Elle n'entrera qu'après relecture de la science, ou avec ces scènes masquées ;
 - les scènes à créer : **système solaire**, **houle et tsunamis**, **bancs de poissons**, **double pendule**.
 
 **Interface** : légendes techniques encore écrites à l'écran pour les 5 ans ; pause des chapitres précédents sans les détruire ; générateur de bruits à reporter ; gestes partis du bord de l'écran.

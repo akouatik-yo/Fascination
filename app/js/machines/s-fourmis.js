@@ -31,7 +31,7 @@
     ],
     // couleurs de la légende : la cuticule des trois espèces ; les deux fausses couleurs (rocket, mako) sont nommées
     legend: [
-      { color: '#4a3226', name: 'Lasius niger', role: 'fourmi noire des jardins · brun-noir, environ 5 mm', desc: 'La plus commune des fourmis d’Europe. Elle recrute ses sœurs par une piste de phéromone et élève des pucerons pour leur miellat.' },
+      { color: '#4a3226', name: 'Lasius niger', role: 'fourmi noire des jardins · brun-noir, ouvrières de 3 à 5 mm', desc: 'La plus commune des fourmis d’Europe. Elle recrute ses sœurs par une piste de phéromone et élève des pucerons pour leur miellat.' },
       { color: '#9a5028', name: 'Atta cephalotes', role: 'fourmi coupe-feuille · rousse', desc: 'Les ouvrières découpent des fragments de feuilles qu’elles ne mangent pas : elles en nourrissent un champignon cultivé dans le nid.' },
       { color: '#7a4020', name: 'Eciton burchellii', role: 'fourmi légionnaire · brun-rouge', desc: 'Pas de nid fixe : des raids en éventail balaient le sol. Les soldats ont la tête pâle et de longues mandibules en crochet.' },
       { color: '#f08c64', name: 'Phéromone de piste', role: 'fausse couleur · échelle rocket', desc: 'Invisible en vrai. La couche ajoutée montre sa concentration au sol : violet sombre, faible ; saumon clair, forte. Elle se retire avec « Montrer la piste ».' },
@@ -516,7 +516,7 @@ void main(){
         L.push({ type: 'choice', label: 'Style', value: keep.style, set: (x) => { keep.style = x; }, options: [{ id: 'realiste', label: 'Réaliste' }, { id: 'neon', label: 'Néon' }] });
         L.push({ type: 'note', text: keep.style === 'neon'
           ? 'Néon : le sol passe dans la pénombre et la couche des phéromones s’allume. Couleurs : concentration de phéromone, échelle rocket (sombre : faible ; clair : forte). En vrai, une phéromone ne se voit pas.'
-          : 'Réaliste : un sol de terre en lumière rasante, des fourmis d’environ 5 mm. Les phéromones sont invisibles : la couche translucide les montre en fausse couleur (concentration, échelle rocket). « Montrer la piste » la retire.' });
+          : 'Réaliste : un sol de terre en lumière rasante, des ouvrières de 3 à 5 mm. Les phéromones sont invisibles : la couche translucide les montre en fausse couleur (concentration, échelle rocket). « Montrer la piste » la retire.' });
         return L;
       },
     };
@@ -560,7 +560,8 @@ void main(){
       // plates-formes à la mesure des fourmis : trop grandes, l'entrée du pont devient un trou de serrure introuvable
       // en portrait, le pont se dresse (nid en bas, nourriture en haut) : couché sur 390 px de large, ses branches se croisaient.
       // On le trace dans un repère local (u le long du pont, v en travers), puis E() le pose à l'écran.
-      const PV = PONT && port, PY0 = PV ? ((env.view && env.view.y0) || 0) + 165 : 0, PY1 = PV ? H - 190 : 0;
+      // (seulement s'il reste assez de hauteur : une fenêtre étroite mais basse garde le pont couché)
+      const PV = PONT && port && H - 355 - ((env.view && env.view.y0) || 0) > VW * 1.2, PY0 = PV ? ((env.view && env.view.y0) || 0) + 165 : 0, PY1 = PV ? H - 190 : 0;
       const LU = PV ? PY1 - PY0 : VW, LV = PV ? VW : H;
       const E = PV ? (p) => [VX0 + p[1], PY1 - p[0]] : (p) => [VX0 + p[0], p[1]];
       // HC : l'échelle en travers. Couché, c'est la hauteur de l'écran (rien ne change sur tablette). Debout, on garde les proportions
@@ -1352,6 +1353,7 @@ void main(){
         const lignes = chem ? [['rocket', 'phéromone de piste'], ['mako', 'odeur du nid, alarme']] : montre ? [['rocket', 'concentration de phéromone']] : [];
         const bw = 220, x = v.x1 - 16 - bw - 12, h = 22 + lignes.length * 26 + 14;
         let y = H - 14 - h - (PV ? 86 : 0);   // pont debout (portrait) : au-dessus de la ligne d'état et des boutons
+        if (DEC && ETROIT()) y = BAS_DEC() - 20 * (NL_DEC() - 1) - 13 - 10 - h;   // découverte à 390 px : au-dessus des lignes d'état
         ctx.save();
         ctx.textBaseline = 'alphabetic';
         // l'échelle : une barre de 1, 2, 5 ou 10 cm
@@ -1441,6 +1443,9 @@ void main(){
         ctx.restore();
       }
 
+      const ETROIT = () => { const v = env.view || { x0: 0, x1: W }; return v.x1 - v.x0 < 520; };
+      const NL_DEC = () => 1 + foods.filter((f) => f.id).length + Math.min(ETROIT() ? 1 : 3, spent.length);
+      const BAS_DEC = () => (ETROIT() ? H - 140 : H - 18);
       function hud() {
         const v = env.view || { x0: 0, x1: W }, x0 = v.x0 + 16;
         ctx.save(); ctx.font = '500 11px "JetBrains Mono", monospace'; ctx.textBaseline = 'alphabetic';
@@ -1448,14 +1453,17 @@ void main(){
         const mm = (t) => (t >= 60 ? Math.floor(t / 60) + ' min ' + String(Math.floor(t % 60)).padStart(2, '0') + ' s' : fr(t) + ' s');
         if (DEC) {
           let out = 0; for (const a of colL.ants) if (a.st !== 'nid') out++;
-          let y = H - 18 - 20 * (foods.filter((f) => f.id).length + Math.min(3, spent.length));
-          line(`${mm(T)} · ${out} FOURMIS DEHORS SUR ${colL.ants.length} · ${trips} ALLERS-RETOURS CHARGÉS`.toUpperCase(), y, true); y += 20;
+          const et = ETROIT(), L = [[et ? `${mm(T)} · ${out}/${colL.ants.length} DEHORS · ${trips} ALLERS-RETOURS` : `${mm(T)} · ${out} FOURMIS DEHORS SUR ${colL.ants.length} · ${trips} ALLERS-RETOURS CHARGÉS`.toUpperCase(), true]];
           for (const f of foods) {
             if (!f.id) continue;
             let n = 0; for (const a of colL.ants) if (a.st !== 'nid' && a.src === f.id) n++;
-            line(f.found == null ? `SUCRE N° ${f.id} · PAS ENCORE TROUVÉ (${mm(T - f.t0)})` : `SUCRE N° ${f.id} · TROUVÉ EN ${mm(f.found - f.t0)} · ${n} FOURMIS L’EXPLOITENT · RESTE ${Math.round((100 * f.amt) / f.amt0)} %`, y); y += 20;
+            const pc = Math.round((100 * f.amt) / f.amt0);
+            L.push([et ? (f.found == null ? `SUCRE ${f.id} : PAS ENCORE TROUVÉ` : `SUCRE ${f.id} : ${n} FOURMIS · RESTE ${pc} %`)
+              : f.found == null ? `SUCRE N° ${f.id} · PAS ENCORE TROUVÉ (${mm(T - f.t0)})` : `SUCRE N° ${f.id} · TROUVÉ EN ${mm(f.found - f.t0)} · ${n} FOURMIS L’EXPLOITENT · RESTE ${pc} %`, false]);
           }
-          for (const e of spent.slice(-3)) { line(`SUCRE N° ${e.id} · ÉPUISÉ ${mm(T - e.end)} PLUS TÔT`, y); y += 20; }
+          for (const e of spent.slice(et ? -1 : -3)) L.push([`SUCRE N° ${e.id} · ÉPUISÉ ${mm(T - e.end)} PLUS TÔT`, false]);
+          let y = BAS_DEC() - 20 * (L.length - 1);
+          for (const [txt, fort] of L) { line(txt, y, fort); y += 20; }
         } else if (PONT) {
           const B = bridgeShapes(), lu = bezLen(B.up), ld = bezLen(B.dn);
           // moyenne des dix dernières secondes

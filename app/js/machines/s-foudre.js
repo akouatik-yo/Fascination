@@ -24,7 +24,7 @@ uniform vec2 uRes; uniform float uT; uniform int uNL; uniform vec4 uL[8];
 float lights(vec2 px){ float L = 0.; for (int i = 0; i < 8; i++){ if (i >= uNL) break; vec2 d = (px - uL[i].xy) / uRes.y; float r = uL[i].w; L += uL[i].z * r * r / (r * r + dot(d, d)); } return L; }
 `;
   const FS_SKY = HEAD + FBM + `
-uniform float uBase, uRain; out vec4 o;
+uniform float uBase, uRain, uExpo; out vec4 o;
 float rainL(vec2 p, float sc, float sp, float den){
   p.x += p.y * .17;
   float cx = floor(p.x / sc), fx = fract(p.x / sc) - .5;
@@ -60,11 +60,14 @@ void main(){
   col = mix(col, vec3(.042, .046, .068) + ville * .3 + lc * L * .7, sh * .45);
   float rn = rainL(px, 3., .9, .3) * .55 + rainL(px + 50., 5., 1.25, .22);
   col += rn * uRain * smoothstep(base - .02, base + .08, y) * (vec3(.035, .04, .05) + ville * .5 + lc * L * .45);
+  col *= uExpo;   // pose : un peu plus longue en portrait, où l'on voit moins de ciel
   col += (hash12(px + fract(uT) * 97.) - .5) / 255.;   // tramage : pas de bandes dans les dégradés sombres
   o = vec4(col, 1.);
 }`;
   const FS_ATMO = HEAD + FBM + `
-uniform float uHz, uKm, uGlow, uCurv; uniform vec4 uSt[3]; out vec4 o;
+uniform float uHz, uKm, uK1, uGlow, uCurv, uMI; uniform vec3 uMoon; uniform vec4 uSt[3]; out vec4 o;
+// altitude (km) d'une hauteur au-dessus du limbe (px) : règle dilatée ×1,8 sous 20 km (uK1 px/km), vraie au-dessus (uKm)
+float hk(float dy){ return dy <= 20. * uK1 ? dy / uK1 : 20. + (dy - 20. * uK1) / uKm; }
 // un cumulonimbus vu de côté (km) : une colonne bosselée jusqu'à 11-15 km, l'enclume plate sous la tropopause,
 // étirée par le vent d'altitude, et le dôme qui la perce au-dessus de la colonne
 float cb(float dxk, float h, float q, float n){
@@ -80,7 +83,7 @@ void main(){
   vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
   float dx = (px.x - uRes.x * .5) / uRes.y;
   float yl = uHz + dx * dx * uRes.y * uCurv;
-  float h = (yl - px.y) / uKm; // altitude au-dessus du limbe, en km
+  float h = hk(yl - px.y); // altitude au-dessus du limbe, en km (règle dilatée sous 20 km)
   float L = lights(px);
   vec3 lc = vec3(.8, .78, 1.);
   vec3 col = vec3(0.);
@@ -91,21 +94,49 @@ void main(){
     vec2 e = vec2(dx / (t + .02), 1. / (t + .02)) * .5;
     float cl = smoothstep(.42, .72, fbm5(e * .7 + vec2(uT * .002, 0.)));
     float city = step(.996, hash12(floor(e * 30.))) * (1. - cl) * smoothstep(.0, .05, t);
-    col = vec3(.004, .006, .012) + cl * vec3(.028, .032, .042) + city * vec3(.5, .3, .1) * .5 + cl * lc * L * .9;
-    col += vec3(.02, .05, .12) * exp(-t * 60.); // la mince couche d'air vue par la tranche
+    // la mer de nuages au clair de lune (bosselée), et dans les trouées, la mer qui renvoie la lune : un chemin de
+    // lumière sous elle, étiré vers nous par la perspective
+    float bos = fbm5(e * 1.7 + 3.1), gx = (px.x - uMoon.x) / uRes.y;
+    float glint = uMI * exp(-gx * gx / (.002 + t * .04) - t * 7.) * (1. - cl) * (.6 + .4 * hash12(floor(e * 40.)));
+    col = vec3(.004, .006, .012) + cl * (vec3(.028, .032, .042) + uMI * vec3(.1, .112, .145) * (.45 + .55 * bos)) + city * vec3(.5, .3, .1) * .5 + glint * vec3(.42, .46, .55) + cl * lc * L * .9;
+    col += vec3(.02, .05, .12) * exp(-t * 60.) + uMI * vec3(.03, .065, .15) * exp(-t * 35.); // la mince couche d'air vue par la tranche
   } else {
-    col += vec3(.02, .05, .13) * exp(-h / 6.) * .8;
-    // les orages : trois cumulonimbus toujours là, sombres, que leurs éclairs allument de l'intérieur
-    float cl = 0., nn = .5, top = 0.;
+    // la basse atmosphère diffuse le clair de lune (Rayleigh : bleu) et s'éteint avec la densité de l'air (~8 km)
+    col += vec3(.02, .05, .13) * exp(-h / 6.) * .8 + uMI * vec3(.035, .075, .17) * exp(-h / 8.);
+    // la Voie lactée : au-dessus de l'air, le ciel reste noir même au clair de lune, et on la voit
+    vec2 pn = px / uRes;
+    float vb = pn.x * .42 + pn.y * .9 - .62, band = exp(-vb * vb / .009);
+    float dust = smoothstep(.48, .72, fbm5(px / uRes.y * 5. + 11.));
+    float mw = band * (.4 + .6 * fbm5(px / uRes.y * 9. + 2.)) * (1. - .75 * dust * band);
+    col += vec3(.16, .15, .14) * mw * smoothstep(25., 60., h);
+    col += step(.9935, sh) * band * (.3 + .7 * hash12(si + 7.7)) * vec3(.85, .88, 1.) * .8 * smoothstep(40., 120., h);
+    // la Lune, gibbeuse, éclairée par le Soleil qui est sous l'horizon (en bas à gauche)
+    vec2 md = (px - uMoon.xy) / uMoon.z; float mr = length(md);
+    if (mr < 1.){
+      vec3 nr = vec3(md.x, -md.y, sqrt(1. - mr * mr));
+      float ph = smoothstep(-.05, .12, dot(nr, normalize(vec3(-.45, -.35, .82))));
+      float mare = .74 + .26 * smoothstep(.36, .62, fbm5(md * 2.2 + 4.1));
+      vec3 mc = vec3(.86, .84, .78) * mare * (.8 + .2 * nr.z);
+      col = mix(col, mc * ph + vec3(.02, .022, .03) * (1. - ph), smoothstep(1., .94, mr) * uMI);
+    } else col += uMI * vec3(.55, .6, .75) * .045 * exp(-(mr - 1.) * 4.);
+    // les orages : trois cumulonimbus toujours là, que leurs éclairs allument de l'intérieur
+    float cl = 0., nn = .5, top = 0., ml = 0.;
     for (int i = 0; i < 3; i++){
-      float dxk = (px.x - uSt[i].x) / uKm;
+      float dxk = (px.x - uSt[i].x) / uK1;   // les orages, dessinés à l'échelle de la règle dilatée (dans les deux sens)
       if (dxk < -40. || dxk > 70.) continue;
-      float n = fbm5(vec2(px.x / uKm * .16 + float(i) * 7.3, h * .3 - uT * .01));
+      float n = fbm5(vec2(px.x / uK1 * .16 + float(i) * 7.3, h * .3 - uT * .01));
       float c = cb(dxk, h, uSt[i].y, n);
-      if (c > cl){ cl = c; nn = n; top = smoothstep(7., 15., h); }
+      if (c > cl){
+        cl = c; nn = n; top = smoothstep(7., 15., h);
+        // la lune est en haut à droite : ce qui n'a plus de nuage juste au-dessus (un peu vers elle) est éclairé
+        ml = clamp((c - cb(dxk + .9, h + 1.4, uSt[i].y, n)) * 1.5, 0., 1.);
+      }
     }
-    // la nuit, le dessus des nuages reçoit un peu de la lueur du ciel ; les éclairs les allument de l'intérieur
-    col = mix(col, vec3(.085, .095, .135) * (.5 + .9 * nn) + vec3(.03, .07, .045) * top + lc * L * (.6 + 1.2 * nn * nn), cl);
+    // la nuit, le dessus des nuages reçoit la lueur du ciel et le clair de lune (bosselé, comme des choux-fleurs) ;
+    // les éclairs les allument de l'intérieur
+    vec3 cc = vec3(.085, .095, .135) * (.5 + .9 * nn) + vec3(.03, .07, .045) * top;
+    cc += uMI * vec3(.3, .33, .42) * (.3 + .7 * nn) * (.12 + .3 * top + ml);
+    col = mix(col, cc + lc * L * (.6 + 1.2 * nn * nn), cl);
     // lueur nocturne de l'oxygène atomique (557,7 nm) vers 95 km : une couche lumineuse, ondulée par les ondes de gravité
     float wv = .72 + .28 * sin(px.x / uRes.y * 22. + uT * .15 + 2.5 * sin(px.x / uRes.y * 4.1 - uT * .05));
     col += uGlow * vec3(.07, .26, .1) * (exp(-pow((h - 95.) / 3.6, 2.)) * wv + .28 * exp(-pow((h - 94.) / 11., 2.)) * (.8 + .2 * wv));
@@ -160,7 +191,7 @@ void main(){
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
     const cfg = {
       scene: 'orage', q: 'haute', act: 0.5, dist: 3, eta: 2.4, pos: 0.12, slow: true, rain: true, after: true, soft: true,
-      lichEta: 1.4, lichAuto: true, gas: 'nexe', tension: 0.6, tle: 0.6, glow: true,
+      lichEta: 1.4, lichAuto: true, gas: 'nexe', tension: 0.6, tle: 0.6, glow: true, lune: true,
     };
     let VT = 0;
 
@@ -183,7 +214,10 @@ void main(){
     let land = null;
 
     /* ───────── géométrie de l'orage ───────── */
-    const cbY = H * 0.21; // base du nuage
+    // base du nuage ; en portrait, sous la bande réservée du haut (le Labo y pose son titre) : sinon il ne restait
+    // qu'une quarantaine de pixels de nuage visibles en 390 px, et l'orage au repos paraissait noir
+    const Y0V = (env.view && env.view.y0) || 0;
+    const cbY = H > W ? Math.max(H * 0.21, Y0V + H * 0.14) : H * 0.21;
     const groundY = (x) => H * (0.865 + 0.016 * Math.sin((x / W) * 5.1 + 0.7) + 0.01 * Math.sin((x / W) * 13.3 + 2.1));
     const kmPxV = (groundY(W / 2) - cbY) / 1.5; // 1,5 km entre le sol et la base du nuage
     const STR = [
@@ -436,7 +470,7 @@ void main(){
     /* ───────── éclairs intranuages et araignées ───────── */
     function startIC(xp) {
       const v = view(), x0 = xp == null ? v.x0 + rnd(0.9, 0.1) * v.w : xp;
-      const ic = { t: 0, dur: rnd(0.7, 0.3), x0, x1: x0 + rnd(0.35, -0.35) * W, y: cbY * rnd(0.85, 0.35), pulses: [], spider: null, km: clamp(cfg.dist * rnd(1.6, 0.8), 1, 25) };
+      const ic = { t: 0, dur: rnd(0.7, 0.3), x0, x1: x0 + rnd(0.35, -0.35) * W, y: rnd(cbY * 0.85, H > W ? Math.max(cbY * 0.35, Y0V) : cbY * 0.35), pulses: [], spider: null, km: clamp(cfg.dist * rnd(1.6, 0.8), 1, 25) };
       const np = 2 + rint(4);
       for (let i = 0; i < np; i++) ic.pulses.push({ t: rnd(ic.dur * 0.85, 0), a: rnd(1, 0.35) });
       if (xp != null || Math.random() < 0.35) ic.spider = spider(x0, cbY + rnd(14, 2) * kS);
@@ -587,13 +621,23 @@ void main(){
 
     /* ───────── haute atmosphère ───────── */
     const yTop = Math.max(H * 0.06, ((env.view && env.view.y0) || 0) + 8);
-    const HZ = H > W ? yTop + (H - yTop) * 0.62 : H * 0.8, KM = (HZ - yTop) / 115, CURV = 0.055;
+    // en portrait, le limbe à mi-hauteur utile : les orages restent au-dessus des boutons du bas, et sous le limbe on
+    // voit la mer de nuages au clair de lune ; on monte jusque vers 104 km (la lueur nocturne est à 95 km)
+    // règle des altitudes dilatée ×1,8 sous 20 km, pour voir les orages (accord de Kurt) : continue, graduée en vraies
+    // altitudes, et chaque objet reste à sa vraie altitude ; KM = px par km au-dessus de 20 km, K1 en dessous
+    const ZD = 20, DIL = 1.8;
+    const HZ = H > W ? yTop + (H - yTop) * 0.56 : yTop + (H - yTop) * 0.74, KM = (HZ - yTop) / (104 + ZD * (DIL - 1)), K1 = KM * DIL, CURV = 0.055;
+    const kmPx = (km) => (km <= ZD ? km * K1 : ZD * K1 + (km - ZD) * KM);
+    const pxKm = (dy) => (dy <= ZD * K1 ? dy / K1 : ZD + (dy - ZD * K1) / KM);
+    // la Lune (x, y, rayon) : à droite, dans le vide entre la lueur nocturne et les orages, à l'écart des farfadets
+    const MOON = H > W ? [W * 0.88, HZ - kmPx(62), Math.min(W, H) * 0.045] : [W * 0.92, HZ - kmPx(62), H * 0.042];
     const limbY = (x) => { const d = (x - W / 2) / H; return HZ + d * d * H * CURV; };
-    const alt = (x, km) => limbY(x) - km * KM;
+    const alt = (x, km) => limbY(x) - kmPx(km);
     let storms = [], tles = [];
     function buildAtmo() {
       // dans la partie visible, à l'écart des coins (où le Labo pose ses boutons ronds)
-      const v = view(), fx = v.w < 600 ? [0.24, 0.5, 0.74] : [0.18, 0.47, 0.78];
+      // sur écran étroit, deux orages (à la règle dilatée, trois se fondaient en un seul)
+      const v = view(), fx = v.w < 600 ? [0.28, 0.72] : [0.18, 0.47, 0.78];
       storms = fx.map((f) => ({ x: v.x0 + v.w * (f + rnd(0.04, -0.04)), q: rnd(1, 0), fl: [], cd: rnd(3, 0.5) }));
     }
     function makeSprite(x) {
@@ -618,12 +662,12 @@ void main(){
     }
     function makeJet(st, giant) {
       const base = { x: st.x + rnd(20, -20) * kS, y: alt(st.x, 16) };
-      const top = giant ? 86 : rnd(46, 36);
+      const top = giant ? 86 : rnd(50, 40);
       const strs = [];
       const n = giant ? 14 : 10;
       for (let i = 0; i < n; i++) {
         const pts = [{ x: base.x, y: base.y }]; let a = -Math.PI / 2 + rnd(0.24, -0.24), px = base.x, py = base.y;
-        const L = (top - 16) * KM * rnd(1, 0.7);
+        const L = (kmPx(top) - kmPx(16)) * rnd(1, 0.75);
         for (let s = 0; s < L; s += 2.2 * KM) { a += rnd(0.2, -0.2); a = clamp(a, -Math.PI / 2 - 0.4, -Math.PI / 2 + 0.4); px += Math.cos(a) * 2.2 * KM; py += Math.sin(a) * 2.2 * KM; pts.push({ x: px, y: py }); }
         strs.push(pts);
       }
@@ -820,7 +864,7 @@ void main(){
       if (glowCd <= 0) {
         glowCd = rnd(1.15, 0.35);
         const v = view(), np = 1 + rint(2), dur = rnd(0.8, 0.3);
-        glows.push({ x: v.x0 + rnd(0.95, 0.05) * v.w, y: cbY * rnd(0.85, 0.2), r: rnd(0.28, 0.14), a: rnd(2, 0.9) * (env.doux ? 0.45 : 1), t: 0, dur, p: Array.from({ length: np }, () => rnd(dur * 0.7, 0)) });
+        glows.push({ x: v.x0 + rnd(0.95, 0.05) * v.w, y: rnd(cbY * 0.85, H > W ? Math.max(cbY * 0.2, Y0V - 20) : cbY * 0.2), r: rnd(0.28, 0.14), a: rnd(2, 0.9) * (env.doux ? 0.45 : 1), t: 0, dur, p: Array.from({ length: np }, () => rnd(dur * 0.7, 0)) });
       }
       for (let i = glows.length - 1; i >= 0; i--) { glows[i].t += dt; if (glows[i].t > glows[i].dur + 0.8) glows.splice(i, 1); }
     }
@@ -852,8 +896,8 @@ void main(){
       if (hum) hum.gain(cfg.scene === 'plasma' ? 0.006 + cfg.tension * 0.01 : 0);
       if (cfg.scene === 'atmo') {
         for (const st of storms) {
-          st.cd -= dt * (0.3 + cfg.act * 1.2) * (0.5 + st.q);
-          if (st.cd <= 0) { st.cd = rnd(2.5, 0.6); stormFlash(st, Math.random() < 0.18 + cfg.tle * 0.35); if (Math.random() < cfg.tle * 0.06) tles.push(makeJet(st, Math.random() < 0.2)); }
+          st.cd -= dt * (0.3 + cfg.act * 1.2) * (0.5 + st.q) * (env.doux ? 0.65 : 1); // en doux : l'ancienne cadence
+          if (st.cd <= 0) { st.cd = rnd(1.7, 0.4); stormFlash(st, Math.random() < 0.18 + cfg.tle * 0.35); if (Math.random() < cfg.tle * 0.06) tles.push(makeJet(st, Math.random() < 0.2)); }
           for (let i = st.fl.length - 1; i >= 0; i--) { st.fl[i].t += dt; if (st.fl[i].t > st.fl[i].dur) st.fl.splice(i, 1); }
         }
         for (let i = tles.length - 1; i >= 0; i--) { tles[i].t += dt; if (tles[i].t > tles[i].life) tles.splice(i, 1); }
@@ -1000,7 +1044,7 @@ void main(){
       const L2 = lights.map((l) => [l[0], l[1], l[2] * kL, l[3]]);
       for (const g of glows) { const I = glowI(g); if (I > 0.01) L2.push([g.x, g.y, I, g.r]); }
       if (!bare) {
-        if (G) skyGL(G.sky, (P) => P.f('uBase', cbY / H + 0.02).f('uRain', cfg.rain ? 0.5 + cfg.act : 0), L2);
+        if (G) skyGL(G.sky, (P) => P.f('uBase', cbY / H + 0.02).f('uRain', cfg.rain ? 0.5 + cfg.act : 0).f('uExpo', H > W ? 1.35 : 1), L2);
         else sky2D(L2);
         ctx.drawImage(land.dark, 0, 0, W, H);
         const gl = clamp(veil * 0.9, 0, cfg.soft ? 0.75 : 1);
@@ -1043,11 +1087,13 @@ void main(){
     }
     function renderAtmo(bare, ink) {
       const lights = [];
-      for (const st of storms) for (const f of st.fl) lights.push([st.x, alt(st.x, 10), f.a * Math.exp(-f.t / 0.08) * (0.7 + 0.3 * Math.sin(f.t * 90)), 0.05]);
+      // lueurs locales (jamais plein écran) ; en doux, plus faibles, avec une montée et une descente plus lentes
+      const dx = env.doux;
+      for (const st of storms) for (const f of st.fl) lights.push([st.x, alt(st.x, 10), f.a * (dx ? 0.55 * (1 - Math.exp(-f.t / 0.05)) * Math.exp(-f.t / 0.14) : Math.exp(-f.t / 0.08) * (0.7 + 0.3 * Math.sin(f.t * 90))), 0.05]);
       lights.sort((a, b) => b[2] - a[2]);
       if (!bare) {
-        const ST = new Float32Array(12); storms.slice(0, 3).forEach((st, i) => ST.set([st.x, st.q, 0, 0], i * 4));
-        if (G) skyGL(G.atmo, (P) => P.f('uHz', HZ).f('uKm', KM).f('uGlow', cfg.glow ? 1 : 0).f('uCurv', CURV).v4('uSt', ST), lights.slice(0, 8));
+        const ST = new Float32Array(12).fill(-1e5); storms.slice(0, 3).forEach((st, i) => ST.set([st.x, st.q, 0, 0], i * 4));
+        if (G) skyGL(G.atmo, (P) => P.f('uHz', HZ).f('uKm', KM).f('uK1', K1).f('uGlow', cfg.glow ? 1 : 0).f('uCurv', CURV).f('uMI', cfg.lune ? 1 : 0).f('uMoon', MOON[0], MOON[1], MOON[2]).v4('uSt', ST), lights.slice(0, 8));
         else {
           ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
           ctx.fillStyle = '#05070c'; ctx.beginPath(); ctx.moveTo(0, H); for (let x = 0; x <= W; x += 8) ctx.lineTo(x, limbY(x)); ctx.lineTo(W, H); ctx.fill();
@@ -1091,9 +1137,9 @@ void main(){
               ctx.lineWidth = (pass ? 1 : 5) * kS; ctx.stroke();
             }
                       }
-          const rg = ctx.createRadialGradient(e.base.x, e.base.y, 0, e.base.x, e.base.y, 9 * KM);
+          const rg = ctx.createRadialGradient(e.base.x, e.base.y, 0, e.base.x, e.base.y, 9 * K1);
           rg.addColorStop(0, ink ? `rgba(40,80,180,${0.4 * I})` : `rgba(160,200,255,${0.6 * I})`); rg.addColorStop(1, 'rgba(60,120,255,0)');
-          ctx.fillStyle = rg; ctx.fillRect(e.base.x - 9 * KM, e.base.y - 9 * KM, 18 * KM, 18 * KM);
+          ctx.fillStyle = rg; ctx.fillRect(e.base.x - 9 * K1, e.base.y - 9 * K1, 18 * K1, 18 * K1);
         } else if (e.kind === 'elfe') {
           const k = e.t / e.life, r = k * 190 * KM, a = (1 - k) * 0.55, y = alt(e.x, 90);
           for (const pass of [0, 1]) {
@@ -1102,6 +1148,24 @@ void main(){
             ctx.beginPath(); ctx.ellipse(e.x, y, Math.max(1, r), Math.max(0.5, r * 0.09), 0, 0, TAU); ctx.stroke();
           }
         }
+      }
+      ctx.restore();
+      drawAltAxis(ink);
+    }
+    // la règle des altitudes, graduée en vraies valeurs : repères à 0, 10, 20, 50 et 90 km, petits traits tous les
+    // 10 km, qui se resserrent au-dessus de 20 km (la règle y redevient vraie)
+    function drawAltAxis(ink) {
+      const v = view(), x = v.x0 + 10;
+      ctx.save(); ctx.font = '500 10px "JetBrains Mono", monospace'; ctx.textBaseline = 'middle'; ctx.lineWidth = 1;
+      ctx.strokeStyle = ink ? 'rgba(40,30,80,.45)' : 'rgba(205,218,255,.42)';
+      ctx.fillStyle = ink ? 'rgba(40,30,80,.75)' : 'rgba(215,226,255,.78)';
+      ctx.shadowColor = ink ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.9)'; ctx.shadowBlur = 4;
+      ctx.beginPath(); ctx.moveTo(x, alt(x, 0)); ctx.lineTo(x, alt(x, 100)); ctx.stroke();
+      for (let km = 10; km <= 100; km += 10) { const y = alt(x, km); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 3, y); ctx.stroke(); }
+      for (const km of [0, 10, 20, 50, 90]) {
+        const y = alt(x, km);
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 7, y); ctx.stroke();
+        ctx.fillText(km === 90 ? '90 km' : String(km), x + 10, y);
       }
       ctx.restore();
     }
@@ -1223,8 +1287,10 @@ void main(){
         }[e.kind];
       }
       if (l.what === 'airglow') return ['Lueur nocturne', 'oxygène atomique · 557,7 nm · ~95 km d’altitude', '#8ad8a0'];
-      if (l.what === 'orage') return ['Sommet d’orage', 'enclume à ~15 km, vue d’en haut · les éclairs l’allument de l’intérieur', '#b9a8ff'];
-      if (l.what === 'terre') return ['Terre de nuit', 'nuages au clair de lune, lumières des villes', '#c8c0b0'];
+      if (l.what === 'orage') return ['Sommet d’orage', 'enclume à ~15 km, vue d’en haut · les éclairs l’allument de l’intérieur · altitudes dilatées sous 20 km (× 1,8) pour voir les orages ; les graduations donnent les vraies valeurs', '#b9a8ff'];
+      if (l.what === 'terre') return ['Terre de nuit', 'nuages au clair de lune, lumières des villes, et la Lune qui se reflète sur la mer', '#c8c0b0'];
+      if (l.what === 'voie') return ['La Voie lactée', 'notre galaxie vue par la tranche · au-dessus de l’air, le ciel reste noir même au clair de lune', '#e8e0d0'];
+      if (l.what === 'lune') return ['La Lune', 'lumière du Soleil renvoyée · elle éclaire le dessus des orages', '#d8d4c8'];
       if (l.what === 'espace') return ['Espace', 'au-dessus de 100 km, l’air ne diffuse plus la lumière', '#c8d0e0'];
       if (l.what === 'lich') return lich.D ? ['Figure de Lichtenberg', `${lich.N} segments · dimension fractale ≈ ${fr(lich.D, 2)} · η = ${fr(cfg.lichEta, 1)}`, '#d8e4ff'] : ['Bloc de plexiglas', 'chargé d’électrons piégés · touchez avec l’outil ÉCLAIR', '#a8c4ff'];
       if (l.what === 'globe') return ['Filaments de plasma', `${GAS[cfg.gas].nom.toLowerCase()} à basse pression · ~30 kHz, 2 à 5 kV · la chaleur les fait monter`, '#ff7ae0'];
@@ -1239,8 +1305,10 @@ void main(){
         return { what: 'sol', x, y };
       }
       if (cfg.scene === 'atmo') {
-        for (const e of tles) { if (Math.abs(e.x - x) < 40 * kS + (e.kind === 'elfe' ? 100 * KM * (e.t / e.life) : 0) && y < limbY(x) - 10 * KM) return { what: 'tle', e, x: e.x, y: e.kind === 'elfe' ? alt(e.x, 90) : alt(e.x, e.kind === 'sprite' ? 70 : 30) }; }
-        const h = (limbY(x) - y) / KM;
+        for (const e of tles) { if (Math.abs(e.x - x) < 40 * kS + (e.kind === 'elfe' ? 100 * KM * (e.t / e.life) : 0) && y < limbY(x) - kmPx(10)) return { what: 'tle', e, x: e.x, y: e.kind === 'elfe' ? alt(e.x, 90) : alt(e.x, e.kind === 'sprite' ? 70 : 30) }; }
+        if (cfg.lune && Math.hypot(x - MOON[0], y - MOON[1]) < MOON[2] * 1.3) return { what: 'lune', x: MOON[0], y: MOON[1] };
+        const h = pxKm(limbY(x) - y);
+        if (h > 40 && Math.abs((x / W) * 0.42 + (y / H) * 0.9 - 0.62) < 0.07) return { what: 'voie', x, y };
         if (h < 0) return { what: 'terre', x, y };
         if (h < 18) return { what: 'orage', x, y };
         if (Math.abs(h - 95) < 10 && cfg.glow) return { what: 'airglow', x, y };
@@ -1346,7 +1414,7 @@ void main(){
         }
         if (cfg.scene === 'atmo') {
           L.push({ type: 'section', label: 'Haute atmosphère' });
-          L.push({ type: 'note', text: 'Vue rasante depuis l’orbite, de nuit : trois orages au ras du limbe. L’échelle verticale est exagérée pour que les 100 km d’atmosphère tiennent dans l’écran.' });
+          L.push({ type: 'note', text: 'Vue rasante depuis l’orbite, de nuit : trois orages au ras du limbe. L’échelle verticale est exagérée pour que les 100 km d’atmosphère tiennent dans l’écran. Altitudes dilatées sous 20 km (× 1,8) pour voir les orages ; les graduations donnent les vraies valeurs.' });
           L.push({ type: 'buttons', items: [
             { label: 'Farfadet', act: () => { const st = storms[rint(storms.length)]; stormFlash(st, false); tles.push(makeSprite(st.x)); } },
             { label: 'Jet bleu', act: () => tles.push(makeJet(storms[rint(storms.length)], false)) },
@@ -1356,6 +1424,8 @@ void main(){
           L.push({ type: 'slider', label: 'Activité des orages', min: 0, max: 1, step: 0.01, value: cfg.act, fmt: (x) => Math.round(x * 100) + ' %', set: (x) => { cfg.act = x; } });
           L.push({ type: 'slider', label: 'Phénomènes lumineux transitoires', min: 0, max: 1, step: 0.01, value: cfg.tle, fmt: (x) => (x < 0.2 ? 'rares' : x < 0.7 ? 'fréquents' : 'nuit exceptionnelle'), set: (x) => { cfg.tle = x; } });
           L.push({ type: 'toggle', label: 'Lueur nocturne (airglow)', value: cfg.glow, set: (x) => { cfg.glow = x; } });
+          L.push({ type: 'toggle', label: 'Clair de lune', value: cfg.lune, set: (x) => { cfg.lune = x; } });
+          L.push({ type: 'note', text: 'Comme sur les photos prises depuis la Station spatiale, l’image est en pose longue : au clair de lune, le dessus des nuages et la basse atmosphère (bleue, comme le ciel de jour, puisque c’est la lumière du Soleil renvoyée par la Lune) paraissent plus clairs qu’à l’œil nu.' });
           if (au && au.on) L.push({ type: 'note', text: 'Le son est celui d’un récepteur radio à très basse fréquence : craquements des éclairs et siffleurs.' });
         }
         if (cfg.scene === 'lich') {

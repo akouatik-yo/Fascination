@@ -1,12 +1,8 @@
 # La nuit du 12 au 13/11 : synthèse pour Yoann
 
-**▶ À ouvrir sur ta tablette : https://claude.ai/artifact/X3nwzJbLgt7zPvzXWmSbyR** (l'artefact « Fascinations », mis à jour le 13/11 vers 13 h 10 avec l'application unique, commit 62dea1c). Il est privé : toi seul peux l'ouvrir.
+**▶ À ouvrir sur ta tablette : https://claude.ai/artifact/X3nwzJbLgt7zPvzXWmSbyR** (l'artefact « Fascinations », **version finale v38**, publiée le 14/11 vers 0 h 35, `app-unique`). Il est privé : toi seul peux l'ouvrir.
 
-**État à 13 h (Paris)** : le travail s'est arrêté deux fois sur la limite d'usage, de 1 h 46 à 5 h 10 puis de 7 h 31 à 13 h. L'artefact prévu à 7 h 45 n'est donc publié qu'à 13 h 10.
-- **La recette de Constance** (le regard d'un enfant de 5 ans) dit « pas moche » pour tous les écrans sur tablette. Au téléphone, ses derniers retours sont corrigés.
-- **Deux points restent ouverts** :
-  - certaines machines écrivent encore à l'écran des légendes techniques (en petites capitales monospace), même pour les 5 ans ;
-  - en rendu logiciel, le Feu démarre en braises. À vérifier sur ta tablette.
+**État au 14/11, 0 h 35 (Paris)** : livraison arrêtée à ta demande, dans l'état actuel. La dernière version (v38) intègre ce qui était prêt chez rendu A et B **sans attendre une nouvelle recette de Constance** (consigne du CEO). La liste des points restants est plus bas.
 
 **Machines refaites et intégrées** (toutes relues en science et mesurées sans déclin) :
 - **Lucioles** et **Cristal** ;
@@ -19,6 +15,7 @@
 - vers 19 h (v35) : la ligne d'état des machines n'est plus cachée par les boutons du bas ; le Soleil dit que la couronne ne se voit « à l'œil nu » qu'aux éclipses ; les ronds de sorcières en vue de drone, avec la vitesse de l'anneau corrigée (une vraie erreur de modèle).
 - vers 19 h 10 (v36) : l'**Eau** revient à sa version d'origine. Pour Constance, la nouvelle mare au repos était moins belle qu'avant ; rendu B la reprend. Le Ciel reste, mais il est à reprendre (couchant gris, arc trop petit au téléphone).
 - vers 20 h 15 (v37) : la **Fourmilière** entre, reprise par rendu B. Les ouvrières font environ 17 px sur un terrain d'environ 35 cm, les taches noires ont disparu, le pont se dresse sur téléphone, et le style réaliste est le plus fréquent. Sur un appareil trop lent (moins de 24 images/s), elle repasse d'elle-même à son ancien rendu 2D : à juger sur ta tablette, aucun test automatique ne le voit. Sur téléphone, le carton d'ouverture se pose sous le titre.
+- vers 0 h 35 (v38, **finale**, sans recette) : le **Ciel** repris (couchant qui ne grisaille plus, arc lisible au téléphone, étoiles qui apparaissent avec la nuit, et une nouvelle scène, **les aurores polaires**, ouverte à l'œil nu sur une aurore forte), la **Fourmilière** lisible à 390 px, la **Foudre** avec « Au-dessus des orages » de retour dans le chemin (altitudes dilatées sous 20 km, annoncé à l'écran), les **ronds de sorcières** nets au téléphone et visibles sous la neige, le **Soleil** (étiquette et aide propres).
 
 
 Session Fascinations, chef de projet et garant de la science. **Rien n'est sur `main` depuis la fusion de 0 h 40.** Tout est sur `jeunesse`, et l'application unique sur `app-unique` (voir `POUR-YOANN.md`). Le travail s'est arrêté de 1 h 46 à 5 h 10 (limite d'usage).
@@ -60,19 +57,26 @@ Questions à te poser :
   - Eau, Ciel, Fourmilière, Galaxie et Bulles sont en cours (rendu B, branches de travail).
   - Chaque livraison passe par ma relecture scientifique et par la recette « qualité ».
 
-## Ce qui reste
-- **Rendu** : rien n'est encore intégré à `jeunesse` ni à `app-unique`. Les machines refaites vivent sur `rendu-a` et `rendu-b` et viendront après relecture. Corrections demandées :
-  - **Lucioles** : vraies couleurs (toutes jaune-vert ; les espèces se reconnaissent au rythme) et protection photosensibilité ;
-  - **Lave** : la plaque de Bénard ne rougeoie pas (il faudrait environ 500 °C), et la teinte du Soleil doit être dite « filtre » à l'écran.
-- **À créer** :
-  - les nouvelles scènes : danse des abeilles, volcans, aurores, système solaire, houle ;
-  - les fiches qui vont avec (je les écris dès que les scènes existent).
-- **Interface** :
-  - la pause des chapitres précédents sans les détruire (aujourd'hui, les réglages sont gardés, pas les constructions) ;
-  - le générateur de bruits, à reporter dans l'application unique ;
-  - l'audit des gestes partis du bord de l'écran.
-- **Recette de Constance** avant toute arrivée sur `main`.
-- **Jamais essayé sur un vrai appareil, ni avec le son.** C'est pour ça que ton regard sur la tablette compte d'abord.
+## Points restants (pour la reprise)
+**À tester sur ta tablette** (aucun test automatique ne le voit) :
+- le **repli 2D** de la Fourmilière et du Ciel quand l'appareil passe sous 24 images/s : à quel moment il bascule, et si c'est assez fluide ;
+- le **Feu** en rendu logiciel, qui démarre en braises ;
+- le **son**, jamais essayé sur un vrai appareil.
+
+**Livré sans la recette de Constance** (v38) : le Ciel repris et les aurores, « Au-dessus des orages », la Fourmilière à 390 px, les ronds, le Soleil, le carton d'ouverture au téléphone.
+
+**Jugé moche, ou pas vu, par Constance** :
+- **Fourmilière** : les Trois sociétés (fourmis de 3 à 5 px) ; le repli 2D gris-brun, presque noir avec Renifle ; la jonction du double pont, où la branche courte paraît partir tout droit alors que le texte dit « même angle » (défaut de science, à corriger) ;
+- **ronds de sorcières** au téléphone : anneaux encore doux ;
+- **lignes d'état** longues (Soleil, 4 lignes à 390 px) : peut-être en partie cachées ;
+- **Ciel** : zénith presque noir à −10° (en vrai, bleu sombre) ; herbe floue sous l'arc au téléphone ; dans les aurores, au téléphone, la ligne d'état chevauche les boutons du bas et la main fantôme montre un geste qui ne fait rien (vu par moi, pas par Constance).
+
+**Pas intégré** :
+- la **Galaxie** reprise (rectangle beige à 390 px, voile brun, elliptique en paliers) ;
+- l'**Eau** v2 (revenue à l'originale) ;
+- les scènes à créer : **système solaire**, **houle et tsunamis**, **bancs de poissons**, **double pendule**.
+
+**Interface** : légendes techniques encore écrites à l'écran pour les 5 ans ; pause des chapitres précédents sans les détruire ; générateur de bruits à reporter ; gestes partis du bord de l'écran.
 
 ## Ce qui attend ta décision
 1. **Garder l'application unique** (`app-unique`), ou revenir à deux applications.

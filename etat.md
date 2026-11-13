@@ -1,6 +1,6 @@
 # État — point de reprise
 
-maj : 13/11/2026 01:40 (heure de Paris, horloge de la session)
+maj : 14/11/2026 vers 0 h 40 (heure de Paris)
 
 ## Où en est le dépôt
 - **Branche de référence : `jeunesse`.** Elle contient `main` et `ccr-ba505dc0-e427km` (la branche de session d'origine, APK adulte 0.1.33). Rien n'est fusionné dans `main` : c'est Yoann qui décide de la fusion.
@@ -28,5 +28,17 @@ maj : 13/11/2026 01:40 (heure de Paris, horloge de la session)
 - **Chantier rendu** : brief et répartition dans [`docs/RENDU-BRIEF.md`](docs/RENDU-BRIEF.md). Rendu A travaille sur `rendu-a`, rendu B sur `rendu-b` ; cette session relit la justesse scientifique. Feu, Eau et Fourmilière sont intouchables.
 - **Âge et niveau** (le rêve de Yoann) : un écran d'accueil demande l'âge (dès 5 ans) puis le niveau ; l'interface s'adapte. Le détail est dans `docs/JEUNESSE-FICHES.md`. Chaque fiche a reçu un texte `petit` (5-8 ans). L'avis de Fausta sur l'ergonomie enfant est attendu.
 
+## 13/11, journée et soirée : livraison finale (point de reprise)
+- **Arrêt demandé par Yoann** (relayé par le CEO, 14/11 vers 0 h 15) : on arrête d'itérer, on livre l'état actuel et on se repose.
+- **Livré** : l'application unique sur `app-unique`, publiée en artefact « Fascinations » (**v38, finale**). La liste des points restants est dans [`SYNTHESE-NUIT.md`](SYNTHESE-NUIT.md), rubrique « Points restants ».
+- **Branches** :
+  - `rendu-a` et `rendu-b` : ce qui n'est pas intégré (Galaxie reprise, Eau v2) ;
+  - `jeunesse` : la version Labo seule ;
+  - `main` : inchangé depuis la fusion du 13/11 à 0 h 40.
+- **À la reprise** :
+  1. Lire le retour de Yoann sur la tablette : le repli 2D, le Feu, le son.
+  2. Décider entre l'application unique et deux applications.
+  3. Lever les réserves de Constance listées dans la synthèse, puis faire sa recette avant toute arrivée sur `main`.
+
 ## Engagement en cours
-Aucun.
+Aucun : en pause jusqu'à la reprise.

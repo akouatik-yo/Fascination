@@ -15,6 +15,7 @@ FJ.fiche('lave', {
     soleil: { nom: 'La surface du Soleil', via: 'scenes/surface du soleil', poids: 2, outil: 'observer', outils: ['observer'],
       exposes: ['vue_soleil', 'tache', 'temps_soleil'],
       plages: { vue_soleil: [1, 1, 0], tache: 0.6, temps_soleil: [0.4, 1.2] },
+      noms: { observer: { aide: 'Touche le Soleil : un grain, la tache sombre ou un jet de gaz au bord. Tu sauras ce que c’est et sa température.' } },
       essaie: 'Suis un grain brillant des yeux : il naît, grandit puis disparaît en quelques minutes de Soleil.' },
     coupe: { nom: 'La Terre en coupe', via: 'scenes/la terre en coupe', poids: 3, outil: 'observer', outils: ['observer'],
       exposes: ['temps_terre', 'loupe'], plages: { temps_terre: [2, 8] },

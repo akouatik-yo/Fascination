@@ -14,7 +14,7 @@
     // la Terre et le ciel
     { id: 'lave', q: 'Que se passe-t-il quand on chauffe par en dessous ?', icone: 'flamme', chapitres: [['lave', 'lampe'], ['lave', 'volcan'], ['lave', 'benard'], ['lave', 'coupe'], ['lave', 'pointchaud'], ['lave', 'soleil']] },
     { id: 'ciel', q: 'Pourquoi le ciel est-il bleu, et le couchant rouge ?', machines: ['ciel'] },
-    { id: 'foudre', q: 'Pourquoi un éclair fait-il des zigzags ?', icone: 'eclair', chapitres: [['foudre', 'orage'], ['foudre', 'lich'], ['foudre', 'plasma']] },
+    { id: 'foudre', q: 'Pourquoi un éclair fait-il des zigzags ?', icone: 'eclair', chapitres: [['foudre', 'orage'], ['foudre', 'lich'], ['foudre', 'plasma'], ['foudre', 'atmo']] },
     { id: 'eau', q: 'Pourquoi des filets de lumière dansent-ils au fond de l’eau ?', machines: ['eau'] },
     { id: 'sable', q: 'Comment le vent fabrique-t-il une dune ?', machines: ['sable'] },
     // la matière dessine

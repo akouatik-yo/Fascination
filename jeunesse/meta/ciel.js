@@ -18,6 +18,11 @@ FJ.fiche('ciel', {
       exposes: ['hsoleil', 'plaquettes', 'colonnes', 'desordre'],
       plages: { hsoleil: [8, 28], hregard: ['soleil', 'soleil', 'zenith'], plaquettes: [0.2, 1], colonnes: [0, 0.6], desordre: [0.2, 0.8] },
       essaie: 'Monte « Cristaux plats » au maximum : deux faux soleils s’allument à côté du vrai.' },
+    aurores: { nom: 'Les aurores polaires', via: 'scenes/les aurores polaires', poids: 2, outils: [],
+      exposes: ['auvision', 'auforce', 'auregard', 'audecor'],
+      // à l'œil nu le plus souvent (ce qu'on voit vraiment) ; une aurore forte, sinon elle paraît grise
+      plages: { auvision: ['oeil', 'oeil', 'photo'], auforce: [0.6, 1], auregard: ['nord', 'nord', 'zenith'], audecor: ['neige', 'lac'] },
+      essaie: 'Baisse l’intensité de l’aurore : à l’œil nu, elle devient grise. Puis passe « en photo ».' },
   },
   outils: {
     soleil: { verbe: 'Bouge', icone: 'soleil', geste: 'trait', aide: 'Glisse le doigt de haut en bas pour monter ou descendre le soleil, et regarde les couleurs changer.' },
@@ -37,6 +42,10 @@ FJ.fiche('ciel', {
     plaquettes: { chemin: 'les halos/plaquettes tombent a plat', nom: 'Cristaux plats', bouts: ['aucun', 'beaucoup'] },
     colonnes: { chemin: 'les halos/colonnes tombent couchees', nom: 'Cristaux en bâtonnets', bouts: ['aucun', 'beaucoup'] },
     desordre: { chemin: 'les halos/cristaux en desordre', nom: 'Cristaux qui tourbillonnent', bouts: ['aucun', 'beaucoup'] },
+    auvision: { chemin: 'les aurores polaires/vision', nom: 'Vision', options: { oeil: 'À l’œil nu', photo: 'En photo (pose longue)' } },
+    auforce: { chemin: 'les aurores polaires/intensite de l aurore', nom: 'Intensité de l’aurore', bouts: ['faible', 'très forte'] },
+    auregard: { chemin: 'les aurores polaires/regard', nom: 'Tu regardes…', options: { nord: 'Vers le nord', zenith: 'Tout le ciel, tête levée' } },
+    audecor: { chemin: 'les aurores polaires/paysage', nom: 'Paysage', options: { neige: 'Neige', lac: 'Lac' } },
   },
   exposes: ['soleil', 'regard', 'planete', 'brume'],
   plages: {},
@@ -54,6 +63,7 @@ FJ.fiche('ciel', {
     { nom: 'En ballon à 30 km', icone: 'fusee', scene: 'ciel', regle: { planete: 'terre', soleil: 20, marche: false, regard: 'soleil', altitude: 30 } },
     { nom: 'Coucher de soleil sur Mars', icone: 'planete', scene: 'ciel', regle: { planete: 'mars', soleil: 1.5, marche: false, regard: 'soleil' } },
     { nom: 'Dans une goutte de pluie', icone: 'goutte', scene: 'arc', regle: { vue: 'goutte' } },
+    { nom: 'Aurore polaire en photo', icone: 'etincelles', scene: 'aurores', regle: { auvision: 'photo', auforce: 0.8 } },
     { nom: 'Arc à l’envers près du zénith', icone: 'flocon', scene: 'halos', regle: { hsoleil: 18, hregard: 'zenith', plaquettes: 1, colonnes: 0, desordre: 0 } },
   ],
   pourquoi: {

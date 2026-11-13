@@ -191,3 +191,19 @@ Rien ne passe encore à « non moche » en 390 px. Repris :
   - « Au-dessus des orages » : environ 60 % de noir. Le vrai remède serait une échelle des altitudes dilatée sous 20 km, où sont les orages (environ ×1,8), et annoncée. C'est un choix de représentation : je le soumets d'abord à Kurt.
   - Le carton du début, qui couvre les orages, est posé par le shell.
   - L'orage au repos en 390.
+
+## « Au-dessus des orages » : règle des altitudes dilatée sous 20 km (13/11, 20 h 15)
+
+Proposée à Kurt, acceptée à quatre conditions, toutes tenues :
+
+1. **Graduée en vraies altitudes** : un axe sur le bord gauche porte des repères à 0, 10, 20, 50 et 90 km. De petits traits tous les 10 km se resserrent au-dessus de 20 km. La règle est continue, sans coupure : ×1,8 sous 20 km, vraie au-dessus.
+2. **Chaque objet reste à sa vraie altitude**, lue sur la règle (`alt(x, km)` côté JavaScript, `hk(dy)` côté shader) :
+   - sommets d'orage à 11-15 km ;
+   - jets bleus jusqu'à 40-50 km (40 à 50 au lieu de 36 à 46 ; leur longueur se calcule à travers la règle) ;
+   - farfadets de 50 à 90 km ;
+   - elfes vers 90 km, lueur nocturne vers 95 km.
+   Les orages sont dessinés à l'échelle dilatée dans les deux sens, pour garder leur forme.
+3. **Annoncée** dans la notice et dans l'OBSERVER (sommet d'orage) : « Altitudes dilatées sous 20 km (× 1,8) pour voir les orages ; les graduations donnent les vraies valeurs. »
+4. **Même règle en paysage et en portrait.** Sur écran étroit, il y a deux orages au lieu de trois : à cette taille, trois se fondaient en un seul.
+
+Effet : des cumulonimbus environ 1,56 fois plus grands qu'en règle linéaire (et 1,8 fois plus grands que les objets au-dessus de 20 km), et une bande bleue de clair de lune plus haute. Le noir recule nettement. Captures : `foudre-atmo-labo.jpg` et `-tel.jpg`.

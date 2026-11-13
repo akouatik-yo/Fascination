@@ -36,3 +36,16 @@ Trois nouvelles scènes, rangées sous les trois premières. Couleurs des roches
 - **L'analogie** : la note de la coupe le dit. Comme la cire, ce qui est chaud monte ; mais la cire est liquide et fait un tour en minutes, le manteau est solide et fait un tour en 100 millions d'années environ.
 - **Outil OBSERVER** : il nomme la couche ou l'objet touché (graine, noyau externe, manteau, lithosphère ; plaque, panache, volcan actif ; chambre, cheminée, panache de cendres…).
 - **Chemins pour les fiches du Labo** : `scenes/la terre en coupe`, `scenes/le point chaud`, `scenes/sous le volcan` ; `la terre en coupe/vitesse du temps` (0,5 à 20 Ma/s), `la terre en coupe/loupe sur la croute` ; `le point chaud/vitesse du temps` (0,1 à 2 Ma/s) ; `sous le volcan/magma` (`fluide` ou `visqueux`).
+
+## La Danse des abeilles (`s-abeilles.js`, nouvelle machine)
+
+Cadrage de Kurt (REFONTE-PEDAGOGIQUE.md § 2) : von Frisch, prix Nobel 1973 ; suivi radar de Riley et al., 2005. La machine décrit la règle : aucune abeille ne « veut » ni n'« explique ».
+
+- **Dans la ruche**, sur le rayon vertical : cellules hexagonales de cire (miel operculé ou non en haut, pain d'abeille en couronne, couvain au centre, cellules vides de la piste de danse près de l'entrée), lumière douce, vignettage sombre.
+- **La danseuse**, marquée d'un point de peinture bleue sur le thorax comme dans les expériences de von Frisch, danse en huit. Course frétillante : angle avec la verticale = angle des fleurs par rapport au soleil (sens horaire) ; abdomen qui frétille vers 13 battements par seconde ; durée = distance × secondes par km (1 s par défaut, réglable de 0,6 à 1,4 s : « la valeur varie selon les colonies », écrit dans le panneau). Demi-tours alternés à gauche et à droite. Sous 90 m : danse en rond, sans direction.
+- **Les suiveuses** restent au contact derrière elle, puis, après 3 à 6 tours, partent vers l'entrée.
+- **Dehors, vu du ciel** : la ruche, des cercles de 1 km, le soleil (azimut : environ 15° par heure, plein sud vers 13 h, heure d'été), le champ de fleurs, et les recrues qui volent dans la direction indiquée avec une erreur de quelques degrés et 20 % sur la distance (en rond : n'importe quelle direction, près de la ruche). L'angle entre le soleil et les fleurs est tracé dehors et, le même, entre la verticale et la course dans la ruche.
+- **Toute une journée** : le soleil tourne, la danse tourne avec lui (une heure toutes les 8 s).
+- **Rendu** : rayon, carte et abeilles en WebGL2 (abeilles dessinées en GLSL : tête, thorax velu, abdomen rayé avec un reflet sur la chitine, ailes irisées, ombres portées), développé par la cabine ; repli 2D sans WebGL2.
+- **Chemins pour la fiche du Labo** : `scenes/la danse fretillante`, `scenes/la danse en rond`, `scenes/toute une journee` ; `les fleurs/distance` (0,03 à 5 km), `les fleurs/direction depuis la ruche` (0 à 359°, nord = 0), `les fleurs/heure` (6 à 20), `les fleurs/le temps passe` ; `la danse/secondes de fretillement par kilometre` (0,6 à 1,4), `la danse/montrer la trace`, `la danse/montrer les angles`. Outils : `observer`, `fleurs` (toucher la carte place la source).
+- **Inscrite** dans `app/index.html`, `jeunesse/index.html` et `app/sw.js` ; pas encore dans les mondes du Labo (`jeunesse/js/mondes.js`), que Kurt regroupe.

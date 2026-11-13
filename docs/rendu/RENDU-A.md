@@ -67,7 +67,8 @@ Brief de Kurt : « transparent, blanc par diffusion, avec des reflets ; fond som
 ## La Foudre (`s-foudre.js`) : l'attente entre deux éclairs
 
 - **Avant** : entre deux éclairs, un écran presque noir. **Après** : sous l'orage, la lueur orangée des villes (lampes au sodium) éclaire le bas du ciel et le dessous des nuages, dont les bourrelets ressortent ; la pluie en reçoit un peu. C'est ce que montrent les photographies d'orages nocturnes près des villes. Tramage ajouté contre les bandes du dégradé sombre.
-- Rien ne change aux éclairs, aux flashs adoucis ni au mode doux. La suite (le canal en lumière linéaire, avec son halo violet d'azote) reste à faire.
+- Rien ne change aux éclairs, aux flashs adoucis ni au mode doux.
+- **L'arc en retour (13/11)** : le canal est blanc (surexposé, comme sur les photographies), entouré d'une lueur lavande (raies de l'azote, un peu d'hydrogène) et d'un halo plus large, la lumière diffusée par la pluie et l'air humide. Le cœur est un peu plus épais. Seuls changent la palette et les largeurs des trois couches (halo au 1/8, lueur au 1/4, cœur) ; les flashs adoucis, le voile plafonné et `env.doux` sont intacts (le canal n'éclaire jamais tout l'écran). Captures : `foudre-arc.jpg` (et `-avant`, deux éclairs différents).
 
 ## Les Abysses (`s-abysses.js`) : pas de rouge sans la lampe
 

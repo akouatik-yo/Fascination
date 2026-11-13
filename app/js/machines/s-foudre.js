@@ -840,18 +840,20 @@ void main(){
       for (const l of L) { l.g.setTransform(1, 0, 0, 1, 0, 0); l.g.clearRect(0, 0, l.c.width, l.c.height); }
       L8.g.setTransform(1 / 8, 0, 0, 1 / 8, 0, 0); L4.g.setTransform(1 / 4, 0, 0, 1 / 4, 0, 0);
       for (const l of L) { l.g.lineCap = 'round'; l.g.lineJoin = 'round'; }
-      strokeB(L8.g, bM, 34 * kS * kW, pal.halo, 0.32); strokeB(L8.g, bB, 22 * kS * kW, pal.halo, 0.2);
-      strokeB(L4.g, bM, 10 * kS * kW, pal.glow, 0.55); strokeB(L4.g, bB, 6 * kS * kW, pal.glow, 0.42);
+      // halo large (la lumière du canal diffusée par la pluie et l'air humide), lueur lavande, cœur blanc : comme sur une photo
+      strokeB(L8.g, bM, 50 * kS * kW, pal.halo, 0.26); strokeB(L8.g, bB, 30 * kS * kW, pal.halo, 0.15);
+      strokeB(L4.g, bM, 12 * kS * kW, pal.glow, 0.6); strokeB(L4.g, bB, 7 * kS * kW, pal.glow, 0.42);
       ctx.save();
       ctx.imageSmoothingEnabled = true;
       ctx.globalCompositeOperation = ink ? 'multiply' : 'lighter';
       ctx.drawImage(L8.c, 0, 0, W, H); ctx.drawImage(L4.c, 0, 0, W, H);
       ctx.globalCompositeOperation = ink ? 'source-over' : 'lighter';
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      strokeB(ctx, bM, 1.7 * kS * kW, pal.core, 1, true); strokeB(ctx, bB, 0.9 * kS * kW, pal.core, 0.9, false);
+      strokeB(ctx, bM, 2.1 * kS * kW, pal.core, 1, true); strokeB(ctx, bB, 0.9 * kS * kW, pal.core, 0.9, false);
       ctx.restore();
     }
-    const PAL = { core: [255, 255, 255], glow: [200, 190, 255], halo: [140, 130, 255] };
+    // le canal est blanc (surexposé sur les photos) ; autour, la lueur de l'azote (raies violettes et bleues) et un peu d'hydrogène (rose)
+    const PAL = { core: [255, 255, 255], glow: [222, 206, 255], halo: [160, 125, 255] };
     const PAL_POS = { core: [255, 250, 240], glow: [255, 220, 200], halo: [210, 160, 255] };
     const PAL_INK = { core: [32, 22, 66], glow: [150, 130, 220], halo: [175, 160, 235] };
 

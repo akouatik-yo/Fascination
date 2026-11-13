@@ -10,7 +10,7 @@
 
 **Machines refaites et intégrées** : les **Lucioles** (vraies couleurs, mode doux), le **Cristal** (flocon transparent) et le **Ciel** (ajouté vers 13 h 30, vitesse stable). Les autres attendent :
 - les **Bulles** sont intégrées depuis 13 h 40 (coût constant, au niveau de l'original) ;
-- l'**Eau** est relue, avec deux corrections demandées ;
+- l'**Eau** est intégrée depuis 13 h 50 (eau peu profonde expliquée, vue de dessus éclairée d'en haut) ;
 - la **Lampe à lave avec les volcans** attend deux corrections ;
 - la **Danse des abeilles** attend ses mesures.
 

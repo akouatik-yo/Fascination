@@ -16,7 +16,7 @@
     look: 'soleil', planet: 'terre', haze: 1, ozone: true, alt: 0, nuages: 0.25,
     view: 'ciel', drop: 0.35, refl: 1, rbEl: 12,
     hEl: 18, mix: { plaques: 0.5, colonnes: 0.25, desordre: 0.5 }, proj: 'soleil', guides: true,
-    auVision: 'photo', auForce: 0.55, auRegard: 'nord', auDecor: 'neige',
+    auVision: 'oeil', auForce: 0.85, auRegard: 'nord', auDecor: 'neige',
   };
 
   /* ─ couleur : fonctions colorimétriques CIE 1931 (ajustement de Wyman, Sloan et Shirley, 2013) ─ */
@@ -110,13 +110,16 @@
   });
 
   function makeCiel(env) {
+    // FKR.veille : si l'appareil ne suit pas (moins de 24 i/s), on reconstruit le rendu une fois, plus léger ; les réglages sont gardés
+    const veille = window.FKR && FKR.veille ? FKR.veille({ id: 'ciel', seuil: 24, auRepli: () => { if (!leger) { leger = true; rebuild(); } } }) : null;
+    if (veille && veille.deja) leger = true;
     let w = build(env);
     function build(e) { return keep.scene === 'arc' ? arc(e) : keep.scene === 'halos' ? halos(e) : keep.scene === 'aurores' ? aurores(e) : ciel(e); }
     const rebuild = () => { try { w.dispose && w.dispose(); } catch (e) { /* rien */ } w = build(env); };
     const api = {
       livePaused: true,
       // contexte WebGL perdu : on attend qu'il revienne, puis on reconstruit la scène (sans toucher aux réglages)
-      frame: (t, dt) => { if (w.R && w.R.perdu) { if (!w.R.gl.isContextLost()) rebuild(); return; } w.frame(t, dt); }, down: (p) => w.down && w.down(p), move: (p) => w.move && w.move(p), up: () => w.up && w.up(),
+      frame: (t, dt) => { const vv = env.view || { x0: 0, x1: env.w }; LT = vv.x1 - vv.x0 - 32; if (veille) veille.image(performance.now()); if (w.R && w.R.perdu) { if (!w.R.gl.isContextLost()) rebuild(); return; } w.frame(t, dt); }, down: (p) => w.down && w.down(p), move: (p) => w.move && w.move(p), up: () => w.up && w.up(),
       dispose: () => w.dispose && w.dispose(),
       ui() {
         const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [
@@ -138,6 +141,8 @@
     const y0 = o.fish ? view.y0 || 0 : 0, cx = (view.x0 + view.x1) / 2, cy = (y0 + H) / 2, vw = view.x1 - view.x0;
     const C = { cx, cy, fish: !!o.fish, yaw: o.yaw || 0, pitch: o.pitch || 0 };
     C.f = (H / 2) / Math.tan((o.vfov || 90) * D2R / 2);
+    // écran étroit : la focale suit aussi la largeur, pour garder un champ horizontal minimal (l'arc entier à 390 px de large)
+    if (o.hfov) C.f = Math.min(C.f, (vw / 2) / Math.tan(o.hfov * D2R / 2));
     C.rf = Math.min(vw, H - y0) * 0.46;
     const cp = Math.cos(C.pitch), sp = Math.sin(C.pitch), cyw = Math.cos(C.yaw), syw = Math.sin(C.yaw);
     C.F = [cp * cyw, cp * syw, sp]; C.R = [syw, -cyw, 0]; C.U = [-cyw * sp, -syw * sp, cp];
@@ -170,7 +175,18 @@ vec3 viewDir(out bool ok){
       move(p) { if (!p.down) return false; const v = clamp(e0 + (y0 - p.y) * 0.12, lo, hi); const ch = v !== keep[key]; keep[key] = v; return ch; },
     };
   }
-  function txtLine(ctx, x, y, s, col) { const w = ctx.measureText(s).width; ctx.fillStyle = 'rgba(6,8,16,.55)'; ctx.fillRect(x - 6, y - 13, w + 12, 18); ctx.fillStyle = col || 'rgba(236,240,250,.92)'; ctx.fillText(s, x, y); }
+  // lignes d'état : sur un écran étroit (téléphone en portrait), une ligne trop longue se coupe en plusieurs, de bas en haut ;
+  // renvoie la hauteur de la ligne du haut, pour empiler la suivante au-dessus
+  let LT = 1e9;
+  function txtLine(ctx, x, y, s, col) {
+    const L = [];
+    let cur = '';
+    for (const m of s.split(' ')) { const t = cur ? cur + ' ' + m : m; if (cur && ctx.measureText(t).width > LT) { L.push(cur); cur = m; } else cur = t; }
+    if (cur) L.push(cur);
+    const y0 = y - (L.length - 1) * 20;
+    L.forEach((l, i) => { const yy = y0 + i * 20, w = ctx.measureText(l).width; ctx.fillStyle = 'rgba(6,8,16,.55)'; ctx.fillRect(x - 6, yy - 13, w + 12, 18); ctx.fillStyle = col || 'rgba(236,240,250,.92)'; ctx.fillText(l, x, yy); });
+    return y0;
+  }
 
   /* ═════════ scène 1 : le ciel ═════════ */
   const PLANETS = {
@@ -256,6 +272,10 @@ void main(){
     };
   }
   const E0 = 20;
+  const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  // un champ d'étoiles (partagé par le ciel et les aurores) : beaucoup de faibles, quelques brillantes
+  const champEtoiles = () => Array.from({ length: 520 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), Math.pow(Math.random(), 3) * 1.4 + 0.25]; });
+  let leger = false;   // repli (FKR.veille) : résolution de travail plus basse
   const ECHELLE = 0.6;   // fraction de la résolution de travail (tablette, et logiciel sans carte graphique) ; les textes restent nets (2D)
   const FOND = window.FKR ? window.FKR.couleur.deCss(window.FKR.FONDS.defaut) : [0.0015, 0.0018, 0.003];
   function atmosphere(R, sc) {
@@ -288,15 +308,17 @@ void main(){
         if (o.sonde === false && this.der) return this.der;
         uni(CP, NP, NP, P, s, o); K.run(PS, PR);
         gl.bindFramebuffer(gl.FRAMEBUFFER, PR.fb); gl.readPixels(0, 0, NP, NP, gl.RGBA, gl.FLOAT, buf);
-        const E = [0, 0, 0], F = C.F, cc = Math.cos(o.cone || 1);
+        const E = [0, 0, 0], F = C.F, cc = Math.cos(o.cone || 1), lums = [];
         let sl = 0, n = 0;
         for (let k = 0; k < dirs.length; k++) {
           const q = dirs[k]; if (!q) continue;
           const o4 = k * 4, w = q[2] * q[3];
           E[0] += buf[o4] * w; E[1] += buf[o4 + 1] * w; E[2] += buf[o4 + 2] * w;
-          if (C.fish || q[0] * F[0] + q[1] * F[1] + q[2] * F[2] > cc) { sl += Math.log(1e-7 + 0.2126 * buf[o4] + 0.7152 * buf[o4 + 1] + 0.0722 * buf[o4 + 2]); n++; }
+          if (C.fish || q[0] * F[0] + q[1] * F[1] + q[2] * F[2] > cc) { const l = 0.2126 * buf[o4] + 0.7152 * buf[o4 + 1] + 0.0722 * buf[o4 + 2]; sl += Math.log(1e-7 + l); n++; lums.push(l); }
         }
-        return (this.der = { E, moy: n ? Math.exp(sl / n) : 1e-7 });
+        // le ciel le plus lumineux du champ (98e centile) : la lueur de l'horizon au couchant, le ciel près du soleil
+        lums.sort((a, b) => a - b);
+        return (this.der = { E, moy: n ? Math.exp(sl / n) : 1e-7, haut: lums.length ? lums[Math.min(lums.length - 1, Math.floor(lums.length * 0.98))] : 1e-7 });
       },
     };
   }
@@ -531,13 +553,13 @@ void main(){
 }`;
   function ciel(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: leger ? 0.4 : ECHELLE });
     const atmo = atmosphere(R, 0.25), dec = decor(R, NU_CIEL);
     const PC = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + CIEL_FS));
     const lueurs = R.lot({ forme: 'gauss' });
     let C = null, dirty = true, cle = '', expo = 1, T = 0, dir = -1, info = null, tSonde = -1e9, cleSonde = '', force = true;
     const cad = cadence();
-    const stars = Array.from({ length: 260 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), rnd(1.6, 0.5)]; });
+    const stars = champEtoiles();
     const drag = dragSun(env, 'el', -18, 60);
     const drones = [];
     if (au) drones.push(au.drone(110, 'sine', 0.012), au.drone(164.8, 'sine', 0.007));
@@ -546,7 +568,7 @@ void main(){
       const v = env.view || { x0: 0, x1: W };
       if (keep.look === 'zenith') return camera(W, H, v, { fish: true });
       // horizon vers les deux tiers bas : surtout du ciel
-      return camera(W, H, v, { yaw: keep.look === 'dos' ? Math.PI : 0, pitch: 24 * D2R, vfov: 80 });
+      return camera(W, H, v, { yaw: keep.look === 'dos' ? Math.PI : 0, pitch: 24 * D2R, vfov: 80, hfov: 70 });
     }
     function render() {
       const P = PLANETS[keep.planet], s = sunVec(keep.el), terre = keep.planet === 'terre';
@@ -556,8 +578,11 @@ void main(){
       if (sonde) { tSonde = now; cleSonde = keep.look + keep.planet; }
       const r = atmo.calc(C, P, s, { haze: hz, alt, oz: keep.ozone ? P.oz : 0, cone: 55 * D2R, sonde });
       // exposition automatique : on vise une luminance moyenne du ciel vu, plus sombre la nuit
-      const target = keep.el > 0 ? 0.24 : 0.24 * Math.exp(keep.el / 5);
-      expo = clamp(target / Math.max(1e-7, r.moy), 0.05, keep.planet === 'lune' ? 1 : 5e4);
+      // soleil bas : l'horizon orangé est très lumineux ; exposé plus bas, il reste hors de l'épaule d'AgX (qui le pâlirait) et le zénith reste bleu profond
+      const bas = 0.42 + 0.58 * smoothstep(4, 20, keep.el), target = keep.el > 0 ? 0.24 * bas : 0.24 * 0.42 * Math.exp(keep.el / 5);
+      // et le ciel le plus lumineux reste sous 1,2 (hors de l'épaule d'AgX, qui pâlirait l'orangé et le rose)
+      const kh = 1.2 * Math.pow(10, smoothstep(6, 20, keep.el));   // de jour, le ciel près du soleil peut blanchir : le plafond s'efface
+      expo = clamp(Math.min(target / Math.max(1e-7, r.moy), kh / Math.max(1e-9, r.haut)), 0.05, keep.planet === 'lune' ? 1 : 5e4);
       atmo.exposer(expo);
       info = {
         P, s, Ec: r.E, ext: extinction(P, hz), Es0: eclat(sunColor(P, keep.el, alt)), Es1: eclat(sunColor(P, keep.el, alt + 1.2)),
@@ -586,12 +611,17 @@ void main(){
         if (dirty) render();
         const P = info.P;
         R.regler({ expo }).debut(dt);
-        // étoiles quand le ciel s'assombrit (scintillement lent et léger)
-        const dark = keep.planet === 'lune' ? 1 : clamp((-keep.el - 4) / 8, 0, 1);
+        // étoiles quand le ciel s'assombrit : les plus brillantes dès le crépuscule nautique (−6°), toutes à −18° (nuit astronomique) ;
+        // sur la Lune, toutes, en plein jour. Scintillement lent et léger.
+        const lim = keep.planet === 'lune' ? 0.2 : 1.5 - 1.3 * clamp((-keep.el - 6) / 12, 0, 1);
         lueurs.vider();
-        if (dark > 0) {
+        if (keep.planet === 'lune' || keep.el < -5) {
           const tw = env.doux ? 0.1 : 0.22;
-          for (const st of stars) { const p = C.proj(st); if (!p) continue; const v = (2.4 * dark * st[3] * (1 + tw * Math.sin(T * 1.7 + st[3] * 41))) / expo; lueurs.point(p[0], p[1], 0.55 + 0.3 * st[3], v * 0.92, v * 0.96, v); }
+          for (const st of stars) {
+            const w = smoothstep(lim - 0.05, lim + 0.15, st[3]); if (w <= 0) continue;
+            const p = C.proj(st); if (!p) continue;
+            const v = (1.8 * w * st[3] * (1 + tw * Math.sin(T * 1.7 + st[3] * 41))) / expo; lueurs.point(p[0], p[1], 0.5 + 0.25 * st[3], v * 0.92, v * 0.96, v);
+          }
         }
         lueurs.dessiner();
         // le ciel, le soleil (disque grossi trois fois), les nuages et le paysage, éclairés par la lumière du moment
@@ -617,7 +647,7 @@ void main(){
           if (e >= 0 && am) st += ` · LA LUMIÈRE TRAVERSE ${fr(am, am < 10 ? 1 : 0)} FOIS L’ÉPAISSEUR D’AIR DU ZÉNITH`;
           else if (e > -6) st += ' · CRÉPUSCULE CIVIL'; else if (e > -12) st += ' · CRÉPUSCULE NAUTIQUE'; else st += ' · CRÉPUSCULE ASTRONOMIQUE';
         }
-        txtLine(ctx, x0, y, st, 'rgba(255,236,200,.95)'); y -= 20;
+        y = txtLine(ctx, x0, y, st, 'rgba(255,236,200,.95)') - 20;
         if (keep.look === 'dos' && keep.planet === 'terre' && e < 1 && e > -7) txtLine(ctx, x0, y, 'AU-DESSUS DE L’HORIZON : L’OMBRE DE LA TERRE (BLEU SOMBRE), PUIS LA CEINTURE DE VÉNUS (ROSE)');
         if (keep.look === 'zenith' && keep.planet === 'terre' && e < 0 && e > -8) txtLine(ctx, x0, y, keep.ozone ? 'LE BLEU DU ZÉNITH AU CRÉPUSCULE : SURTOUT L’OZONE, QUI ABSORBE L’ORANGÉ' : 'SANS OZONE, LE ZÉNITH DU CRÉPUSCULE TOURNE AU GRIS');
         cad.fait();
@@ -697,7 +727,7 @@ void main(){
 
   function arc(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: leger ? 0.4 : ECHELLE });
     const atmo = atmosphere(R, 0.25), dec = decor(R, NU_ARC);
     const PB = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + ARC_FS));
     let LUT = null, lutA = -1, lutT = 0;
@@ -806,7 +836,7 @@ void main(){
       vuePrec = keep.view;
       if (k !== cle) {
         cle = k;
-        C = camera(W, H, v, { yaw: Math.PI, pitch: 20 * D2R, vfov: 76 });
+        C = camera(W, H, v, { yaw: Math.PI, pitch: 20 * D2R, vfov: 76, hfov: 96 });
         const P = PLANETS.terre, s = sunVec(keep.rbEl);
         const r = atmo.calc(C, P, s, { haze: 1, alt: 0, oz: P.oz, cone: 50 * D2R });
         // le nuage d'averse assombrit la vue : on expose un peu plus que pour un ciel clair
@@ -830,7 +860,7 @@ void main(){
       ctx.font = '500 11px "JetBrains Mono", monospace';
       const top1 = 42 - keep.rbEl, top2 = 51 - keep.rbEl;
       let y = H - 18;
-      txtLine(ctx, x0, y, `SOLEIL DANS VOTRE DOS À ${fr(keep.rbEl, 1)}° · GOUTTES DE ${fr(keep.drop * 2, keep.drop < 0.05 ? 2 : 1)} MM DE DIAMÈTRE`, 'rgba(255,236,200,.95)'); y -= 20;
+      y = txtLine(ctx, x0, y, `SOLEIL DANS VOTRE DOS À ${fr(keep.rbEl, 1)}° · GOUTTES DE ${fr(keep.drop * 2, keep.drop < 0.05 ? 2 : 1)} MM DE DIAMÈTRE`, 'rgba(255,236,200,.95)') - 20;
       txtLine(ctx, x0, y, top1 > 0 ? `HAUT DE L’ARC À ${fr(top1, 0)}° AU-DESSUS DE L’HORIZON · ARC SECONDAIRE À ${fr(top2, 0)}°` : `SOLEIL TROP HAUT : L’ARC PRINCIPAL EST SOUS L’HORIZON${top2 > 0 ? ' (LE SECONDAIRE DÉPASSE ENCORE)' : ''}`);
       if (snd() && T - lastRain > 0.5) { lastRain = T; au.noise(0.7, 0.01, rnd(4000, 2500), 0.5, 'bandpass'); }
       cad.fait();
@@ -902,7 +932,7 @@ void main(){
     const acc = new Float32Array(GW * GH * 3), octets = new Uint8Array(GW * GH * 4);
     let nT = 0, C = null, s = null, key = '', cleC = '', expo = 1, info = null, nf = 0, neuf = true;
     const cad = cadence();
-    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], plafond: 1, echelle: leger ? 0.4 : ECHELLE });
     const atmo = atmosphere(R, 0.25), dec = decor(R, NU_HALO);
     const PH = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + HALO_FS));
     const gl = R.gl, texH = gl.createTexture();
@@ -982,7 +1012,7 @@ void main(){
     }
     function setup() {
       const v = env.view || { x0: 0, x1: W };
-      C = keep.proj === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: clamp(keep.hEl + 10, 25, 55) * D2R, vfov: 100 });
+      C = keep.proj === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: clamp(keep.hEl + 10, 25, 55) * D2R, vfov: 100, hfov: 80 });
       s = sunVec(keep.hEl);
       acc.fill(0); nT = 0;
       const k = [keep.hEl, keep.proj, W, H, v.x0, v.x1].join('|');
@@ -1059,7 +1089,7 @@ void main(){
         const v = env.view || { x0: 0, x1: W }, x0 = v.x0 + 16;
         ctx.font = '500 11px "JetBrains Mono", monospace';
         let y = H - 18;
-        txtLine(ctx, x0, y, `${(nT / 1e6).toFixed(1).replace('.', ',')} MILLION${nT >= 2e6 ? 'S' : ''} DE RAYONS · SOLEIL À ${fr(keep.hEl, 1)}°`, 'rgba(255,236,200,.95)'); y -= 20;
+        y = txtLine(ctx, x0, y, `${(nT / 1e6).toFixed(1).replace('.', ',')} MILLION${nT >= 2e6 ? 'S' : ''} DE RAYONS · SOLEIL À ${fr(keep.hEl, 1)}°`, 'rgba(255,236,200,.95)') - 20;
         if (keep.mix.plaques > 0.05) txtLine(ctx, x0, y, keep.hEl < 32.2 ? 'PLAQUETTES : PARHÉLIES DE PART ET D’AUTRE DU SOLEIL, ARC CIRCUMZÉNITHAL AU-DESSUS (SOLEIL SOUS 32°)' : 'SOLEIL AU-DESSUS DE 32° : L’ARC CIRCUMZÉNITHAL A DISPARU');
         cad.fait();
       },
@@ -1128,7 +1158,7 @@ void main(){
   if (uOeilNu > .5){
     // à l'œil nu : la vision de nuit (bâtonnets) voit la luminance seule ou presque, légèrement bleutée ; une aurore faible paraît grise ou vert pâle
     float sc = dot(e, vec3(.42, .006, .2)) * uI + dot(air, vec3(.05, .55, .45));
-    L = mix(sc * vec3(.82, .9, 1.08), L * .45, .14 + .3 * smoothstep(.4, 1., uForce));
+    L = mix(sc * vec3(.82, .9, 1.08), L * .6, .08 + .72 * smoothstep(.45, .95, uForce));   // une aurore forte garde ses couleurs à l'œil nu
   }
   o = vec4(L, 0.);
 }`;
@@ -1161,7 +1191,7 @@ void main(){
 
   function aurores(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: leger ? 0.4 : ECHELLE });
     const K = R.K, dec = decor(R, NU_VIDE);
     const AUR = K.target(Math.max(2, R.cw >> 1), Math.max(2, R.ch >> 1));
     const PA = K.program(FKR.fs(['bruit'], camGLSL + AUR_FS));
@@ -1170,7 +1200,7 @@ void main(){
     // les raies (FKR) : oxygène vert et rouge, azote bleu-violet ; la palette d'altitude pour la légende
     const cv = FKR.couleur.melange('aurore_verte').rgb, cr = FKR.couleur.melange('aurore_rouge').rgb, cb = FKR.couleur.melange('aurore_bleue').rgb;
     const pal = FKR.palette.aurore(), palCss = [0, 0.2, 0.35, 0.5, 0.7, 0.85, 1].map((t) => [t, FKR.couleur.css(pal(t))]);
-    const stars = Array.from({ length: 520 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), Math.pow(Math.random(), 3) * 1.4 + 0.25]; });
+    const stars = champEtoiles();
     let C = null, cle = '', T = 0, y0 = 0, f0 = 0, force = true;
     const drones = [];
     if (au) drones.push(au.drone(73.4, 'sine', 0.008));
@@ -1183,16 +1213,17 @@ void main(){
         const v = env.view || { x0: 0, x1: W }, lac = keep.auDecor === 'lac';
         const k = [keep.auRegard, keep.auDecor, W, H, v.x0, v.x1].join('|');
         // les rideaux ondulent : 24 images par seconde au plus, et jamais plus de 2,5 fois le coût mesuré d'un rendu
-        if (!cad.ok(force || k !== cle, 42)) return;
+        if (!cad.ok(force || k !== cle, 67)) return;   // 15 images par seconde suffisent : les rideaux bougent en quelques secondes
         force = false;
         if (k !== cle) {
           cle = k;
-          C = keep.auRegard === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: 22 * D2R, vfov: 80 });
+          C = keep.auRegard === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: 22 * D2R, vfov: 80, hfov: 70 });
           dec.calc(C, W, H, { oeil: 0.004, sol: lac ? SOLS.terre : SOLS.neige, lac: lac ? 1 : 0, yaw: 0, rangs: lac ? RANGS.ciel : RANGS.halos, diam: 2 * RAYON.terre });
         }
         const oeil = keep.auVision === 'oeil' ? 1 : 0, a = keep.auForce, I = (0.12 + 0.6 * a) * 0.45;
         // le paysage n'est éclairé que par l'aurore (surtout son vert) et par la lueur du ciel
-        const Ec = [0, 1, 2].map((q) => (cv[q] * 0.8 + cr[q] * 0.1 * a) * I * 0.7 + [0.003, 0.0035, 0.005][q]);
+        // la neige : éclairée surtout par le ciel de nuit (bleuté), avec un reflet vert discret de l'aurore
+        const Ec = [0, 1, 2].map((q) => ((cv[q] * 0.8 + cr[q] * 0.1 * a) * I * 0.07 + [0.007, 0.0105, 0.024][q]) * (oeil ? 1 : 2));   // la pose longue accumule aussi la lumière du sol
         R.regler({ expo: 1 }).debut(dt);
         lueurs.vider();
         for (const st of stars) { const p = C.proj(st); if (!p) continue; const e = 1.1 * st[3] * (1 + 0.08 * Math.sin(T * 1.3 + st[3] * 57)); lueurs.point(p[0], p[1], 0.5 + 0.25 * st[3], e * (oeil ? 0.85 : 0.95), e * (oeil ? 0.92 : 0.97), e); }
@@ -1211,7 +1242,15 @@ void main(){
           ctx.fillText('ZÉNITH', C.cx, C.cy - 6); ctx.fillText('NORD', C.cx, C.cy + C.rf + 16); ctx.fillText('SUD', C.cx, C.cy - C.rf - 8); ctx.textAlign = 'left';
         }
         // en photo : la couleur selon l'altitude (FKR.palette.aurore), du bord inférieur violet au rouge du sommet
-        if (!oeil) {
+        if (!oeil && v.x1 - v.x0 < 640) {
+          const lx = v.x0 + 16, ly = (v.y0 || 0) + 34, lw = Math.min(200, v.x1 - v.x0 - 40);
+          const gr = ctx.createLinearGradient(lx, 0, lx + lw, 0);
+          for (const [tt, css] of palCss) gr.addColorStop(tt, css);
+          ctx.fillStyle = 'rgba(6,8,16,.55)'; ctx.fillRect(lx - 8, ly - 22, lw + 16, 50);
+          ctx.fillStyle = gr; ctx.fillRect(lx, ly, lw, 7);
+          ctx.fillStyle = 'rgba(236,240,250,.85)';
+          ctx.fillText('ALTITUDE', lx, ly - 8); ctx.fillText('90 KM', lx, ly + 20); ctx.textAlign = 'right'; ctx.fillText('300 KM', lx + lw, ly + 20); ctx.textAlign = 'left';
+        } else if (!oeil) {
           const lx = v.x1 - 54, ly0 = (v.y0 || 0) + 40, ly1 = ly0 + Math.min(220, H * 0.3);
           const gr = ctx.createLinearGradient(0, ly1, 0, ly0);
           for (const [tt, css] of palCss) gr.addColorStop(tt, css);
@@ -1223,8 +1262,8 @@ void main(){
         const x0 = v.x0 + 16;
         ctx.font = '500 11px "JetBrains Mono", monospace';
         let y = H - 18;
-        txtLine(ctx, x0, y, `AURORE ${nomForce(a).toUpperCase()} · ${oeil ? 'À L’ŒIL NU' : 'EN PHOTO (POSE LONGUE)'} · ENTRE 100 ET 300 KM D’ALTITUDE, BIEN AU-DESSUS DES NUAGES`, 'rgba(255,236,200,.95)'); y -= 20;
-        txtLine(ctx, x0, y, oeil ? 'LA VISION DE NUIT VOIT MAL LES COULEURS : UNE AURORE FAIBLE PARAÎT GRISE OU VERT PÂLE' : 'VERT : OXYGÈNE (557,7 NM) · ROUGE, PLUS HAUT : OXYGÈNE (630 NM) · BORD INFÉRIEUR VIOLET : AZOTE');
+        y = txtLine(ctx, x0, y, `AURORE ${nomForce(a).toUpperCase()} · ${oeil ? 'À L’ŒIL NU' : 'EN PHOTO (POSE LONGUE)'} · ENTRE 100 ET 300 KM D’ALTITUDE, BIEN AU-DESSUS DES NUAGES`, 'rgba(255,236,200,.95)') - 20;
+        txtLine(ctx, x0, y, oeil ? (a > 0.6 ? 'À L’ŒIL NU, UNE AURORE FORTE GARDE SES COULEURS ; FAIBLE, ELLE PARAÎT GRISE OU VERT PÂLE' : 'LA VISION DE NUIT VOIT MAL LES COULEURS : UNE AURORE FAIBLE PARAÎT GRISE OU VERT PÂLE') : 'VERT : OXYGÈNE (557,7 NM) · ROUGE, PLUS HAUT : OXYGÈNE (630 NM) · BORD INFÉRIEUR VIOLET : AZOTE');
         cad.fait();
       },
       // glisser de haut en bas : l'aurore s'intensifie ou s'apaise

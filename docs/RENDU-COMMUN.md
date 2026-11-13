@@ -3,6 +3,7 @@
 `app/js/fkrendu.js` expose `window.FKR`, la bibliothèque de rendu partagée par les branches de reprise visuelle (`rendu-a`, `rendu-b`). Elle généralise ce qui rend le Feu beau, pour que toutes les machines parlent la même langue visuelle.
 
 - **Une seule bibliothèque**, par décision du CEO (13/11, 0 h 55) : FKR. Rendu B en est propriétaire ; pour une demande, s'adresser à elle.
+- **Sources de couleur** : relues et validées par Kurt (13/11). Le rapport Hα/Hβ ≈ 4 de la palette « nébuleuse » est un rougissement par la poussière, choisi pour le réalisme ; la valeur intrinsèque est 2,86 (cas B).
 - **Réglages par défaut** : ceux de la direction artistique de Fausta (`design/fascinations/DA-rendu.md`, dépôt Lbxp, 059035f) :
   - AgX ;
   - halo à seuil 1,0 et d'intensité 0,06 ;
@@ -159,7 +160,9 @@ Les couleurs sont renvoyées en sRGB linéaire, normalisées au maximum = 1. Les
 - `eau(m)` : renvoie `{ rgb, Y }`, la lumière du jour après m mètres d'eau pure (Pope et Fry 1997).
 - `rayleigh()` : le bleu du ciel.
 - `etoile('O'…'M' | T)` : la couleur d'une étoile.
-- `son(hz)` : l'**échelle commune du son** (DA). 55 Hz donne 700 nm (rouge), 3 520 Hz donne 400 nm (violet). Spectre, Harpe, Pendules et Illusions sonores l'utilisent tous.
+- `son(hz)` : l'**échelle commune du son** (DA). 55 Hz donne 700 nm (rouge), 3 520 Hz donne 400 nm (violet). Harpe, Spectre et Cymatiques l'utilisent tous, comme les Pendules et les Illusions sonores s'ils en ont besoin.
+  - **C'est une convention.** Aucun lien physique ne relie la hauteur d'un son à une couleur (Kurt, 13/11).
+  - Chaque machine qui l'utilise doit le dire à l'écran, par exemple dans sa légende : « couleurs choisies pour repérer les notes ».
 - `bande('phosphore')` : le vert P31 des oscilloscopes.
 - `spectre(fn)` : n'importe quel spectre.
 - Outils :

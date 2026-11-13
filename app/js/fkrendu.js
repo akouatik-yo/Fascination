@@ -159,7 +159,9 @@
   const CLASSES = { O: 38000, B: 18000, A: 8800, F: 6800, G: 5700, K: 4500, M: 3300 };
   const etoile = (c) => corpsNoir(typeof c === 'number' ? c : CLASSES[c] || 5700);
   // l'échelle commune du son (DA) : une fréquence devient une couleur du spectre, graves rouges, aigus violets ;
-  // 55 Hz (la grave) → 700 nm, 3 520 Hz (six octaves plus haut) → 400 nm ; la même dans toutes les machines du son
+  // 55 Hz (la grave) → 700 nm, 3 520 Hz (six octaves plus haut) → 400 nm ; la même dans toutes les machines du son.
+  // C'EST UNE CONVENTION : aucun lien physique entre la hauteur d'un son et une couleur ; le dire à l'écran
+  // (« couleurs choisies pour repérer les notes »).
   const son = (hz) => raie(Math.round(700 - 300 * clamp(Math.log2(Math.max(1, hz) / 55) / 6, 0, 1)));
 
   // conversions utiles pour l'interface : linéaire ↔ sRGB et code css

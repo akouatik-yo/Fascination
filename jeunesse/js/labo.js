@@ -12,6 +12,8 @@
   const $ = (id) => document.getElementById(id);
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const fr = (x, d = 0) => Number(x).toFixed(d).replace('.', ',');
+  // typographie française : une espace fine insécable avant ? ! ; » et après « (le « ? » ne finit jamais seul en début de ligne)
+  const typo = (t) => t.replace(/[ \u00a0]([?!;:»])/g, '\u202f$1').replace(/« /g, '«\u202f');
   function h(tag, attrs, ...kids) {
     const e = document.createElement(tag);
     if (attrs) for (const k in attrs) {
@@ -22,7 +24,7 @@
       else if (k === 'style') e.setAttribute('style', v);
       else e.setAttribute(k, v === true ? '' : v);
     }
-    for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(String(c)));
+    for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(typo(String(c))));
     return e;
   }
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* rien */ } } };
@@ -411,7 +413,7 @@
   let rz = 0;
   window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(redimension, 250); });
   function redimension() {
-    appliquerProfil();
+    appliquerProfil(); placerTitre();
     if (!S.env) return;
     const W = window.innerWidth, H = window.innerHeight;
     if (Math.abs(W - S.env.w) < 2 && Math.abs(H - S.env.h) < 2) { boiteAuxLettres(false); return; }
@@ -485,7 +487,10 @@
   }
   function nomMachine() { return (S.meta && S.meta.nom) || S.def.name; }
   function rendreHaut() {
-    $('nom').textContent = nomMachine();
+    const qq = questionParId(S.q), titre = qq ? qq.q : nomMachine();
+    const nomEl = $('nom'); nomEl.textContent = typo(titre); nomEl.setAttribute('aria-label', titre + ' : pourquoi ?');
+    const ec = $('titreEcoute'); if (ec) { ec.textContent = ''; const b = boutonEcouter(titre); if (b) { b.classList.add('rond'); ec.append(b); } }
+    placerTitre();
     const box = $('scenes'); box.textContent = '';
     // le chemin de la question : un chapitre = une machine et une scène, du plus simple au plus profond
     const q = questionParId(S.q), chap = q ? chapitresVisibles(q) : Object.keys(S.meta.scenes || {}).map((k) => [S.id, k]);
@@ -496,7 +501,7 @@
       const ici = m === S.id && (k === S.scene || !k);
       box.append(h('button', { class: 'pil' + (ici ? ' on' : '') + (m !== S.id ? ' autre' : ''), 'aria-pressed': ici ? 'true' : 'false', 'aria-label': 'Chapitre ' + (i + 1) + ' : ' + (sc.nom || meta.nom || m),
         onclick: () => { if (ici) return; if (m === S.id && k) changerScene(k); else aller(m, { scene: k || undefined, q: S.q }); } },
-        h('i', { class: 'num' }, String(i + 1)), sc.nom || meta.nom || m));
+        h('i', { class: 'num' }, String(i + 1)), h('span', { class: 'txt' }, sc.nom || meta.nom || m)));
     });
     const on = box.querySelector('.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ } }
   }
@@ -526,8 +531,11 @@
     const sc = S.scene && S.meta.scenes[S.scene];
     let acts = (sc && sc.actions) || S.meta.actions || [];
     if (typeof acts === 'string') acts = (S.meta.groupesActions && S.meta.groupesActions[acts]) || [];
+    const racine = (t) => FJ.norme(t).replace(/^tout /, '').slice(0, 5);
+    const verbes = outilsVisibles().map((t) => racine(verbe(t)));
     for (const a of acts) {
       const r = pilote.get(a.chemin); if (!r || r.kind !== 'bouton') continue;
+      if (verbes.includes(racine(a.nom || r.it.label))) continue;
       box.append(h('button', { class: 'action', onclick: () => { const rr = pilote.get(a.chemin); if (rr && rr.it) rr.it.act(); S.touche = true; son('action'); } },
         FJ.icone(a.icone || 'etincelles'), h('span', null, a.nom || r.it.label)));
     }
@@ -608,7 +616,7 @@
     f.append(h('div', { class: 'tete' }, h('b', null, q ? q.q : (S.meta.question || nomMachine())),
       boutonEcouter(() => [q ? q.q : '', ...vus.map((x) => (x.titre ? x.titre + ' : ' : '') + x.t)].join(' ')),
       h('button', { class: 'x', 'aria-label': 'Fermer', onclick: fermerFil }, FJ.icone('fermer'))));
-    for (const x of vus) f.append(h('p', { class: 'cran ' + x.k }, x.titre ? h('b', null, x.titre + ' · ') : null, ...texteRiche(x.t)));
+    for (const x of vus) f.append(h('p', { class: 'cran ' + x.k }, x.titre ? h('b', null, x.titre) : null, x.titre ? ' ' : null, ...texteRiche(x.t)));
     const pied = h('div', { class: 'pied' }); f.append(pied);
     if (filCran < mx.length - 1) pied.append(h('button', { class: 'bt grand', onclick: () => { filCran++; rendreFil(); son('outil'); } }, FJ.icone('suiv'), h('span', null, 'encore')));
     if (niveau() >= 2 || filCran >= mx.length - 1) pied.append(h('button', { class: 'bt doux', onclick: () => { fermerFil(); ouvrirTiroir('pourquoi'); } }, FJ.icone('pourquoi'), h('span', null, niveau() >= 2 ? 'Pour les curieux' : 'Tout lire')));
@@ -621,12 +629,33 @@
     if (S.tiroir === nom) { fermerTiroir(); return; }
     fermerFil();
     S.tiroir = nom; $('tiroir').hidden = false; app.classList.add('tiroir-ouvert');
-    rendreTiroir(); rendreDroite(); son('tiroir');
+    rendreTiroir(); rendreDroite(); son('tiroir'); placerChemin();
   }
   function fermerTiroir() {
     voix.taire();
     S.tiroir = null; const t = $('tiroir'); if (t) { t.hidden = true; t.textContent = ''; }
-    app.classList.remove('tiroir-ouvert'); if (S.def) rendreDroite();
+    app.classList.remove('tiroir-ouvert'); if (S.def) rendreDroite(); placerChemin();
+  }
+  // le titre (la question) se loge entre les deux grappes du haut, quelle que soit la taille des boutons
+  function placerTitre() {
+    const t = $('haut'), g = $('hg'), d = $('hd'); if (!t || !g || !d) return;
+    const k = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k')) || 1;
+    const etroit = window.innerWidth <= 640;
+    if (etroit) { t.style.maxWidth = ''; return; }   // téléphone : le titre passe sous les grappes (CSS)
+    const marge = Math.max(g.getBoundingClientRect().right, window.innerWidth - d.getBoundingClientRect().left) + 12;
+    t.style.maxWidth = Math.max(200, (window.innerWidth - 2 * marge) / k) + 'px';
+  }
+  // tiroir ouvert : le chemin et les actions se rangent dans la largeur qui reste à gauche du tiroir
+  function placerChemin() {
+    const t = $('tiroir'), ch = $('scenes'), ac = $('actions');
+    for (const el of [ch, ac]) if (el) { el.style.maxWidth = ''; el.style.left = ''; }
+    if (!S.tiroir || !t || t.hidden) return;
+    const r = t.getBoundingClientRect(); if (r.top > window.innerHeight * 0.3) return;   // tiroir en bas (portrait) : rien à faire
+    const k = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k')) || 1;
+    const libre = r.left - 2 * 120 * k;
+    for (const el of [ch, ac]) if (el) el.style.maxWidth = Math.max(160, (libre - 40) / k) + 'px';
+    if (ch) ch.style.left = (120 * k + libre / 2) / k + 'px';
+    if (ac) ac.style.left = (120 * k + libre / 2) / k + 'px';
   }
   let laboOuvert = false, ctrlLabo = null, ctrlLeviers = null;
   function rendreTiroir() {
@@ -987,7 +1016,7 @@
     const box = $('carte'); box.textContent = '';
     const logo = h('div', { class: 'logo', title: 'Appui long : le coin des grands' }, h('b', null, 'Fascinations'), h('span', null, 'labo'));
     appuiLong(logo, ouvrirParents);
-    box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${FJ.QUESTIONS.filter((q) => FJ.chapitresDe(q).some(([m]) => S.vus.has(m))).length} / ${FJ.QUESTIONS.length} questions explorées`),
+    box.append(h('div', { class: 'tete' }, logo, 
       h('button', { class: 'bt', onclick: () => { ecran(null); aller(sac.suivant()); } }, FJ.icone('encore'), h('span', null, 'Au hasard')),
       h('button', { class: 'bt', onclick: () => ouvrirCarnet() }, FJ.icone('carnet'), h('span', null, 'Mon carnet')),
       h('button', { class: 'bt profil', 'aria-label': 'Qui joue ?', onclick: ouvrirAccueil }, S.profil ? avatar(S.profil.avatar) : FJ.icone('mains'), h('span', null, 'Qui joue ?')),
@@ -1007,6 +1036,7 @@
         const v = h('button', { class: 'vignette' + (vue ? ' vue' : '') + (ici ? ' ici' : ''), onclick: () => { ecran(null); if (!ici) aller(m0, { scene: s0 || undefined, q: qid }); } },
           img ? h('img', { src: img, alt: '' }) : h('div', { class: 'ph' }, FJ.icone(w.icone)),
           h('b', null, q.q), ms.length > 1 ? h('span', null, ms.length + ' machines · ' + FJ.chapitresDe(q).length + ' chapitres') : null);
+        const ec = boutonEcouter(q.q); if (ec) { ec.classList.add('rond', 'surVignette'); ec.addEventListener('click', (e) => e.stopPropagation()); v.append(ec); }
         rang.append(v);
       }
       box.append(sec);
@@ -1089,20 +1119,20 @@
     app.classList.toggle('calme', S.prefs.calme);
     appliquerProfil(); laboOuvert = niveau() >= 4;
     $('bCarte').append(FJ.icone('carte'), h('span', null, 'Carte'));
-    $('bPrec').append(FJ.icone('prec')); $('bSuiv').append(FJ.icone('suiv'));
+
     $('bPourquoi').append(FJ.icone('pourquoi'), h('span', null, 'Pourquoi ?'));
     $('bBidouiller').append(FJ.icone('bidouiller'), h('span', null, 'Bidouiller'));
-    $('bEncore').append(FJ.icone('encore'), h('span', null, 'Encore !'));
+    $('bEncore').append(FJ.icone('encore'), h('span', null, 'Au hasard'));
     $('bPhoto').append(FJ.icone('photo'), h('span', null, 'Photo'));
     $('remplir').append(FJ.icone('spectacle'), h('span', null, 'Remplir l’écran'));
     $('sortie').append(FJ.icone('fermer'));
     $('bCarte').onclick = ouvrirCarte;
     $('bJoueur').onclick = ouvrirAccueil;
-    $('bPrec').onclick = precedent; $('bSuiv').onclick = suivant;
-    $('nom').onclick = () => ouvrirTiroir('pourquoi');
+
+    $('nom').onclick = basculerFil;
     $('bSon').onclick = basculerSon; $('bPause').onclick = basculerPause;
     $('bPourquoi').onclick = basculerFil; $('bBidouiller').onclick = () => ouvrirTiroir('bidouiller');
-    $('bEncore').onclick = encore; $('bPhoto').onclick = photo;
+    $('bEncore').onclick = () => { aller(sac.suivant()); son('encore'); }; $('bPhoto').onclick = photo;
     $('remplir').onclick = () => { if (confirm('Remplir l’écran ? La machine sera recréée avec les mêmes réglages, mais ce que tu as construit sera perdu.')) ouvrir(S.id, { etat: etatCourant() }); };
     $('sortie').onclick = () => spectacle(false);
     $('carton').onclick = effacerCarton;

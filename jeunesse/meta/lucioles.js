@@ -25,7 +25,7 @@ FJ.fiche('lucioles', {
     lacher: { verbe: 'Lâche', aide: 'Touche pour lâcher des lucioles. Choisis leur espèce dans Bidouiller : synchrones, ver luisant, femme fatale…' },
   },
   leviers: {
-    voir: { chemin: 'comportement/couplage des synchrones', nom: 'Attention aux voisines', bouts: ['aveugles', 'très attentives'] },
+    voir: { chemin: 'comportement/couplage des synchrones', nom: 'Entraînement des synchrones', bouts: ['aveugles', 'très attentives'] },
     voirP: { chemin: 'comportement/couplage des pteroptyx', nom: 'Attention aux voisines', bouts: ['aveugles', 'très attentives'] },
     lune: { chemin: 'la nuit/clair de lune', nom: 'Clair de lune', bouts: ['nouvelle lune', 'pleine lune'] },
     ville: { chemin: 'la nuit/pollution lumineuse', nom: 'Lumières de la ville', bouts: ['nuit noire', 'ville tout près'] },

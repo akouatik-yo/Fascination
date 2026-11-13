@@ -56,3 +56,8 @@ Brief de Kurt : « transparent, blanc par diffusion, avec des reflets ; fond som
 
 - **Avant** : disques bleus concentriques (le champ de vapeur et une lueur bleue au centre), flocon bleuté. **Après** : en lumière linéaire, développé par la cabine. Le flocon est posé sur une étoffe sombre et floue, comme sur les photographies de flocons. La glace est transparente (on voit l'étoffe au travers) ; elle diffuse en blanc sur ses arêtes ; deux lumières s'y reflètent, et les reflets scintillent quand le flocon tourne lentement. Dans les lames les plus minces, des irisations d'interférence (`filmMince` de FKR, indice 1,31). Les cernes de croissance restent.
 - La science ne change pas : automate de Reiter, conditions du diagramme de Nakaya, « Voyage dans le nuage ». Les scènes Givre, Surfusion et Chaufferette gardent leur rendu (prochaine étape), comme le mode sans décor.
+
+## La Foudre (`s-foudre.js`) : l'attente entre deux éclairs
+
+- **Avant** : entre deux éclairs, un écran presque noir. **Après** : sous l'orage, la lueur orangée des villes (lampes au sodium) éclaire le bas du ciel et le dessous des nuages, dont les bourrelets ressortent ; la pluie en reçoit un peu. C'est ce que montrent les photographies d'orages nocturnes près des villes. Tramage ajouté contre les bandes du dégradé sombre.
+- Rien ne change aux éclairs, aux flashs adoucis ni au mode doux. La suite (le canal en lumière linéaire, avec son halo violet d'azote) reste à faire.

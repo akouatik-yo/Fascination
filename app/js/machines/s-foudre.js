@@ -38,6 +38,9 @@ void main(){
   vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
   float y = px.y / uRes.y, x = px.x / uRes.y;
   vec3 sky = mix(vec3(.010, .012, .022), vec3(.040, .036, .050), smoothstep(.15, .9, y));
+  // les lumières des villes, sous l'horizon, éclairent en orange (sodium) le bas du ciel et le dessous des nuages
+  vec3 ville = vec3(.15, .066, .018);
+  sky += ville * .8 * smoothstep(.45, 1., y) * smoothstep(.35, 1., y);
   float L = lights(px);
   vec2 q = vec2(x * 1.5 + uT * .006, y * 2.4);
   float n = fbm5(q * 2.1 + vec2(0., uT * .004));
@@ -49,9 +52,12 @@ void main(){
   vec3 lc = vec3(.78, .76, 1.);
   // dans le nuage, la lumière diffuse : les parties épaisses s'éclairent, les trous restent sombres
   vec3 cloud = vec3(.026, .028, .040) * (.6 + .8 * n2) + lc * L * (.2 + 1.2 * n2 * n2);
+  // le dessous du nuage reçoit la lueur de la ville : les bourrelets ressortent, les creux restent sombres
+  cloud += ville * (.25 + 1.6 * n2 * n2) * smoothstep(base - .32, base + .02, y);
   vec3 col = mix(sky + lc * L * .2, cloud, dens);
   float rn = rainL(px, 3., .9, .3) * .55 + rainL(px + 50., 5., 1.25, .22);
-  col += rn * uRain * smoothstep(base - .02, base + .08, y) * (vec3(.035, .04, .05) + lc * L * .45);
+  col += rn * uRain * smoothstep(base - .02, base + .08, y) * (vec3(.035, .04, .05) + ville * .5 + lc * L * .45);
+  col += (hash12(px + fract(uT) * 97.) - .5) / 255.;   // tramage : pas de bandes dans les dégradés sombres
   o = vec4(col, 1.);
 }`;
   const FS_ATMO = HEAD + FBM + `

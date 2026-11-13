@@ -234,3 +234,9 @@ Tout est poussé sur `rendu-a` (dernier commit 76e9960). Rien n'est en cours.
 5. **Atlas de Turing** : les étiquettes « f 0,08 » et « f 0,02 » sont cachées sous les barres.
 6. **Mycélium, combat** : encore quatre îlots dans le noir (le sol est trop sombre) ; la pousse est à voir sur tablette.
 7. **Lignes d'état** cachées par les boutons du bas (toutes les machines) : marge basse dans `env.view` côté shell (Kurt). Recontrôle dans app-unique une fois intégré (bande de 28 px).
+
+**Mise à jour (23 h 30, réponse de Kurt)** :
+- Tout jusqu'à 76e9960 est intégré en v38, sans recette. « Au-dessus des orages » est revenu dans le parcours, et Kurt a vérifié la règle à 390 px.
+- Point 1 : accord sur le fond pour une persistance de l'azote à 0,7 an. Il faut l'annoncer comme un ordre de grandeur, puisqu'il varie avec le sol et l'espèce. C'est pour la reprise.
+- Point 2 : le carton du début est corrigé côté shell (9e481e8). Reste le recontrôle de Constance, inscrit au registre comme livré et non recetté.
+- Point 7 : la marge basse des lignes d'état reste ouverte chez Kurt.

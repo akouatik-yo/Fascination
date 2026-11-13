@@ -100,33 +100,41 @@
         const g = farL.g, gm = layM.g;
         const ridge = (base, amp, nT, tH, col, seed, mc) => {
           const n = Math.ceil(W / 3) + 2, hg = new Float32Array(n);
-          for (let i = 0; i < n; i++) { const x = i * 3; hg[i] = amp * (0.5 + 0.5 * Math.sin(x * 0.0031 + seed)) + amp * 0.35 * Math.sin(x * 0.011 + seed * 2); }
+          // une masse de forêt continue (pas de trou en V entre deux arbres), qui ondule lentement
+          for (let i = 0; i < n; i++) { const x = i * 3; hg[i] = amp * (0.5 + 0.5 * Math.sin(x * 0.0031 + seed)) + amp * 0.35 * Math.sin(x * 0.011 + seed * 2) + tH * (0.42 + 0.08 * Math.sin(x * 0.006 + seed * 3)); }
           for (let k = 0; k < nT; k++) {
-            // un bois varié, pas une scie : des hauteurs et des largeurs très différentes, des conifères (flèche)
-            // et des feuillus (dôme) mêlés, chacun un peu penché et bosselé
-            const x0 = rnd(W), h = tH * (0.3 + 1.3 * Math.pow(Math.random(), 1.7)), kind = Math.random();
-            const w = h * (kind < 0.5 ? rnd(0.22, 0.12) : rnd(0.62, 0.3)), lean = rnd(0.5, -0.5);
-            const taper = kind < 0.5 ? rnd(1.5, 0.8) : 1, bump = rnd(3.5, 1.5), ph = rnd(TAU);
+            // un bois varié : surtout des feuillus en dômes (2 à 4 lobes à l'échelle de la couronne, jamais de dents fines),
+            // quelques conifères isolés en flèche ; des hauteurs et des largeurs très différentes
+            const x0 = rnd(W), h = tH * (0.45 + 1.1 * Math.pow(Math.random(), 1.6)), con = Math.random() < 0.22;
+            const w = h * (con ? rnd(0.3, 0.2) : rnd(0.9, 0.5)), lobes = 2 + rint(3), ph = rnd(TAU), lean = rnd(0.25, -0.25);
             for (let i = Math.max(0, ((x0 - w) / 3) | 0); i < Math.min(n, (x0 + w) / 3 + 1); i++) {
-              const u = (i * 3 - x0) / w;                           // signé : permet de pencher l'arbre
-              const ua = Math.abs(u + lean * (1 - Math.abs(u)) * 0.3);
+              const u = (i * 3 - x0) / w + lean * 0.2, ua = Math.abs(u);
               if (ua > 1) continue;
-              let p = kind < 0.5 ? h * Math.pow(1 - ua, taper) : h * Math.sqrt(Math.max(0, 1 - ua * ua));
-              p *= 0.86 + 0.14 * Math.sin(i * bump + ph);           // le feuillage bosselé
+              let p;
+              if (con) p = h * Math.pow(1 - ua, 1.15);
+              else {
+                // un dôme, avec des lobes larges (une couronne de feuillu vue de loin)
+                const dome = Math.sqrt(Math.max(0, 1 - ua * ua));
+                p = h * dome * (0.88 + 0.12 * Math.cos(u * Math.PI * lobes + ph)) * (0.9 + 0.1 * dome);
+              }
               if (p > hg[i]) hg[i] = p;
             }
           }
+          // un léger lissage : les petites aspérités de 3 px disparaissent, les formes restent
+          for (let pass = 0; pass < 2; pass++) { let a = hg[0]; for (let i = 1; i < n - 1; i++) { const b = hg[i]; hg[i] = (a + 2 * b + hg[i + 1]) / 4; a = b; } }
           for (const [gg, cc] of [[g, col], [gm, mc]]) {
             gg.fillStyle = cc; gg.beginPath(); gg.moveTo(0, H);
             for (let i = 0; i < n; i++) gg.lineTo(i * 3, base - hg[i]);
             gg.lineTo(W, H); gg.closePath(); gg.fill();
           }
         };
-        ridge(hor - H * 0.03, H * 0.05, Math.round(W / 9), H * 0.085, '#0b1222', 1.3, '#ff0000');
+        // les arbres se mesurent à la largeur du paysage, pas à la hauteur de l'écran (sinon, en portrait, ce sont des montagnes)
+        const Hs = Math.min(H, W * 0.75);
+        ridge(hor - Hs * 0.03, Hs * 0.05, Math.round(W / 16), Hs * 0.08, '#0b1222', 1.3, '#ff0000');
         const mist = g.createLinearGradient(0, hor - H * 0.12, 0, hor + H * 0.02);
         mist.addColorStop(0, 'rgba(120,140,190,0)'); mist.addColorStop(0.7, 'rgba(120,140,190,.09)'); mist.addColorStop(1, 'rgba(120,140,190,0)');
         g.fillStyle = mist; g.fillRect(0, hor - H * 0.12, W, H * 0.14);
-        ridge(hor, H * 0.025, Math.round(W / 7), H * 0.11, '#060a14', 4.1, '#00ff00');
+        ridge(hor, Hs * 0.025, Math.round(W / 13), Hs * 0.1, '#060a14', 4.1, '#00ff00');
         gm.fillStyle = '#0000ff'; gm.fillRect(0, hor, W, H - hor);
         const gr = g.createLinearGradient(0, hor, 0, H);
         gr.addColorStop(0, '#060913'); gr.addColorStop(1, '#020305');

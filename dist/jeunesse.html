@@ -296,8 +296,10 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   #nom { font-size: 18px; min-height: 44px; }
   .titre .fl { width: 44px; height: 44px; }
   #scenes { bottom: calc(var(--bord) + var(--rond) + 14px); left: var(--bord); right: var(--bord); transform: none; max-width: none; }
-  #actions { bottom: calc(var(--bord) + var(--rond) + 76px); left: var(--bord); right: var(--bord); transform: none; max-width: none; }
-  #gestes { bottom: calc(var(--bord) + var(--rond) + 76px); max-height: calc(100% - 300px); }
+  #actions { bottom: calc(var(--bord) + var(--rond) + 92px); left: var(--bord); right: calc(var(--bord) + var(--rond) + 22px); transform: none; max-width: none; justify-content: flex-start; }
+  #gestes { bottom: calc(var(--bord) + var(--rond) + 92px); max-height: calc(100% - 320px); }
+  /* 5-6 ans sur téléphone : moins de boutons en haut */
+  #fj.age-1 #bEncore, #fj.age-1 #bPause { display: none; }
   #carton { bottom: 220px; }
   #carton b { font-size: 24px; }
 }
@@ -308,6 +310,19 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   .cb > span:not(.avatar) { display: none; }
   #carton { bottom: 84px; }
 }
+
+/* le fil « Pourquoi ? » */
+#fil { position: absolute; left: var(--bord); bottom: calc(var(--bord) + 2 * var(--rond) + 26px); z-index: 13; width: min(460px, calc(100% - 2 * var(--bord))); max-height: 60%; overflow-y: auto; padding: 12px 16px 14px; border-radius: 20px; background: var(--verre-fort); border: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent); animation: vient2 .3s ease-out; zoom: var(--k); user-select: text; -webkit-user-select: text; }
+@keyframes vient2 { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+#fil .tete { display: flex; align-items: center; gap: 8px; padding: 0; }
+#fil .tete b { flex: 1; font-size: 18px; line-height: 1.25; }
+#fil .tete .x { width: 44px; height: 44px; }
+#fil .cran { margin: 10px 0 0; line-height: 1.45; }
+#fil .cran.etincelle { color: var(--accent); font-size: 18px; }
+#fil .cran.neuf { animation: vient2 .35s ease-out; }
+#fil .pied { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#fj.age-1 #fil .cran.etincelle { font-size: 22px; }
+@media (max-width: 640px) { #fil { bottom: calc(var(--bord) + 2 * var(--rond) + 80px); max-height: 46%; } }
 
 </style>
 </head>
@@ -335,6 +350,7 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   </header>
   <nav id="scenes" aria-label="Le chemin de la question"></nav>
   <div id="actions"></div>
+  <section id="fil" hidden aria-live="polite"></section>
   <div id="carton" hidden></div>
   <div id="bulle" hidden role="status"></div>
   <div id="pastille" hidden></div>
@@ -24707,7 +24723,10 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   })();
   function appliquerProfil() {
     for (let i = 1; i <= 4; i++) { app.classList.toggle('age-' + i, palier() === i); app.classList.toggle('niv-' + i, niveau() === i); }
-    document.documentElement.style.setProperty('--k', ZOOM[palier()]);
+    // sur un téléphone, la place manque : on agrandit moins (et la tablette reste conseillée aux plus jeunes)
+    const etroit = Math.min(window.innerWidth, window.innerHeight) < 520;
+    document.documentElement.style.setProperty('--k', etroit ? Math.min(ZOOM[palier()], 1.12) : ZOOM[palier()]);
+    app.classList.toggle('etroit', etroit);
   }
   function sauverProfils() { store.set('fj-profils', JSON.stringify(S.profils)); if (S.profil) store.set('fj-profil-actif', S.profil.id); }
   // un profil créé ou modifié devient le joueur actif
@@ -24899,7 +24918,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     S.ouverture = performance.now(); S.touche = false; govReset();
     S.vus.add(id); store.set('fj-vus', JSON.stringify([...S.vus]));
     if (sac) sac.vu(id);
-    rendre();
+    rendre(); filCran = 0; rendreFil();
     carton(opt.etat ? null : t);
     amorce();
     mainDuChapitre();
@@ -24969,6 +24988,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     if (!outilsVisibles().some((t) => t.id === S.outil)) S.outil = outilDefaut();
     S.touche = true;
     rendre(); son('scene'); amorce(); mainDuChapitre();
+    filCran = 0; rendreFil();
   }
   /* la main fantôme rend l'appli utilisable sans lire : elle montre le geste au début de chaque chapitre
      (une fois par chapitre et par session), puis revient après 20 s sans contact */
@@ -25038,6 +25058,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   let rz = 0;
   window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(redimension, 250); });
   function redimension() {
+    appliquerProfil();
     if (!S.env) return;
     const W = window.innerWidth, H = window.innerHeight;
     if (Math.abs(W - S.env.w) < 2 && Math.abs(H - S.env.h) < 2) { boiteAuxLettres(false); return; }
@@ -25203,9 +25224,49 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     clearTimeout(bulleT); bulleT = setTimeout(() => { b.classList.add('part'); setTimeout(() => { b.hidden = true; }, 400); }, long ? 4200 : 2600);
   }
 
+  /* ───────── « Pourquoi ? » : un fil qui se déroule (chef-design, 13/11) ─────────
+     une phrase, puis « encore » jusqu'à 3 crans, puis « Pour les curieux » (le tiroir complet).
+     Le premier cran dépend du niveau : la phrase « petit » pour Je découvre, l'étincelle sinon. */
+  let filCran = 0;
+  function morceauxDuFil() {
+    const m = S.meta || {}, P = m.pourquoi || {}, sc = S.scene && m.scenes ? m.scenes[S.scene] : null;
+    const ess = (sc && sc.essaie) || m.essaie;
+    const paras = P.texte ? String(P.texte).split('\n\n') : [];
+    const out = [];
+    const premier = (niveau() === 1 && P.petit) || P.etincelle;
+    if (premier) out.push({ t: premier, k: 'etincelle' });
+    if (ess) out.push({ t: ess, k: 'essaie', titre: 'Essaie ça' });
+    if (niveau() >= 2) { for (const p of paras.slice(0, 2)) out.push({ t: p, k: 'texte' }); if (P.vraie) out.push({ t: P.vraie, k: 'histoire', titre: 'Une histoire vraie' }); }
+    return out.slice(0, 4);
+  }
+  function basculerFil() {
+    const f = $('fil');
+    if (!f.hidden) { fermerFil(); return; }
+    fermerTiroir(); filCran = 0; f.hidden = false; rendreFil(); son('tiroir');
+    $('bPourquoi').classList.add('on');
+  }
+  function fermerFil() { const f = $('fil'); if (f) { f.hidden = true; f.textContent = ''; } voix.taire(); const b = $('bPourquoi'); if (b) b.classList.remove('on'); }
+  function rendreFil() {
+    const f = $('fil'); if (!f || f.hidden) return;
+    f.textContent = '';
+    const q = questionParId(S.q), mx = morceauxDuFil();
+    filCran = Math.min(filCran, Math.max(0, mx.length - 1));
+    const vus = mx.slice(0, filCran + 1);
+    f.append(h('div', { class: 'tete' }, h('b', null, q ? q.q : (S.meta.question || nomMachine())),
+      boutonEcouter(() => [q ? q.q : '', ...vus.map((x) => (x.titre ? x.titre + ' : ' : '') + x.t)].join(' ')),
+      h('button', { class: 'x', 'aria-label': 'Fermer', onclick: fermerFil }, FJ.icone('fermer'))));
+    for (const x of vus) f.append(h('p', { class: 'cran ' + x.k }, x.titre ? h('b', null, x.titre + ' · ') : null, ...texteRiche(x.t)));
+    const pied = h('div', { class: 'pied' }); f.append(pied);
+    if (filCran < mx.length - 1) pied.append(h('button', { class: 'bt grand', onclick: () => { filCran++; rendreFil(); son('outil'); } }, FJ.icone('suiv'), h('span', null, 'encore')));
+    if (niveau() >= 2 || filCran >= mx.length - 1) pied.append(h('button', { class: 'bt doux', onclick: () => { fermerFil(); ouvrirTiroir('pourquoi'); } }, FJ.icone('pourquoi'), h('span', null, niveau() >= 2 ? 'Pour les curieux' : 'Tout lire')));
+    const crans = f.querySelectorAll('.cran'), dernier = crans[crans.length - 1];
+    if (dernier) { dernier.classList.add('neuf'); if (filCran > 0) f.scrollTop = f.scrollHeight; }
+  }
+
   /* ───────── les tiroirs ───────── */
   function ouvrirTiroir(nom) {
     if (S.tiroir === nom) { fermerTiroir(); return; }
+    fermerFil();
     S.tiroir = nom; $('tiroir').hidden = false; app.classList.add('tiroir-ouvert');
     rendreTiroir(); rendreDroite(); son('tiroir');
   }
@@ -25687,7 +25748,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     $('bPrec').onclick = precedent; $('bSuiv').onclick = suivant;
     $('nom').onclick = () => ouvrirTiroir('pourquoi');
     $('bSon').onclick = basculerSon; $('bPause').onclick = basculerPause;
-    $('bPourquoi').onclick = () => ouvrirTiroir('pourquoi'); $('bBidouiller').onclick = () => ouvrirTiroir('bidouiller');
+    $('bPourquoi').onclick = basculerFil; $('bBidouiller').onclick = () => ouvrirTiroir('bidouiller');
     $('bEncore').onclick = encore; $('bPhoto').onclick = photo;
     $('remplir').onclick = () => { if (confirm('Remplir l’écran ? La machine sera recréée avec les mêmes réglages, mais ce que tu as construit sera perdu.')) ouvrir(S.id, { etat: etatCourant() }); };
     $('sortie').onclick = () => spectacle(false);
@@ -25707,7 +25768,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }
   if (TEST) {
-    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, chapitresVisibles, ouvrirAccueil, exposes, outilsVisibles };
+    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, chapitresVisibles, basculerFil, ouvrirAccueil, exposes, outilsVisibles };
   }
   init();
 })();

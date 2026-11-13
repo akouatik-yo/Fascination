@@ -126,3 +126,21 @@ Ces corrections viennent de la relecture scientifique de Claire :
   - **cibles** d'au moins 76 px à 5-6 ans et 60 px à 7-9 ans, avec environ 16 px d'écart.
   - Captures : `docs/captures-jeunesse/`.
 - **La science ne change pas d'un niveau à l'autre** : seuls la quantité de texte et le vocabulaire changent. Un texte `petit` dit les mêmes faits que l'étincelle, sans mot savant. Il ne simplifie jamais au point d'être faux.
+
+## La navigation (refonte du 13/11/2026, avec chef-design)
+- **Les questions** : 24 grandes questions, réparties en 6 mondes (`jeunesse/js/mondes.js`, `FJ.QUESTIONS`). Chaque question est un **chemin de chapitres** ; un chapitre est une machine et une de ses scènes. Le niveau en ouvre 2 (Je découvre), 4 (J'aime comprendre) ou tous. Une question peut traverser plusieurs machines (insectes : lucioles et fourmis).
+- **L'écran** : plus de colonnes. Quatre grappes de boutons ronds, à 24 px des bords :
+  - en haut à gauche, Carte et Encore ;
+  - en haut à droite, le signe du joueur, Son, Pause et Photo ;
+  - en bas à gauche, Pourquoi et Bidouiller ;
+  - en bas à droite, les outils.
+  
+  Le chemin est en bas, au centre. Sur téléphone, il passe sur toute la largeur et l'agrandissement est plafonné (× 1,12).
+- **La main fantôme** montre le geste au début de chaque chapitre, puis revient après 20 s sans contact.
+- **« Pourquoi ? » est un fil** : une phrase (`petit` ou l'étincelle), puis « encore » (Essaie ça, le texte, l'histoire vraie), puis « Pour les curieux », qui ouvre le tiroir complet.
+- **La carte** montre les questions, avec des vignettes fixes et un point de couleur pour ce qui a été vu.
+- **Pas encore fait** :
+  - la fusion des deux applications (l'adulte deviendrait le niveau « Je connais déjà ») ;
+  - la mise en pause des 2 derniers chapitres sans les détruire (aujourd'hui, on garde l'état des réglages, pas ce qui a été construit) ;
+  - un « Pourquoi ? » qui réagit à l'état de la machine.
+- Captures : `docs/captures-jeunesse/nav-*.jpg`.

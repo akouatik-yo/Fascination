@@ -76,7 +76,10 @@
   })();
   function appliquerProfil() {
     for (let i = 1; i <= 4; i++) { app.classList.toggle('age-' + i, palier() === i); app.classList.toggle('niv-' + i, niveau() === i); }
-    document.documentElement.style.setProperty('--k', ZOOM[palier()]);
+    // sur un téléphone, la place manque : on agrandit moins (et la tablette reste conseillée aux plus jeunes)
+    const etroit = Math.min(window.innerWidth, window.innerHeight) < 520;
+    document.documentElement.style.setProperty('--k', etroit ? Math.min(ZOOM[palier()], 1.12) : ZOOM[palier()]);
+    app.classList.toggle('etroit', etroit);
   }
   function sauverProfils() { store.set('fj-profils', JSON.stringify(S.profils)); if (S.profil) store.set('fj-profil-actif', S.profil.id); }
   // un profil créé ou modifié devient le joueur actif
@@ -268,7 +271,7 @@
     S.ouverture = performance.now(); S.touche = false; govReset();
     S.vus.add(id); store.set('fj-vus', JSON.stringify([...S.vus]));
     if (sac) sac.vu(id);
-    rendre();
+    rendre(); filCran = 0; rendreFil();
     carton(opt.etat ? null : t);
     amorce();
     mainDuChapitre();
@@ -338,6 +341,7 @@
     if (!outilsVisibles().some((t) => t.id === S.outil)) S.outil = outilDefaut();
     S.touche = true;
     rendre(); son('scene'); amorce(); mainDuChapitre();
+    filCran = 0; rendreFil();
   }
   /* la main fantôme rend l'appli utilisable sans lire : elle montre le geste au début de chaque chapitre
      (une fois par chapitre et par session), puis revient après 20 s sans contact */
@@ -407,6 +411,7 @@
   let rz = 0;
   window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(redimension, 250); });
   function redimension() {
+    appliquerProfil();
     if (!S.env) return;
     const W = window.innerWidth, H = window.innerHeight;
     if (Math.abs(W - S.env.w) < 2 && Math.abs(H - S.env.h) < 2) { boiteAuxLettres(false); return; }
@@ -572,9 +577,49 @@
     clearTimeout(bulleT); bulleT = setTimeout(() => { b.classList.add('part'); setTimeout(() => { b.hidden = true; }, 400); }, long ? 4200 : 2600);
   }
 
+  /* ───────── « Pourquoi ? » : un fil qui se déroule (chef-design, 13/11) ─────────
+     une phrase, puis « encore » jusqu'à 3 crans, puis « Pour les curieux » (le tiroir complet).
+     Le premier cran dépend du niveau : la phrase « petit » pour Je découvre, l'étincelle sinon. */
+  let filCran = 0;
+  function morceauxDuFil() {
+    const m = S.meta || {}, P = m.pourquoi || {}, sc = S.scene && m.scenes ? m.scenes[S.scene] : null;
+    const ess = (sc && sc.essaie) || m.essaie;
+    const paras = P.texte ? String(P.texte).split('\n\n') : [];
+    const out = [];
+    const premier = (niveau() === 1 && P.petit) || P.etincelle;
+    if (premier) out.push({ t: premier, k: 'etincelle' });
+    if (ess) out.push({ t: ess, k: 'essaie', titre: 'Essaie ça' });
+    if (niveau() >= 2) { for (const p of paras.slice(0, 2)) out.push({ t: p, k: 'texte' }); if (P.vraie) out.push({ t: P.vraie, k: 'histoire', titre: 'Une histoire vraie' }); }
+    return out.slice(0, 4);
+  }
+  function basculerFil() {
+    const f = $('fil');
+    if (!f.hidden) { fermerFil(); return; }
+    fermerTiroir(); filCran = 0; f.hidden = false; rendreFil(); son('tiroir');
+    $('bPourquoi').classList.add('on');
+  }
+  function fermerFil() { const f = $('fil'); if (f) { f.hidden = true; f.textContent = ''; } voix.taire(); const b = $('bPourquoi'); if (b) b.classList.remove('on'); }
+  function rendreFil() {
+    const f = $('fil'); if (!f || f.hidden) return;
+    f.textContent = '';
+    const q = questionParId(S.q), mx = morceauxDuFil();
+    filCran = Math.min(filCran, Math.max(0, mx.length - 1));
+    const vus = mx.slice(0, filCran + 1);
+    f.append(h('div', { class: 'tete' }, h('b', null, q ? q.q : (S.meta.question || nomMachine())),
+      boutonEcouter(() => [q ? q.q : '', ...vus.map((x) => (x.titre ? x.titre + ' : ' : '') + x.t)].join(' ')),
+      h('button', { class: 'x', 'aria-label': 'Fermer', onclick: fermerFil }, FJ.icone('fermer'))));
+    for (const x of vus) f.append(h('p', { class: 'cran ' + x.k }, x.titre ? h('b', null, x.titre + ' · ') : null, ...texteRiche(x.t)));
+    const pied = h('div', { class: 'pied' }); f.append(pied);
+    if (filCran < mx.length - 1) pied.append(h('button', { class: 'bt grand', onclick: () => { filCran++; rendreFil(); son('outil'); } }, FJ.icone('suiv'), h('span', null, 'encore')));
+    if (niveau() >= 2 || filCran >= mx.length - 1) pied.append(h('button', { class: 'bt doux', onclick: () => { fermerFil(); ouvrirTiroir('pourquoi'); } }, FJ.icone('pourquoi'), h('span', null, niveau() >= 2 ? 'Pour les curieux' : 'Tout lire')));
+    const crans = f.querySelectorAll('.cran'), dernier = crans[crans.length - 1];
+    if (dernier) { dernier.classList.add('neuf'); if (filCran > 0) f.scrollTop = f.scrollHeight; }
+  }
+
   /* ───────── les tiroirs ───────── */
   function ouvrirTiroir(nom) {
     if (S.tiroir === nom) { fermerTiroir(); return; }
+    fermerFil();
     S.tiroir = nom; $('tiroir').hidden = false; app.classList.add('tiroir-ouvert');
     rendreTiroir(); rendreDroite(); son('tiroir');
   }
@@ -1056,7 +1101,7 @@
     $('bPrec').onclick = precedent; $('bSuiv').onclick = suivant;
     $('nom').onclick = () => ouvrirTiroir('pourquoi');
     $('bSon').onclick = basculerSon; $('bPause').onclick = basculerPause;
-    $('bPourquoi').onclick = () => ouvrirTiroir('pourquoi'); $('bBidouiller').onclick = () => ouvrirTiroir('bidouiller');
+    $('bPourquoi').onclick = basculerFil; $('bBidouiller').onclick = () => ouvrirTiroir('bidouiller');
     $('bEncore').onclick = encore; $('bPhoto').onclick = photo;
     $('remplir').onclick = () => { if (confirm('Remplir l’écran ? La machine sera recréée avec les mêmes réglages, mais ce que tu as construit sera perdu.')) ouvrir(S.id, { etat: etatCourant() }); };
     $('sortie').onclick = () => spectacle(false);
@@ -1076,7 +1121,7 @@
     if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }
   if (TEST) {
-    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, chapitresVisibles, ouvrirAccueil, exposes, outilsVisibles };
+    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, chapitresVisibles, basculerFil, ouvrirAccueil, exposes, outilsVisibles };
   }
   init();
 })();

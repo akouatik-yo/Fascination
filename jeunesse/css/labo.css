@@ -287,8 +287,10 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   #nom { font-size: 18px; min-height: 44px; }
   .titre .fl { width: 44px; height: 44px; }
   #scenes { bottom: calc(var(--bord) + var(--rond) + 14px); left: var(--bord); right: var(--bord); transform: none; max-width: none; }
-  #actions { bottom: calc(var(--bord) + var(--rond) + 76px); left: var(--bord); right: var(--bord); transform: none; max-width: none; }
-  #gestes { bottom: calc(var(--bord) + var(--rond) + 76px); max-height: calc(100% - 300px); }
+  #actions { bottom: calc(var(--bord) + var(--rond) + 92px); left: var(--bord); right: calc(var(--bord) + var(--rond) + 22px); transform: none; max-width: none; justify-content: flex-start; }
+  #gestes { bottom: calc(var(--bord) + var(--rond) + 92px); max-height: calc(100% - 320px); }
+  /* 5-6 ans sur téléphone : moins de boutons en haut */
+  #fj.age-1 #bEncore, #fj.age-1 #bPause { display: none; }
   #carton { bottom: 220px; }
   #carton b { font-size: 24px; }
 }
@@ -299,3 +301,16 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   .cb > span:not(.avatar) { display: none; }
   #carton { bottom: 84px; }
 }
+
+/* le fil « Pourquoi ? » */
+#fil { position: absolute; left: var(--bord); bottom: calc(var(--bord) + 2 * var(--rond) + 26px); z-index: 13; width: min(460px, calc(100% - 2 * var(--bord))); max-height: 60%; overflow-y: auto; padding: 12px 16px 14px; border-radius: 20px; background: var(--verre-fort); border: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent); animation: vient2 .3s ease-out; zoom: var(--k); user-select: text; -webkit-user-select: text; }
+@keyframes vient2 { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+#fil .tete { display: flex; align-items: center; gap: 8px; padding: 0; }
+#fil .tete b { flex: 1; font-size: 18px; line-height: 1.25; }
+#fil .tete .x { width: 44px; height: 44px; }
+#fil .cran { margin: 10px 0 0; line-height: 1.45; }
+#fil .cran.etincelle { color: var(--accent); font-size: 18px; }
+#fil .cran.neuf { animation: vient2 .35s ease-out; }
+#fil .pied { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#fj.age-1 #fil .cran.etincelle { font-size: 22px; }
+@media (max-width: 640px) { #fil { bottom: calc(var(--bord) + 2 * var(--rond) + 80px); max-height: 46%; } }

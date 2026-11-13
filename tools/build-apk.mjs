@@ -68,8 +68,8 @@ fs.rmSync(W, { recursive: true, force: true });
 const ASSETS = path.join(W, 'assets');
 fs.mkdirSync(ASSETS, { recursive: true });
 let html = fs.readFileSync(path.join(ROOT, JEUNE ? 'dist/jeunesse.html' : 'dist/fascination.html'), 'utf8');
-if (JEUNE) {
-  // la version jeunesse embarque déjà ses polices (Atkinson Hyperlegible)
+if (JEUNE || !html.includes('fonts.googleapis')) {
+  // l'application unique (branche app-unique) et la version jeunesse embarquent déjà leurs polices
   html = html.replace('</head>', '<script>window.FASC_APK = true;</script>\n</head>');
   fs.writeFileSync(path.join(ASSETS, 'index.html'), html);
 } else {

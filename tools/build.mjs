@@ -1,7 +1,6 @@
 // Assemble l'application en un seul fichier HTML (CSS et JS en ligne).
-//   node tools/build.mjs            → la version adulte (app/index.html)
-//   node tools/build.mjs jeunesse   → Fascinations Labo, la version 10-14 ans (jeunesse/index.html)
-//   node tools/build.mjs tout       → les deux
+//   node tools/build.mjs            → l'application unique (jeunesse/index.html), de 5 ans à l'âge adulte
+//   node tools/build.mjs ancienne   → l'ancienne version adulte (app/index.html), pour comparaison
 // Produit :
 //   dist/fascination.html  page autonome complète (s'ouvre hors ligne, à part les polices Google)
 //   dist/artifact.html     même contenu, sans <html>/<head>/<body>, pour un artefact claude.ai
@@ -47,10 +46,15 @@ function assembler({ dir, titre, polices, sortie, artefact, theme }) {
   console.log(`${files.length} scripts assemblés → dist/${sortie} (${kb(sortie)}), dist/${artefact} (${kb(artefact)})`);
 }
 
-if (cible === 'adulte' || cible === 'tout') {
-  assembler({ dir: 'app', titre: 'Fascinations', sortie: 'fascination.html', artefact: 'artifact.html', theme: '#07060c',
-    polices: '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">' });
+// branche app-unique (13/11/2026) : une seule application. L'ancienne version adulte (app/index.html) n'est plus assemblée ;
+// dist/fascination.html est le shell unique (jeunesse/), et dist/jeunesse.html en est une copie pour les anciens liens.
+if (cible === 'adulte' || cible === 'jeunesse' || cible === 'tout') {
+  assembler({ dir: 'jeunesse', titre: 'Fascinations', sortie: 'fascination.html', artefact: 'artifact.html', theme: '#05050a', polices: '' });
+  fs.copyFileSync(path.join(dist, 'fascination.html'), path.join(dist, 'jeunesse.html'));
+  fs.copyFileSync(path.join(dist, 'artifact.html'), path.join(dist, 'jeunesse-artifact.html'));
 }
-if (cible === 'jeunesse' || cible === 'tout') {
-  assembler({ dir: 'jeunesse', titre: 'Fascinations Labo', sortie: 'jeunesse.html', artefact: 'jeunesse-artifact.html', theme: '#05050a', polices: '' });
+if (cible === 'ancienne') {
+  // l'ancienne version adulte, gardée pour comparaison tant que la fusion n'est pas validée
+  assembler({ dir: 'app', titre: 'Fascinations (ancienne version)', sortie: 'ancienne-adulte.html', artefact: 'ancienne-adulte-artifact.html', theme: '#07060c',
+    polices: '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">' });
 }

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#05050a">
-<title>Fascinations Labo</title>
+<title>Fascinations</title>
 
 <style>
 /* Fascinations Labo — l'habillage : sobre, lisible, posé par-dessus la machine sans jamais la redimensionner. */
@@ -24682,7 +24682,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     id: null, def: null, meta: null, sim: null, env: null, scene: null, outil: null, touche: false, pause: false, vitesse: 1,
     son: false, spectacle: false, tiroir: null, ecran: null, hist: [], hpos: -1, lb: false, ouverture: 0, nom: null,
     vus: new Set(lireJSON('fj-vus', [])), outilsMontres: new Set(), etsiVu: new Set(lireJSON('fj-etsi', [])),
-    prefs: Object.assign({ doux: true, calme: false }, lireJSON('fj-prefs', {})), constructions: 0, doigts: 0,
+    prefs: Object.assign({ doux: true, calme: false, decor: true, theme: 'dark' }, lireJSON('fj-prefs', {})), constructions: 0, doigts: 0,
     q: null,   // la question en cours (FJ.QUESTIONS)
     profils: [], profil: null,   // les joueurs de la tablette { id, avatar, age, niveau } ; tout reste dans l'appareil
   };
@@ -24774,7 +24774,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     let question = '', dejaLu = false;
     // la parole n'est permise qu'après un geste (iOS, Chrome) : on lit la question au premier toucher
     box.onpointerdown = () => { if (!dejaLu && question) { dejaLu = true; voix.dire(question); } };
-    const tete = (retour) => h('div', { class: 'tete' }, retour ? h('button', { class: 'bt', onclick: retour }, FJ.icone('prec'), h('span', null, 'Retour')) : h('div', { class: 'logo' }, h('b', null, 'Fascinations'), h('span', null, 'labo')),
+    const tete = (retour) => h('div', { class: 'tete' }, retour ? h('button', { class: 'bt', onclick: retour }, FJ.icone('prec'), h('span', null, 'Retour')) : h('div', { class: 'logo' }, h('b', null, 'Fascinations'), h('span', null, 'pour tous les curieux')),
       S.profil ? h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer')) : null);
     const titre = (q) => { question = q; dejaLu = false; return h('h2', { class: 'grandeq' }, q, boutonEcouter(q)); };
     const neuf = {};
@@ -24863,7 +24863,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     // constant pendant la visite ; y0 : sous le titre et les pastilles de scènes (les messages des machines s'y décalent)
     const view = { x0: col.g, x1: Math.max(col.g + 200, W - col.d), y0: hautReserve(), y1: H };
     return { ctx, canvas, w: W, h: H, dpr, t: 0, audio, view, get tool() { return S.outil; }, get paused() { return S.pause; },
-      get decor() { return true; }, sonParLeShell: true, get doux() { return S.prefs.doux; }, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
+      get decor() { return S.prefs.decor !== false; }, sonParLeShell: true, get doux() { return S.prefs.doux; }, get theme() { return S.prefs.theme === 'light' ? 'light' : 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
   }
   function detruire() {
     if (S.sim && S.sim.dispose) { try { S.sim.dispose(); } catch (e) { /* rien */ } }
@@ -25307,7 +25307,17 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     corps.append(h('h3', null, 'Le temps'));
     const vit = h('div', { class: 'vitesses' }); corps.append(vit);
     for (const v of VITESSES) vit.append(h('button', { class: 'vit' + (Math.abs(S.vitesse - v.v) < 0.01 ? ' on' : ''), onclick: () => { S.vitesse = v.v; rendreTiroir(); son('outil'); } }, FJ.icone(v.icone), h('span', null, v.nom)));
+    if (niveau() >= 3) {
+      // repris de l'ancienne version adulte : vitesse fine, décor, fond clair, vider
+      const lv = Math.log(S.vitesse), inp = h('input', { type: 'range', min: Math.log(0.1), max: Math.log(10), step: 0.01, 'aria-label': 'Vitesse fine' });
+      inp.value = lv; const val = h('span', { class: 'v' }, '×' + fr(S.vitesse, S.vitesse < 1 ? 2 : 1));
+      inp.addEventListener('input', () => { S.vitesse = Math.exp(parseFloat(inp.value)); val.textContent = '×' + fr(S.vitesse, S.vitesse < 1 ? 2 : 1); });
+      corps.append(h('label', { class: 'curseur' }, h('div', { class: 'h' }, h('span', null, 'Vitesse fine'), val), inp));
+      const pref = (k, txt, vrai, faux) => { const b = h('button', { class: 'bascule' + (S.prefs[k] === vrai ? ' on' : ''), onclick: () => { S.prefs[k] = S.prefs[k] === vrai ? faux : vrai; store.set('fj-prefs', JSON.stringify(S.prefs)); b.classList.toggle('on', S.prefs[k] === vrai); } }, h('i'), h('span', null, txt)); return b; };
+      corps.append(h('h3', null, 'Affichage'), pref('decor', 'Décor autour de l’expérience', true, false), pref('theme', 'Fond clair (machines sans décor)', 'light', 'dark'));
+    }
     const outils = h('div', { class: 'rangee' }); corps.append(outils);
+    if (S.sim && S.sim.clear) outils.append(boutonMaintenu('Vider', 'gomme', () => { try { S.sim.clear(); } catch (e) { /* rien */ } S.touche = true; bulle('Vidé.'); }));
     outils.append(h('button', { class: 'bt', onclick: epingler }, FJ.icone('epingle'), h('span', null, 'Épingler ce moment')));
     outils.append(h('button', { class: 'bt', onclick: () => { fermerTiroir(); spectacle(true); } }, FJ.icone('spectacle'), h('span', null, 'Spectacle')));
     outils.append(boutonMaintenu('Tout recommencer', 'recommencer', () => { fermerTiroir(); ouvrir(S.id, { etat: { scene: S.scene, inst: null, outil: S.outil } }); bulle('La machine repart de zéro.'); }));
@@ -25632,7 +25642,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   function ouvrirCarte() {
     ecran('carte');
     const box = $('carte'); box.textContent = '';
-    const logo = h('div', { class: 'logo', title: 'Appui long : le coin des grands' }, h('b', null, 'Fascinations'), h('span', null, 'labo'));
+    const logo = h('div', { class: 'logo', title: 'Appui long : le coin des grands' }, h('b', null, 'Fascinations'), h('span', null, 'pour tous les curieux'));
     appuiLong(logo, ouvrirParents);
     box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${FJ.QUESTIONS.filter((q) => FJ.chapitresDe(q).some(([m]) => S.vus.has(m))).length} / ${FJ.QUESTIONS.length} questions explorées`),
       h('button', { class: 'bt', onclick: () => { ecran(null); aller(sac.suivant()); } }, FJ.icone('encore'), h('span', null, 'Au hasard')),
@@ -25702,7 +25712,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     box.append(h('h3', null, 'Le carnet'), h('button', { class: 'bt', onclick: async () => { if (confirm('Effacer tout le carnet (photos, épingles, paris) ?')) { await carnet.effacer(); bulle('Carnet effacé.'); } } }, FJ.icone('gomme'), h('span', null, 'Effacer le carnet')));
     box.append(h('button', { class: 'bt', onclick: () => { S.vus = new Set(); store.set('fj-vus', '[]'); S.etsiVu = new Set(); store.set('fj-etsi', '[]'); bulle('Découvertes remises à zéro.'); } }, FJ.icone('recommencer'), h('span', null, 'Oublier les découvertes')));
     box.append(h('button', { class: 'bt', onclick: () => { dprMap = {}; store.set('fj-dpr', '{}'); bulle('Résolution maximale rétablie pour toutes les machines.'); } }, FJ.icone('spectacle'), h('span', null, 'Rétablir la pleine résolution')));
-    box.append(h('h3', null, 'À propos'), h('p', { class: 'petit' }, 'Fascinations Labo : 32 machines de science à toucher, de 5 ans à l’âge adulte : l’interface s’adapte à l’âge et au niveau choisis. Tout fonctionne hors ligne ; rien ne sort de l’appareil. Les simulations sont simplifiées et souvent accélérées : les textes « Pourquoi ? » disent ce qui est vrai, ce qui est simplifié et ce que les scientifiques ne savent pas encore.'));
+    box.append(h('h3', null, 'À propos'), h('p', { class: 'petit' }, 'Fascinations : 32 machines de science à toucher, de 5 ans à l’âge adulte, en une seule application : l’interface s’adapte à l’âge et au niveau choisis (le niveau « Je connais déjà » remplace l’ancienne version adulte). Tout fonctionne hors ligne ; rien ne sort de l’appareil. Les simulations sont simplifiées et souvent accélérées : les textes « Pourquoi ? » disent ce qui est vrai, ce qui est simplifié et ce que les scientifiques ne savent pas encore.'));
   }
 
   /* ───────── le son, la pause, le spectacle ───────── */
@@ -25757,6 +25767,11 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
       if (e.target && /input|textarea/i.test(e.target.tagName)) return;
       if (e.key === 'ArrowRight') suivant(); else if (e.key === 'ArrowLeft') precedent();
       else if (e.key === ' ') { e.preventDefault(); basculerPause(); }
+      else if (e.key === 's' || e.key === 'S') basculerSon();
+      else if (e.key === 'r' || e.key === 'R') aller(sac.suivant());
+      else if (e.key === 'z' || e.key === 'Z') spectacle(!S.spectacle);
+      else if (e.key === 'p' || e.key === 'P') photo();
+      else if (e.key === 'c' || e.key === 'C') ouvrirCarte();
       else if (e.key === 'Escape') { if (S.ecran) ecran(null); else if (S.tiroir) fermerTiroir(); else if (S.spectacle) spectacle(false); }
     });
     document.addEventListener('visibilitychange', () => { last = 0; });

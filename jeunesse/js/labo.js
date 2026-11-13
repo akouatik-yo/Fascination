@@ -289,14 +289,35 @@
     const loc = sc && sc.noms && sc.noms[id];
     return loc ? Object.assign({}, base, loc) : base;
   }
-  function outilsVisibles() {
+  function outilsBase() {
     const sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
     const ids = (sc && sc.outils) || S.meta.outilsMontres || null;
-    let vis = S.def.tools.filter((t) => !ids || ids.includes(t.id));
-    if (palier() === 1 && vis.length > 2) {   // 5-6 ans : le geste de la scène, plus un seul autre
+    return S.def.tools.filter((t) => !ids || ids.includes(t.id));
+  }
+  // les actions spectaculaires de la scène, sans celles qui doublent un outil (même icône, ou même racine de verbe)
+  function actionsVisibles() {
+    const sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
+    let acts = (sc && sc.actions) || S.meta.actions || [];
+    if (typeof acts === 'string') acts = (S.meta.groupesActions && S.meta.groupesActions[acts]) || [];
+    const racine = (t) => FJ.norme(t).replace(/^tout /, '').slice(0, 5);
+    const base = outilsBase();
+    const verbes = base.map((t) => racine(verbe(t))), icones = base.map((t) => (ficheOutil(t.id) || {}).icone || FJ.iconeOutil(t.id));
+    const out = [];
+    for (const a of acts) {
+      const r = pilote.get(a.chemin); if (!r || r.kind !== 'bouton') continue;
+      if (verbes.includes(racine(a.nom || r.it.label)) || icones.includes(a.icone || 'etincelles')) continue;
+      out.push({ a, r });
+    }
+    return palier() === 1 ? out.slice(0, 1) : out;   // 5-6 ans : 2 actions en tout (gestes et pilules compris)
+  }
+  function outilsVisibles() {
+    const sc = S.scene && S.meta.scenes ? S.meta.scenes[S.scene] : null;
+    let vis = outilsBase();
+    const plafond = palier() === 1 ? (actionsVisibles().length ? 1 : 2) : 99;
+    if (vis.length > plafond) {   // 5-6 ans : le geste de la scène, plus un seul autre (ou aucun s'il y a une pilule d'action)
       const pref = (sc && sc.outil) || S.meta.outil;
       const tri = vis.filter((t) => t.id === pref).concat(vis.filter((t) => t.id !== pref && t.id !== 'observer' && t.id !== 'regarder'));
-      vis = (tri.length ? tri : vis).slice(0, 2);
+      vis = (tri.length ? tri : vis).slice(0, plafond);
     }
     return vis;
   }
@@ -528,14 +549,7 @@
   }
   function rendreActions() {
     const box = $('actions'); box.textContent = '';
-    const sc = S.scene && S.meta.scenes[S.scene];
-    let acts = (sc && sc.actions) || S.meta.actions || [];
-    if (typeof acts === 'string') acts = (S.meta.groupesActions && S.meta.groupesActions[acts]) || [];
-    const racine = (t) => FJ.norme(t).replace(/^tout /, '').slice(0, 5);
-    const verbes = outilsVisibles().map((t) => racine(verbe(t)));
-    for (const a of acts) {
-      const r = pilote.get(a.chemin); if (!r || r.kind !== 'bouton') continue;
-      if (verbes.includes(racine(a.nom || r.it.label))) continue;
+    for (const { a, r } of actionsVisibles()) {
       box.append(h('button', { class: 'action', onclick: () => { const rr = pilote.get(a.chemin); if (rr && rr.it) rr.it.act(); S.touche = true; son('action'); } },
         FJ.icone(a.icone || 'etincelles'), h('span', null, a.nom || r.it.label)));
     }
@@ -570,7 +584,7 @@
     const o = ficheOutil(id) || {};
     const geste = o.geste || (['gomme', 'souffle', 'souffler', 'remuer', 'encre', 'mur', 'murs', 'tracer', 'couper', 'guider', 'dessiner', 'sculpter', 'greffer', 'effacer', 'glisser', 'secouer', 'courant', 'gratter', 'verser', 'pluie', 'ecarter', 'tourner'].includes(id) ? 'trait' : 'tap');
     if (id === 'observer' || id === 'regarder') return;
-    const m = $('main'); m.textContent = ''; m.append(FJ.icone('main'));
+    const m = $('main'); m.textContent = ''; m.append(h('i', { class: 'onde' }), geste === 'trait' ? h('i', { class: 'trace' }) : null, FJ.icone('main'));
     const v = S.env.view, cx = v.x0 + (v.x1 - v.x0) * 0.55, cy = S.env.h * 0.55;
     const r = canvas.getBoundingClientRect(), k = r.width / S.env.w;
     m.style.left = r.left + cx * k + 'px'; m.style.top = r.top + cy * k + 'px';

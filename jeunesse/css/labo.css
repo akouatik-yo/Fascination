@@ -27,58 +27,61 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 #cv { position: absolute; left: 0; top: 0; touch-action: none; display: block; }
 #chargement { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; color: var(--doux); letter-spacing: .04em; background: #05050a; z-index: 50; }
 
-/* ── les colonnes : gestes à gauche, commandes à droite ── */
-.col { position: absolute; top: 0; bottom: 0; width: var(--col); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; z-index: 10; transition: opacity .25s, transform .25s; }
-#colG { left: 0; background: linear-gradient(to right, rgba(5, 6, 12, .82), rgba(5, 6, 12, .55) 70%, rgba(5, 6, 12, 0)); }
-#colD { right: 0; background: linear-gradient(to left, rgba(5, 6, 12, .82), rgba(5, 6, 12, .55) 70%, rgba(5, 6, 12, 0)); }
-.col .sep { flex: 1; }
-.cb, .geste { width: 100%; min-height: 60px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 2px; color: var(--texte); transition: background .15s, transform .12s; }
-.cb span, .geste span { font-size: 13.5px; line-height: 1.1; text-align: center; }
-.cb:active, .geste:active, .bt:active, .pil:active, .action:active, .recette:active { transform: scale(.95); }
-.cb.on { background: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 2px var(--accent); }
-#gestes { width: 100%; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; overflow-x: hidden; padding: 4px 0; scrollbar-width: none; flex: 0 1 auto; }
+/* ── les grappes de boutons ronds, dans les coins, à 24 px des bords (refonte du 13/11) ── */
+:root { --bord: 24px; --rond: 64px; }
+.grappe { position: absolute; display: flex; gap: 10px; z-index: 10; transition: opacity .25s, transform .25s; }
+#hg { top: 14px; left: var(--bord); }
+#hd { top: 14px; right: var(--bord); }
+#bg { bottom: var(--bord); left: var(--bord); flex-direction: column-reverse; }
+#gestes { bottom: var(--bord); right: var(--bord); flex-direction: column-reverse; align-items: center; max-height: calc(100% - 150px); overflow-y: auto; scrollbar-width: none; }
 #gestes::-webkit-scrollbar { display: none; }
-.geste { background: rgba(255, 255, 255, .05); }
-.geste.on { background: color-mix(in srgb, var(--accent) 26%, transparent); box-shadow: inset 0 0 0 2.5px var(--accent); }
+.cb, .geste { width: auto; min-width: var(--rond); min-height: var(--rond); border-radius: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 2px; color: var(--texte); background: var(--verre); border: 1px solid var(--trait); transition: background .15s, transform .12s; }
+.geste { border-radius: 50%; width: calc(var(--rond) + 8px); min-height: calc(var(--rond) + 8px); }
+.cb { padding: 6px 8px; }
+.cb span, .geste span { font-size: 12px; line-height: 1.05; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+.cb:active, .geste:active, .bt:active, .pil:active, .action:active, .recette:active { transform: scale(.95); }
+.cb.on { background: color-mix(in srgb, var(--accent) 22%, rgba(8, 9, 18, .8)); box-shadow: inset 0 0 0 2px var(--accent); }
+.geste.on { background: color-mix(in srgb, var(--accent) 30%, rgba(8, 9, 18, .85)); box-shadow: inset 0 0 0 3px var(--accent); }
 .geste.on .ic { stroke-width: 2.6; }
-#bCarte { background: rgba(255, 255, 255, .08); }
+#bJoueur .avatar { width: 34px; height: 34px; }
+#bJoueur .avatar .ic { width: 20px; height: 20px; }
 
-/* ── le haut : la machine et ses scènes ── */
-#haut { position: absolute; top: 8px; left: var(--col); right: var(--col); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 9; pointer-events: none; transition: opacity .25s; }
+/* ── le haut : la machine ── */
+#haut { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 2 * var(--bord) - 2 * 150px); display: flex; flex-direction: column; align-items: center; z-index: 9; pointer-events: none; transition: opacity .25s; }
 #haut > * { pointer-events: auto; }
 .titre { display: flex; align-items: center; gap: 6px; background: var(--verre); border: 1px solid var(--trait); border-radius: 999px; padding: 4px; max-width: 100%; }
-.titre .fl { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; }
+.titre .fl { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; }
 .titre .fl:hover, .titre .fl:active { background: rgba(255, 255, 255, .1); }
-#nom { font-weight: 700; font-size: 21px; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 48px; }
-#scenes { display: flex; gap: 6px; max-width: 100%; overflow-x: auto; padding: 2px 4px; scrollbar-width: none; }
-#scenes::-webkit-scrollbar { display: none; }
-.pil { flex: none; min-height: 40px; padding: 6px 15px; border-radius: 999px; background: var(--verre); border: 1px solid var(--trait); font-size: 15.5px; white-space: nowrap; }
-.pil.on { background: color-mix(in srgb, var(--accent) 30%, rgba(8, 9, 18, .8)); border-color: var(--accent); font-weight: 700; }
+#nom { font-weight: 700; font-size: 21px; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 52px; }
 
-/* ── en bas : les actions spectaculaires ── */
-#actions { position: absolute; bottom: 14px; left: var(--col); right: var(--col); display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; z-index: 9; pointer-events: none; transition: opacity .25s; }
+/* ── en bas : le chemin de la question (pierres de gué), et au-dessus les actions spectaculaires ── */
+#scenes { position: absolute; bottom: var(--bord); left: 50%; transform: translateX(-50%); max-width: calc(100% - 2 * var(--bord) - 2 * 104px); display: flex; gap: 8px; overflow-x: auto; padding: 4px; scrollbar-width: none; z-index: 9; }
+#scenes::-webkit-scrollbar { display: none; }
+.pil { flex: none; min-height: 52px; padding: 6px 16px 6px 8px; border-radius: 999px; background: var(--verre); border: 1px solid var(--trait); font-size: 15.5px; white-space: nowrap; }
+.pil.on { background: color-mix(in srgb, var(--accent) 30%, rgba(8, 9, 18, .8)); border-color: var(--accent); font-weight: 700; }
+#actions { position: absolute; bottom: calc(var(--bord) + 70px); left: 50%; transform: translateX(-50%); max-width: calc(100% - 2 * var(--bord) - 2 * 104px); display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; z-index: 9; pointer-events: none; transition: opacity .25s; }
 .action { pointer-events: auto; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 8px 18px 8px 14px; border-radius: 999px; background: var(--verre); border: 1.5px solid color-mix(in srgb, var(--accent) 60%, transparent); font-weight: 700; font-size: 16px; }
 
 /* ── le carton d'ouverture, les bulles, la pastille Et si ── */
-#carton { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%); z-index: 12; max-width: min(620px, calc(100% - 2 * var(--col) - 24px)); padding: 16px 26px 18px; border-radius: 22px; background: var(--verre-fort); border: 1px solid var(--trait); text-align: center; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+#carton { position: absolute; left: 50%; bottom: 160px; transform: translateX(-50%); z-index: 12; max-width: min(620px, calc(100% - 2 * var(--bord))); padding: 16px 26px 18px; border-radius: 22px; background: var(--verre-fort); border: 1px solid var(--trait); text-align: center; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
 #carton b { font-size: 30px; line-height: 1.1; }
 #carton .graine { color: var(--accent); font-weight: 700; font-size: 17px; }
 #carton i { font-style: normal; color: var(--doux); font-size: 18px; }
 #carton.vient { animation: vient .5s cubic-bezier(.2, .8, .2, 1); }
 #carton.part, #bulle.part { opacity: 0; transform: translate(-50%, 12px); transition: opacity .4s, transform .4s; }
 @keyframes vient { from { opacity: 0; transform: translate(-50%, 18px) scale(.97); } to { opacity: 1; transform: translate(-50%, 0); } }
-#bulle { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 13; max-width: min(560px, calc(100% - 2 * var(--col) - 24px)); padding: 12px 20px; border-radius: 16px; background: var(--verre-fort); border: 1px solid var(--trait); font-size: 16.5px; text-align: center; pointer-events: none; }
+#bulle { position: absolute; left: 50%; bottom: 160px; transform: translateX(-50%); z-index: 13; max-width: min(560px, calc(100% - 2 * var(--bord))); padding: 12px 20px; border-radius: 16px; background: var(--verre-fort); border: 1px solid var(--trait); font-size: 16.5px; text-align: center; pointer-events: none; }
 #bulle.vient { animation: vient .35s ease-out; }
-#pastille { position: absolute; top: 118px; left: 50%; transform: translateX(-50%); z-index: 11; display: flex; align-items: stretch; max-width: min(520px, calc(100% - 2 * var(--col) - 24px)); background: var(--verre-fort); border: 1.5px solid var(--accent); border-radius: 18px; animation: vient .5s ease-out; }
+#pastille { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); z-index: 11; display: flex; align-items: stretch; max-width: min(520px, calc(100% - 2 * var(--bord) - 2 * 104px)); background: var(--verre-fort); border: 1.5px solid var(--accent); border-radius: 18px; animation: vient .5s ease-out; }
 #pastille .ouvre { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 10px 6px 10px 16px; gap: 2px; }
 #pastille .ouvre b { color: var(--accent); }
 #pastille .x { width: 52px; display: grid; place-items: center; }
 
 /* ── les tiroirs ── */
-#tiroir { position: absolute; top: 0; bottom: 0; right: var(--col); width: min(420px, 46vw); z-index: 14; background: var(--verre-fort); border-left: 1px solid var(--trait); display: flex; flex-direction: column; animation: tiroir .28s cubic-bezier(.2, .8, .2, 1); user-select: text; -webkit-user-select: text; }
+#tiroir { position: absolute; top: 0; bottom: 0; right: 0; width: min(420px, 46vw); z-index: 14; background: var(--verre-fort); border-left: 1px solid var(--trait); display: flex; flex-direction: column; animation: tiroir .28s cubic-bezier(.2, .8, .2, 1); user-select: text; -webkit-user-select: text; }
 @keyframes tiroir { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-aspect-ratio: 1/1) {
-  #tiroir { top: auto; left: var(--col); right: var(--col); width: auto; height: 56%; border-left: 0; border-top: 1px solid var(--trait); border-radius: 22px 22px 0 0; animation-name: tiroirB; }
+  #tiroir { top: auto; left: 0; right: 0; width: auto; height: 56%; border-left: 0; border-top: 1px solid var(--trait); border-radius: 22px 22px 0 0; animation-name: tiroirB; }
   @keyframes tiroirB { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 }
 .tete { display: flex; align-items: center; gap: 10px; padding: 12px 12px 8px 20px; }
@@ -197,8 +200,8 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 @keyframes flash { 0% { opacity: .55; } 100% { opacity: 0; } }
 
 /* le spectacle : il ne reste que la machine */
-#fj.spectacle .col, #fj.spectacle #haut, #fj.spectacle #actions, #fj.spectacle #pastille, #fj.spectacle #carton { opacity: 0; pointer-events: none !important; }
-#fj.spectacle .col *, #fj.spectacle #haut *, #fj.spectacle #actions * { pointer-events: none !important; }
+#fj.spectacle .grappe, #fj.spectacle #scenes, #fj.spectacle #haut, #fj.spectacle #actions, #fj.spectacle #pastille, #fj.spectacle #carton { opacity: 0; pointer-events: none !important; }
+#fj.spectacle .grappe *, #fj.spectacle #scenes *, #fj.spectacle #haut *, #fj.spectacle #actions * { pointer-events: none !important; }
 #fj.calme *, #fj.calme *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { #fj * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 /* portrait étroit : un peu plus compact */
@@ -212,7 +215,7 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 /* ── l'âge et le niveau ── */
 /* les commandes grandissent pour les plus jeunes (--k) ; le canevas, lui, ne change pas */
 :root { --k: 1; }
-.col, #haut, #actions, #carton, #bulle, #pastille, #tiroir { zoom: var(--k); }
+.grappe, #haut, #scenes, #actions, #carton, #bulle, #pastille, #tiroir { zoom: var(--k); }
 #fj.age-1 .cb .ic, #fj.age-1 .geste .ic { width: 34px; height: 34px; }
 .accueil { display: flex; flex-direction: column; align-items: center; text-align: center; background: radial-gradient(ellipse at 50% 30%, rgba(24, 28, 52, .78), rgba(8, 9, 16, .9)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .accueil > .tete { background: none; }
@@ -240,7 +243,7 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 /* 5-9 ans : Andika (SIL, pour les lecteurs débutants) ; cibles d'au moins 76 px (5-6 ans) et 60 px (7-9 ans) à l'écran, 16 px d'écart */
 #fj.age-1, #fj.age-2 { font-family: 'Andika', 'Atkinson', system-ui, sans-serif; }
 #fj.age-1 .pil { min-height: 60px; padding: 8px 18px; }
-#fj.age-1 #gestes, #fj.age-1 .col { gap: 13px; }
+#fj.age-1 .grappe { gap: 13px; }
 #fj.age-1 .action, #fj.age-1 .recette, #fj.age-1 .bt, #fj.age-1 .vit { min-height: 60px; }
 #fj.age-1 .recettes, #fj.age-1 .rangee, #fj.age-1 #actions { gap: 13px; }
 #fj.age-2 .pil { min-height: 52px; }
@@ -272,3 +275,27 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 .pil { display: inline-flex; align-items: center; gap: 8px; }
 .pil .num { font-style: normal; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, .12); font-size: 13px; font-weight: 700; }
 .pil.on .num { background: var(--accent); color: #0a0b14; }
+
+/* téléphone en portrait : boutons plus serrés, le titre passe sous les grappes, le chemin prend toute la largeur au-dessus des boutons du bas */
+@media (max-width: 640px) {
+  :root { --bord: 12px; --rond: 52px; }
+  .grappe { gap: 6px; }
+  .cb > span:not(.avatar) { display: none; }
+  .geste span { font-size: 11px; }
+  #bg { flex-direction: row; }
+  #haut { top: calc(14px + var(--rond) + 8px); max-width: calc(100% - 2 * var(--bord)); }
+  #nom { font-size: 18px; min-height: 44px; }
+  .titre .fl { width: 44px; height: 44px; }
+  #scenes { bottom: calc(var(--bord) + var(--rond) + 14px); left: var(--bord); right: var(--bord); transform: none; max-width: none; }
+  #actions { bottom: calc(var(--bord) + var(--rond) + 76px); left: var(--bord); right: var(--bord); transform: none; max-width: none; }
+  #gestes { bottom: calc(var(--bord) + var(--rond) + 76px); max-height: calc(100% - 300px); }
+  #carton { bottom: 220px; }
+  #carton b { font-size: 24px; }
+}
+/* téléphone en paysage : peu de hauteur */
+@media (max-height: 480px) {
+  :root { --bord: 12px; --rond: 50px; }
+  .grappe { gap: 6px; }
+  .cb > span:not(.avatar) { display: none; }
+  #carton { bottom: 84px; }
+}

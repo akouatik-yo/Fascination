@@ -198,11 +198,9 @@
   const DPR_STEPS = [2, 1.5, 1.25, 1];
   let dprMap = lireJSON('fj-dpr', {});
   const dprCap = (id) => (id && dprMap[id]) || 2;
-  function colonnes() {
-    const g = $('colG'), d = $('colD');
-    const w = (el) => (el ? el.getBoundingClientRect().width : 0);
-    return { g: w(g), d: w(d) };
-  }
+  // plus de colonnes (refonte du 13/11) : la machine occupe toute la largeur ; seul le titre réserve le haut
+  function colonnes() { return { g: 0, d: 0 }; }
+  function hautReserve() { const t = $('haut'); return t ? Math.ceil(t.getBoundingClientRect().bottom) + 8 : 84; }
   function nouvelEnv(def) {
     const W = Math.max(320, window.innerWidth), H = Math.max(320, window.innerHeight);
     const dpr = Math.min(dprCap(def.id), window.devicePixelRatio || 1);
@@ -213,7 +211,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
     const col = colonnes();
     // constant pendant la visite ; y0 : sous le titre et les pastilles de scènes (les messages des machines s'y décalent)
-    const view = { x0: col.g, x1: Math.max(col.g + 200, W - col.d), y0: 104, y1: H };
+    const view = { x0: col.g, x1: Math.max(col.g + 200, W - col.d), y0: hautReserve(), y1: H };
     return { ctx, canvas, w: W, h: H, dpr, t: 0, audio, view, get tool() { return S.outil; }, get paused() { return S.pause; },
       get decor() { return true; }, sonParLeShell: true, get doux() { return S.prefs.doux; }, get theme() { return 'dark'; }, get speed() { return S.vitesse; }, askSound() { if (!S.son) setTimeout(basculerSon, 0); } };
   }
@@ -273,14 +271,7 @@
     rendre();
     carton(opt.etat ? null : t);
     amorce();
-    // si l'enfant ne touche à rien, la main montre le geste (une fois par machine et par session)
-    const sim0 = S.sim;
-    setTimeout(() => {
-      if (S.sim !== sim0 || S.touche || S.tiroir || S.ecran || !S.outil) return;
-      const cle = S.id + '/' + S.outil;
-      if (S.outilsMontres.has(cle)) return;
-      S.outilsMontres.add(cle); montrerMain(S.outil);
-    }, 4600);
+    mainDuChapitre();
     if (TEST) window.FJ_TEST.ouvertures++;
   }
   function securite() {
@@ -346,8 +337,23 @@
     securite();
     if (!outilsVisibles().some((t) => t.id === S.outil)) S.outil = outilDefaut();
     S.touche = true;
-    rendre(); son('scene'); amorce();
+    rendre(); son('scene'); amorce(); mainDuChapitre();
   }
+  /* la main fantôme rend l'appli utilisable sans lire : elle montre le geste au début de chaque chapitre
+     (une fois par chapitre et par session), puis revient après 20 s sans contact */
+  let mainChapT = 0, dernierContact = performance.now();
+  function mainDuChapitre() {
+    clearTimeout(mainChapT);
+    const sim0 = S.sim, cle = S.id + '/' + S.scene;
+    mainChapT = setTimeout(() => {
+      if (S.sim !== sim0 || S.tiroir || S.ecran || S.spectacle || !S.outil || S.outilsMontres.has(cle)) return;
+      S.outilsMontres.add(cle); montrerMain(S.outil);
+    }, 1800);
+  }
+  setInterval(() => {
+    if (!S.sim || S.tiroir || S.ecran || S.spectacle || !S.outil) return;
+    if (performance.now() - dernierContact > 20000) { dernierContact = performance.now(); montrerMain(S.outil); }
+  }, 1000);
 
   /* ───────── la boucle ───────── */
   function boucle(now) {
@@ -427,7 +433,7 @@
   }
   canvas.addEventListener('pointerdown', (e) => {
     if (!S.sim) return;
-    doigt = true; px = null; py = null; S.touche = true; S.doigts++;
+    doigt = true; px = null; py = null; S.touche = true; S.doigts++; dernierContact = performance.now();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
     effacerCarton(); masquerMain();
     const p = pt(e); p.down = true;
@@ -499,7 +505,7 @@
     for (const t of outilsVisibles()) {
       const o = ficheOutil(t.id) || {};
       box.append(h('button', { class: 'geste' + (t.id === S.outil ? ' on' : ''), title: t.desc || '', 'aria-pressed': t.id === S.outil ? 'true' : 'false',
-        onclick: () => choisirOutil(t.id) }, FJ.icone(o.icone || FJ.iconeOutil(t.id)), h('span', null, verbe(t))));
+        'aria-label': verbe(t), onclick: () => choisirOutil(t.id) }, FJ.icone(o.icone || FJ.iconeOutil(t.id)), h('span', null, verbe(t))));
     }
   }
   function choisirOutil(id) {
@@ -522,6 +528,7 @@
     }
   }
   function rendreDroite() {
+    const j = $('bJoueur'); if (j) { j.textContent = ''; j.append(S.profil ? avatar(S.profil.avatar) : FJ.icone('mains')); }
     const b = $('bSon'); b.textContent = ''; b.append(FJ.icone(S.son ? 'sonOn' : 'sonOff'), h('span', null, S.son ? 'Son' : 'Muet'));
     b.setAttribute('aria-pressed', S.son ? 'true' : 'false');
     const p = $('bPause'); p.textContent = ''; p.append(FJ.icone(S.pause ? 'lecture' : 'pause'), h('span', null, S.pause ? 'Reprendre' : 'Pause'));
@@ -1045,6 +1052,7 @@
     $('remplir').append(FJ.icone('spectacle'), h('span', null, 'Remplir l’écran'));
     $('sortie').append(FJ.icone('fermer'));
     $('bCarte').onclick = ouvrirCarte;
+    $('bJoueur').onclick = ouvrirAccueil;
     $('bPrec').onclick = precedent; $('bSuiv').onclick = suivant;
     $('nom').onclick = () => ouvrirTiroir('pourquoi');
     $('bSon').onclick = basculerSon; $('bPause').onclick = basculerPause;

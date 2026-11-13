@@ -397,6 +397,17 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 #fil .tete { position: sticky; top: -12px; z-index: 1; background: var(--verre-fort); margin: -12px -16px 0; padding: 12px 16px 6px; border-radius: 20px 20px 0 0; }
 @media (max-width: 640px) { #carton { max-width: calc(100% - 2 * var(--bord)); } #carton b { font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; } }
 
+/* les machines écrivent leur ligne d'état en bas à gauche (v.x0 + 16, H − 16) : les boutons du bas lui laissent une bande de 28 px */
+:root { --bas: 28px; }
+#bg, #gestes, #scenes { bottom: calc(var(--bord) + var(--bas)); }
+#actions { bottom: calc(var(--bord) + var(--bas) + 70px); }
+@media (max-width: 640px) {
+  #bg { bottom: calc(var(--bord) + var(--bas)); }
+  #scenes { bottom: calc(var(--bord) + var(--rond) + 14px + var(--bas)); }
+  #actions { bottom: calc(var(--bord) + var(--rond) + 92px + var(--bas)); }
+  #gestes { bottom: calc(var(--bord) + var(--rond) + 92px + var(--bas)); }
+}
+
 </style>
 <div id="fj">
   <canvas id="cv"></canvas>

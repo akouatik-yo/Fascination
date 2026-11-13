@@ -95,7 +95,7 @@ void main(){
   o = m;
 }`;
   const FS_VIEW = HEAD + `
-uniform sampler2D uS; uniform vec2 uRes; uniform float uBump, uPal, uInk, uCoat, uT;
+uniform sampler2D uS; uniform vec2 uRes; uniform float uBump, uPal, uInk, uCoat, uT, uLin;
 out vec4 o;
 float V(vec2 g){ vec2 sz = vec2(textureSize(uS, 0)); g = g - .5; vec2 i = floor(g), f = fract(g);
   ivec2 a = (ivec2(i) + ivec2(sz)) % ivec2(sz), b = (a + ivec2(1, 0)) % ivec2(sz), c = (a + ivec2(0, 1)) % ivec2(sz), d = (a + ivec2(1, 1)) % ivec2(sz);
@@ -125,10 +125,31 @@ void main(){
     else if (P == 3) base = ramp(t, vec3(.04, .02, .01), vec3(.45, .2, .03), vec3(.95, .6, .15), vec3(1., .95, .7)); // ambre
     else base = ramp(t, vec3(.0, .0, .03), vec3(.05, .2, .45), vec3(.2, .9, .95), vec3(.95, 1., 1.));              // néon
     if (P == 1) base *= .25 + .75 * t;
-    col = base * (.45 + .7 * dif) + spe * (P == 2 ? .15 : .55) * (.3 + t);
-    if (P == 4) col += base * t * .4;
+    if (uLin > .5){
+      // Une matière vivante et translucide, pas du plastique : lumière large et douce qui contourne les bords,
+      // creux moins éclairés (occlusion), ombre courte des crêtes voisines, lumière qui ressort teintée du cœur,
+      // reflet mouillé discret. La hauteur reste la concentration de V : rien n'est inventé, tout est éclairé.
+      if (P == 0) base = ramp(t, vec3(.012, .014, .03), vec3(.3, .045, .1), vec3(.84, .3, .23), vec3(.94, .6, .47));   // corail
+      float m = 0.; for (int i = 0; i < 6; i++){ float a = float(i) * 1.0472 + .4; m += V(g + 3.2 * vec2(cos(a), sin(a))); } m /= 6.;
+      float ao = 1. - clamp((m - v) * 2.6, 0., .65);
+      vec2 ld = normalize(L.xy); float sh = 0.;
+      for (int i = 1; i <= 3; i++){ float s = float(i) * 1.5; sh = max(sh, V(g + ld * s) - v - s * .035); }
+      float shad = 1. - clamp(sh * 3.5, 0., .6);
+      float wrap = clamp((dot(n, L) + .55) / 1.55, 0., 1.);
+      float fres = pow(1. - clamp(n.z, 0., 1.), 4.);
+      vec3 tint = base * base / max(max(base.r, max(base.g, base.b)), .04);
+      col = base * pow(wrap, 1.6) * 1.05 * ao * shad + base * vec3(.55, .65, 1.) * .07 * ao;   // lumière principale chaude, ciel froid en appoint
+      if (P != 2) col += tint * .32 * t * (1. - .8 * dif) * ao;
+      col += (pow(max(dot(n, H), 0.), 26.) * .08 + fres * .06) * t * (P == 2 ? .5 : 1.);
+      if (P == 4) col += base * t * .55;
+      if (P != 2) col += vec3(.012, .014, .028) * (.6 + .8 * fbm(g * .045)) * (1. - t);   // le gel, à peine visible
+    } else {
+      col = base * (.45 + .7 * dif) + spe * (P == 2 ? .15 : .55) * (.3 + t);
+      if (P == 4) col += base * t * .4;
+    }
   }
   if (uInk > .5 && uCoat < .5 && P != 2) col = mix(vec3(.955, .94, .91), col, .25 + .75 * t);
+  if (uLin > .5){ o = vec4(pow(max(col, 0.), vec3(2.2)), 1.); return; }   // en lumière linéaire pour la cabine
   o = vec4(pow(col, vec3(.95)), 1.);
 }`;
 
@@ -160,6 +181,9 @@ void main(){
     const ctx = env.ctx, W = env.w, H = env.h;
     const dpr = Math.min(1.5, env.dpr || 1), cw = Math.round(W * dpr), ch = Math.round(H * dpr);
     const K = GLKit(cw, ch), gl = K.gl;
+    // la cabine commune (FKR) : halo léger, courbe filmique, grain ; sinon, l'ancien rendu
+    let cab = null;
+    if (window.FKGL.cabine) { try { cab = window.FKGL.cabine(K); } catch (e) { cab = null; } }
     if (!K.full) throw new Error('flottants 32 bits indisponibles');
     const PANG = K.program(FS_ANG), PSEED = K.program(FS_SEED), PSTEP = K.program(FS_STEP), PBR = K.program(FS_BRUSH), PGR = K.program(FS_GRAFT), PVIEW = K.program(FS_VIEW);
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
@@ -215,8 +239,13 @@ void main(){
     }
     function render() {
       const coat = keep.scene === 'pelage' ? ['zebre', 'guepard', 'leopard', 'poisson'].indexOf(keep.coat) + 1 : 0;
-      PVIEW.use().t('uS', S.r).f('uRes', cw, ch).f('uBump', keep.bump).f('uPal', pal()).f('uInk', ink() ? 1 : 0).f('uCoat', coat).f('uT', T);
-      K.run(PVIEW, null);
+      // la cabine pour les palettes sombres (corail, nacre, ambre, néon) ; l'encre sur papier et les pelages gardent leur rendu direct
+      const lin = !!cab && !ink() && coat === 0 && pal() !== 2;
+      PVIEW.use().t('uS', S.r).f('uRes', cw, ch).f('uBump', keep.bump).f('uPal', pal()).f('uInk', ink() ? 1 : 0).f('uCoat', coat).f('uT', T).f('uLin', lin ? 1 : 0);
+      if (lin) {
+        K.run(PVIEW, cab.scene);
+        cab.finish({ tone: 'agx', expo: 1.1, bloom: 0.25, thr: 1.1, knee: 0.6, radius: 0.7, vig: 0.35, grain: 0.035, grainBlack: 0.35 });
+      } else K.run(PVIEW, null);
       ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
       hud();
     }

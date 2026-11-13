@@ -2067,11 +2067,17 @@ void main(){
           const n = Math.ceil(W / 3) + 2, hg = new Float32Array(n);
           for (let i = 0; i < n; i++) { const x = i * 3; hg[i] = amp * (0.5 + 0.5 * Math.sin(x * 0.0031 + seed)) + amp * 0.35 * Math.sin(x * 0.011 + seed * 2); }
           for (let k = 0; k < nT; k++) {
-            const x0 = rnd(W), h = rnd(tH, tH * 0.4), w = h * rnd(0.32, 0.18), con = Math.random() < 0.65;
+            // un bois varié, pas une scie : des hauteurs et des largeurs très différentes, des conifères (flèche)
+            // et des feuillus (dôme) mêlés, chacun un peu penché et bosselé
+            const x0 = rnd(W), h = tH * (0.3 + 1.3 * Math.pow(Math.random(), 1.7)), kind = Math.random();
+            const w = h * (kind < 0.5 ? rnd(0.22, 0.12) : rnd(0.62, 0.3)), lean = rnd(0.5, -0.5);
+            const taper = kind < 0.5 ? rnd(1.5, 0.8) : 1, bump = rnd(3.5, 1.5), ph = rnd(TAU);
             for (let i = Math.max(0, ((x0 - w) / 3) | 0); i < Math.min(n, (x0 + w) / 3 + 1); i++) {
-              const u = Math.abs(i * 3 - x0) / w;
-              if (u > 1) continue;
-              const p = con ? h * (1 - u) * (1 + 0.1 * Math.sin(i * 2.7)) : h * Math.sqrt(1 - u * u) * (0.9 + 0.1 * Math.sin(i * 1.3));
+              const u = (i * 3 - x0) / w;                           // signé : permet de pencher l'arbre
+              const ua = Math.abs(u + lean * (1 - Math.abs(u)) * 0.3);
+              if (ua > 1) continue;
+              let p = kind < 0.5 ? h * Math.pow(1 - ua, taper) : h * Math.sqrt(Math.max(0, 1 - ua * ua));
+              p *= 0.86 + 0.14 * Math.sin(i * bump + ph);           // le feuillage bosselé
               if (p > hg[i]) hg[i] = p;
             }
           }
@@ -2081,11 +2087,11 @@ void main(){
             gg.lineTo(W, H); gg.closePath(); gg.fill();
           }
         };
-        ridge(hor - H * 0.03, H * 0.05, Math.round(W / 14), H * 0.09, '#0b1222', 1.3, '#ff0000');
+        ridge(hor - H * 0.03, H * 0.05, Math.round(W / 9), H * 0.085, '#0b1222', 1.3, '#ff0000');
         const mist = g.createLinearGradient(0, hor - H * 0.12, 0, hor + H * 0.02);
         mist.addColorStop(0, 'rgba(120,140,190,0)'); mist.addColorStop(0.7, 'rgba(120,140,190,.09)'); mist.addColorStop(1, 'rgba(120,140,190,0)');
         g.fillStyle = mist; g.fillRect(0, hor - H * 0.12, W, H * 0.14);
-        ridge(hor, H * 0.025, Math.round(W / 10), H * 0.12, '#060a14', 4.1, '#00ff00');
+        ridge(hor, H * 0.025, Math.round(W / 7), H * 0.11, '#060a14', 4.1, '#00ff00');
         gm.fillStyle = '#0000ff'; gm.fillRect(0, hor, W, H - hor);
         const gr = g.createLinearGradient(0, hor, 0, H);
         gr.addColorStop(0, '#060913'); gr.addColorStop(1, '#020305');
@@ -2123,10 +2129,21 @@ void main(){
         }
         tree.cx = sx / clumps.length; tree.cy = sy / clumps.length;
         for (let i = perches.length - 1; i > 0; i--) { const j = rint(i + 1); const t = perches[i]; perches[i] = perches[j]; perches[j] = t; }
+        // les buissons : des touffes posées au sol, au feuillage bosselé (et non des nuages ronds)
         g.beginPath();
-        for (let k = 0; k < W / 34; k++) {
-          const x = rnd(W), y = hor + rnd(H * 0.05, -H * 0.005), r = rnd(30, 10) * kS;
-          for (let j = 0; j < 4; j++) { const xx = x + rnd(r, -r), yy = y + rnd(r * 0.3, -r * 0.4), rr = r * rnd(0.8, 0.4); g.moveTo(xx + rr, yy); g.arc(xx, yy, rr, 0, TAU); }
+        for (let k = 0; k < W / 30; k++) {
+          const x = rnd(W), gnd = hor + rnd(H * 0.055, H * 0.01), r = rnd(34, 12) * kS, wide = rnd(1.6, 1.1);
+          // un bord inférieur plat, posé sur le sol, et un dessus découpé en petites touffes de feuilles
+          const m = 5 + rint(5);
+          g.moveTo(x - r * wide, gnd);
+          for (let j = 0; j <= m; j++) {
+            const u = j / m, ang = Math.PI * (1 - u), rr = r * (0.55 + 0.45 * Math.sin(u * Math.PI));
+            const lx = x + Math.cos(ang) * r * wide, ly = gnd - Math.abs(Math.sin(ang)) * rr - rnd(r * 0.22, 0);
+            g.lineTo(lx, ly);
+            g.lineTo(lx + rnd(r * 0.12, -r * 0.12), gnd - Math.abs(Math.sin(ang + 0.2)) * rr * rnd(1, 0.7));   // une petite dent de feuillage
+          }
+          g.lineTo(x + r * wide, gnd); g.closePath();
+          for (let j = 0; j < 3; j++) { const xx = x + rnd(r * wide, -r * wide), rr = r * rnd(0.5, 0.25); g.moveTo(xx + rr, gnd - rr * 0.3); g.arc(xx, gnd - rr * 0.3, rr, Math.PI, TAU); }   // quelques mottes basses
         }
         g.fill();
         g.strokeStyle = '#03050a'; g.lineWidth = 1;
@@ -2419,11 +2436,11 @@ void main(){
         if (kind === 'nuit') for (let k = 0; k < Math.round(170 * area) + 40; k++) mk('pteroptyx', 'm', tree.cx + rnd(60, -60), tree.cy + rnd(60, -60));
         if (kind === 'nuit' || kind === 'dialogues') {
           const D = kind === 'dialogues';
-          for (let k = 0; k < (D ? 32 : 16); k++) mk('pyralis', 'm', rx(), ry('pyralis'));
-          for (let k = 0; k < (D ? 12 : 7); k++) mk('pyralis', 'f', rx());
-          for (let k = 0; k < (D ? 5 : 3); k++) mk('photuris', 'f', rx());
-          for (let k = 0; k < (D ? 12 : 8); k++) mk('photuris', 'm', rx(), ry('photuris'));
-          for (let k = 0; k < 6; k++) mk('lampyris', 'f', rx());
+          for (let k = 0; k < (D ? 54 : 16); k++) mk('pyralis', 'm', rx(), ry('pyralis'));
+          for (let k = 0; k < (D ? 22 : 7); k++) mk('pyralis', 'f', rx());
+          for (let k = 0; k < (D ? 8 : 3); k++) mk('photuris', 'f', rx());
+          for (let k = 0; k < (D ? 20 : 8); k++) mk('photuris', 'm', rx(), ry('photuris'));
+          for (let k = 0; k < (D ? 12 : 6); k++) mk('lampyris', 'f', rx());
         }
       }
       function release(x, y) {
@@ -2869,6 +2886,7 @@ void main(){
         }
       }
 
+      if (window.FASC_DEBUG) window.FASC_DEBUG.lucioles = { cfg, keep, populate, get F() { return F; }, run(n, h) { for (let i = 0; i < n; i++) frame(0, h); } };
       return {
         frame(tt, dt) {
           VT += dt;
@@ -11931,7 +11949,7 @@ void main(){
   o = m;
 }`;
   const FS_VIEW = HEAD + `
-uniform sampler2D uS; uniform vec2 uRes; uniform float uBump, uPal, uInk, uCoat, uT;
+uniform sampler2D uS; uniform vec2 uRes; uniform float uBump, uPal, uInk, uCoat, uT, uLin;
 out vec4 o;
 float V(vec2 g){ vec2 sz = vec2(textureSize(uS, 0)); g = g - .5; vec2 i = floor(g), f = fract(g);
   ivec2 a = (ivec2(i) + ivec2(sz)) % ivec2(sz), b = (a + ivec2(1, 0)) % ivec2(sz), c = (a + ivec2(0, 1)) % ivec2(sz), d = (a + ivec2(1, 1)) % ivec2(sz);
@@ -11961,10 +11979,31 @@ void main(){
     else if (P == 3) base = ramp(t, vec3(.04, .02, .01), vec3(.45, .2, .03), vec3(.95, .6, .15), vec3(1., .95, .7)); // ambre
     else base = ramp(t, vec3(.0, .0, .03), vec3(.05, .2, .45), vec3(.2, .9, .95), vec3(.95, 1., 1.));              // néon
     if (P == 1) base *= .25 + .75 * t;
-    col = base * (.45 + .7 * dif) + spe * (P == 2 ? .15 : .55) * (.3 + t);
-    if (P == 4) col += base * t * .4;
+    if (uLin > .5){
+      // Une matière vivante et translucide, pas du plastique : lumière large et douce qui contourne les bords,
+      // creux moins éclairés (occlusion), ombre courte des crêtes voisines, lumière qui ressort teintée du cœur,
+      // reflet mouillé discret. La hauteur reste la concentration de V : rien n'est inventé, tout est éclairé.
+      if (P == 0) base = ramp(t, vec3(.012, .014, .03), vec3(.3, .045, .1), vec3(.84, .3, .23), vec3(.94, .6, .47));   // corail
+      float m = 0.; for (int i = 0; i < 6; i++){ float a = float(i) * 1.0472 + .4; m += V(g + 3.2 * vec2(cos(a), sin(a))); } m /= 6.;
+      float ao = 1. - clamp((m - v) * 2.6, 0., .65);
+      vec2 ld = normalize(L.xy); float sh = 0.;
+      for (int i = 1; i <= 3; i++){ float s = float(i) * 1.5; sh = max(sh, V(g + ld * s) - v - s * .035); }
+      float shad = 1. - clamp(sh * 3.5, 0., .6);
+      float wrap = clamp((dot(n, L) + .55) / 1.55, 0., 1.);
+      float fres = pow(1. - clamp(n.z, 0., 1.), 4.);
+      vec3 tint = base * base / max(max(base.r, max(base.g, base.b)), .04);
+      col = base * pow(wrap, 1.6) * 1.05 * ao * shad + base * vec3(.55, .65, 1.) * .07 * ao;   // lumière principale chaude, ciel froid en appoint
+      if (P != 2) col += tint * .32 * t * (1. - .8 * dif) * ao;
+      col += (pow(max(dot(n, H), 0.), 26.) * .08 + fres * .06) * t * (P == 2 ? .5 : 1.);
+      if (P == 4) col += base * t * .55;
+      if (P != 2) col += vec3(.012, .014, .028) * (.6 + .8 * fbm(g * .045)) * (1. - t);   // le gel, à peine visible
+    } else {
+      col = base * (.45 + .7 * dif) + spe * (P == 2 ? .15 : .55) * (.3 + t);
+      if (P == 4) col += base * t * .4;
+    }
   }
   if (uInk > .5 && uCoat < .5 && P != 2) col = mix(vec3(.955, .94, .91), col, .25 + .75 * t);
+  if (uLin > .5){ o = vec4(pow(max(col, 0.), vec3(2.2)), 1.); return; }   // en lumière linéaire pour la cabine
   o = vec4(pow(col, vec3(.95)), 1.);
 }`;
 
@@ -11996,6 +12035,9 @@ void main(){
     const ctx = env.ctx, W = env.w, H = env.h;
     const dpr = Math.min(1.5, env.dpr || 1), cw = Math.round(W * dpr), ch = Math.round(H * dpr);
     const K = GLKit(cw, ch), gl = K.gl;
+    // la cabine commune (FKR) : halo léger, courbe filmique, grain ; sinon, l'ancien rendu
+    let cab = null;
+    if (window.FKGL.cabine) { try { cab = window.FKGL.cabine(K); } catch (e) { cab = null; } }
     if (!K.full) throw new Error('flottants 32 bits indisponibles');
     const PANG = K.program(FS_ANG), PSEED = K.program(FS_SEED), PSTEP = K.program(FS_STEP), PBR = K.program(FS_BRUSH), PGR = K.program(FS_GRAFT), PVIEW = K.program(FS_VIEW);
     const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0, cx: (v.x0 + v.x1) / 2 }; };
@@ -12051,8 +12093,13 @@ void main(){
     }
     function render() {
       const coat = keep.scene === 'pelage' ? ['zebre', 'guepard', 'leopard', 'poisson'].indexOf(keep.coat) + 1 : 0;
-      PVIEW.use().t('uS', S.r).f('uRes', cw, ch).f('uBump', keep.bump).f('uPal', pal()).f('uInk', ink() ? 1 : 0).f('uCoat', coat).f('uT', T);
-      K.run(PVIEW, null);
+      // la cabine pour les palettes sombres (corail, nacre, ambre, néon) ; l'encre sur papier et les pelages gardent leur rendu direct
+      const lin = !!cab && !ink() && coat === 0 && pal() !== 2;
+      PVIEW.use().t('uS', S.r).f('uRes', cw, ch).f('uBump', keep.bump).f('uPal', pal()).f('uInk', ink() ? 1 : 0).f('uCoat', coat).f('uT', T).f('uLin', lin ? 1 : 0);
+      if (lin) {
+        K.run(PVIEW, cab.scene);
+        cab.finish({ tone: 'agx', expo: 1.1, bloom: 0.25, thr: 1.1, knee: 0.6, radius: 0.7, vig: 0.35, grain: 0.035, grainBlack: 0.35 });
+      } else K.run(PVIEW, null);
       ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(K.canvas, 0, 0, W, H); ctx.restore();
       hud();
     }
@@ -16426,7 +16473,7 @@ vec3 env(vec3 r, float k){
   vec3 gl = mix(vec3(dot(glow(), vec3(.3, .5, .2))), glow(), .55);                     // le métal argenté désature les reflets
   c += gl * 1.8 * k * smoothstep(.05, -.75, r.y) * exp(-r.x * r.x * 3.);           // la lampe elle-même
   c += gl * .16 * (1. - abs(r.y)) + vec3(.012, .012, .014) * smoothstep(.6, -.2, r.y);  // le mur qu'elle éclaire, le plafond
-  c += vec3(.9, .95, 1.05) * smoothstep(.1, .0, abs(r.x + .62)) * smoothstep(.75, .1, abs(r.y + .1)) * .6;
+  c += vec3(.9, .95, 1.05) * exp(-pow((r.x + .62) / .16, 2.)) * smoothstep(.75, .1, abs(r.y + .1)) * .3;
   c += BULB * .02 * uOn * smoothstep(0., .8, r.y);
   return c;
 }
@@ -16460,7 +16507,7 @@ vec3 scene(vec2 px){
       vec4 s = texture(uS, suv);
       // contour arrondi : la phase moyennée sur une case autour
       float ph = s.r * .4 + (texture(uS, suv + vec2(uPx.x, 0.)).r + texture(uS, suv - vec2(uPx.x, 0.)).r + texture(uS, suv + vec2(0., uPx.y)).r + texture(uS, suv - vec2(0., uPx.y)).r) * .15;
-      float w = smoothstep(-.3, .3, ph);
+      float w = smoothstep(-.13, .13, ph);
       vec2 g = vec2(texture(uS, suv + vec2(uPx.x, 0.)).r - texture(uS, suv - vec2(uPx.x, 0.)).r, texture(uS, suv + vec2(0., uPx.y)).r - texture(uS, suv - vec2(0., uPx.y)).r);
       float pR = texture(uS, suv + vec2(3. * uPx.x, 0.)).r, pL = texture(uS, suv - vec2(3. * uPx.x, 0.)).r, pT = texture(uS, suv + vec2(0., 3. * uPx.y)).r, pB = texture(uS, suv - vec2(0., 3. * uPx.y)).r;
       float th = clamp((pR + pL + pT + pB) * .125 + .5, 0., 1.);
@@ -16478,7 +16525,8 @@ vec3 scene(vec2 px){
       vec3 inside = mix(lq, wx, w);
       // le verre : reflets de Fresnel, une fenêtre à gauche, la lumière piégée dans la paroi qui fait briller les bords
       float F = .04 + .96 * pow(1. - ct, 5.);
-      vec3 refl = vec3(.02, .022, .03) * F + vec3(1.1, 1.15, 1.25) * (smoothstep(.07, .0, abs(X + .46)) * .5 + smoothstep(.03, .0, abs(X - .63)) * .22) * smoothstep(.0, .2, Y) * smoothstep(1., .85, Y);
+      float bandY = smoothstep(.05, .35, Y) * smoothstep(.98, .7, Y);
+      vec3 refl = vec3(.02, .022, .03) * F + vec3(1.05, 1.1, 1.2) * (exp(-pow((X + .48) / .11, 2.)) * .2 + exp(-pow((X - .62) / .06, 2.)) * .07) * bandY;
       inside = inside * (1. - F) + refl + lq * smoothstep(.78, 1., abs(X)) * .9;
       col = mix(col, inside, cov);
     }
@@ -17159,6 +17207,8 @@ void main(){
     /* ───────── grilles ───────── */
     // profil du verre : un fuseau renflé en bas (demi-largeur en fraction de la grille)
     const hw = (y) => 0.17 + 0.29 * Math.exp(-Math.pow((y - 0.24) / 0.4, 2));
+    // gouttes de départ : x, y (fractions de la grille), rayon (en hauteur de grille), température (0 froid → 1 chaud)
+    const LAMP_BLOBS = [[0.5, 0.3, 0.05, 0.42], [0.43, 0.5, 0.036, 0.4], [0.57, 0.66, 0.042, 0.34], [0.48, 0.84, 0.032, 0.26], [0.53, 0.17, 0.035, 0.45]];
     function build() {
       const Q = QUAL[cfg.q], { K, gl } = G;
       let GW, GH;
@@ -17171,8 +17221,19 @@ void main(){
         if (cfg.scene === 'lampe') solid = Math.abs(x - 0.5) > hw(y) || y < 0.012 || y > 0.988;
         else solid = i === 0 || i === GW - 1 || j === 0 || j === GH - 1;
         mask[k] = solid ? 1 : 0;
-        if (cfg.scene === 'lampe') { S[k] = y < 0.16 ? 1 : -1; S[k + 1] = 0.25; }
-        else { S[k] = -1; S[k + 1] = 0.5 - (y - 0.5) * 0.02 + rnd(0.01, -0.01); S[k + 2] = y; }
+        if (cfg.scene === 'lampe') {
+          // une lampe déjà en marche (recette qualité : « départ vide ») : une flaque chaude au fond, des gouttes en route,
+          // le liquide plus chaud en bas qu'en haut. Éteindre puis rallumer montre la longue mise en chauffe.
+          let ph = y < 0.1 ? 1 : -1, tt = 0.3 - 0.05 * y;
+          for (const [bx, by, br, bt] of LAMP_BLOBS) { const dx = ((x - bx) * GW) / GH, dy = y - by; if (dx * dx + dy * dy < br * br) { ph = 1; tt = bt; } }
+          S[k] = ph; S[k + 1] = y < 0.1 ? 0.5 : tt;
+        }
+        else {
+          // Bénard (recette qualité : « un rectangle uni, comme une mire ») : on part du profil de conduction (chaud en bas,
+          // froid en haut) avec une petite ondulation en rouleaux ; au-dessus du seuil elle grandit, en dessous elle s'éteint.
+          S[k] = -1; S[k + 2] = y;
+          S[k + 1] = Math.min(1, Math.max(0, 0.82 - 0.64 * y + 0.07 * Math.cos(TAU * x * 6 + 0.4) * Math.sin(Math.PI * y) + rnd(0.01, -0.01)));
+        }
       }
       const F = gl.LINEAR;
       R = {
@@ -17181,7 +17242,7 @@ void main(){
         V: K.double(GW, GH, 'f16', F), S: K.double(GW, GH, 'f16', F), Mu: K.target(GW, GH, 'f16', F), P: K.double(GW, GH, 'f16', gl.NEAREST), D: K.target(GW, GH, 'f16', gl.NEAREST),
       };
       for (const t of [R.S.r, R.S.w]) { gl.bindTexture(gl.TEXTURE_2D, t.tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, GW, GH, 0, gl.RGBA, gl.FLOAT, S); }
-      warm = 0;
+      warm = cfg.scene === 'lampe' && cfg.on ? 0.6 : 0;
     }
 
     /* ───────── un pas du solveur ───────── */
@@ -17275,7 +17336,7 @@ void main(){
             .f('uBase', baseTop, baseBot, wb, wb * 1.55).f('uCap', capBot, capTop, wt, wt * 0.55).f('uWax', ...C.wax).f('uLiq', ...C.liq)
             .f('uOn', cfg.on ? 1 : 0).f('uT', T).f('uWarm', warm).f('uHeat', cfg.heat).f('uCx', cx).f('uTab', baseBot);
           K.run(pg.lampH, G.cab.scene);
-          G.cab.finish({ expo: 1.3, bloom: 1.0, thr: 0.7, knee: 0.6, radius: 0.8, vig: 0.4, grain: 0.03, grainBlack: 0.4 });
+          G.cab.finish({ tone: 'agx', expo: 1.25, bloom: 0.9, thr: 0.8, knee: 0.6, radius: 0.8, vig: 0.4, grain: 0.03, grainBlack: 0.4 });
         } else {
         pg.lamp.use().t('uS', R.S.r).t('uM', R.M).f('uRes', cw, ch).f('uPx', R.px[0], R.px[1]).f('uBox', b.x * s, b.y * s, b.w * s, b.h * s).f('uWax', ...C.wax).f('uLiq', ...C.liq).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uOn', cfg.on ? 1 : 0.15).f('uT', T);
         K.run(pg.lamp, null);
@@ -23379,9 +23440,10 @@ void main(){
     const port = H > W * 1.1;
     // dans la partie visible de l'écran (les panneaux latéraux cachent les bords)
     const V0 = env.view || { x0: 0, x1: W }, VW = V0.x1 - V0.x0;
-    const START = port ? [[0, 0.3, 0.2], [2, 0.72, 0.38], [1, 0.35, 0.62], [3, 0.72, 0.84]] : [[0, 0.22, 0.3], [2, 0.76, 0.28], [1, 0.4, 0.72], [3, 0.8, 0.76]];
-    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, 6);
-    for (let k = 0; k < 60; k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
+    const START = port ? [[0, 0.34, 0.26], [2, 0.66, 0.42], [1, 0.38, 0.6], [3, 0.66, 0.78]] : [[0, 0.3, 0.34], [2, 0.7, 0.3], [1, 0.42, 0.68], [3, 0.72, 0.72]];
+    for (const [s, fx, fy] of START) seed(s, V0.x0 + VW * fx, H * fy, 7);
+    // on part de colonies déjà étalées : le sujet occupe l'écran dès la première image (DA de Fausta)
+    for (let k = 0; k < 230; k++) { step(1 / 20, k / 20); mature(1 / 20, k / 20); }
     flush(); stainPaint();
     let T0 = 3, stT = 0, abT = 0, glT = 0, nextSp = rnd(30, 20);
     quiet = false;
@@ -23427,7 +23489,7 @@ void main(){
         ctx.drawImage(HL.c, 0, 0, W, H);
         ctx.drawImage(WL.c, 0, 0, W, H);
         ctx.globalCompositeOperation = 'lighter';
-        if (cfg.glow) { ctx.globalAlpha = 0.32; ctx.drawImage(GL.c, 0, 0, W, H); }
+        if (cfg.glow) { ctx.globalAlpha = 0.42; ctx.drawImage(GL.c, 0, 0, W, H); }
         for (let s = 0; s < 4; s++) {
           const spr = sprTip[s], z = 7 * kS;
           ctx.globalAlpha = 0.6;
@@ -25790,7 +25852,7 @@ void main(){
     // le vivant s'organise
     { id: 'insectes', q: 'Comment les insectes se parlent-ils ?', icone: 'insecte', chapitres: [['lucioles', 'nuit'], ['lucioles', 'vallee'], ['abeilles', 'fretillante'], ['fourmis', 'decouverte'], ['abeilles', 'ronde'], ['fourmis', 'pont'], ['lucioles', 'mangrove'], ['abeilles', 'journee'], ['lucioles', 'dialogues'], ['fourmis', 'societes']] },
     { id: 'nuee', q: 'Qui commande une nuée de milliers d’oiseaux ?', machines: ['boids'] },
-    { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['mycelium', 'ronds'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
+    { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
     { id: 'abysses', q: 'Pourquoi tant d’animaux des profondeurs brillent-ils ?', machines: ['meduses'] },
     { id: 'vie', q: 'Comment des règles simples font-elles naître des formes qui bougent ?', machines: ['vie'] },
     // la Terre et le ciel

@@ -8,7 +8,7 @@
     // le vivant s'organise
     { id: 'insectes', q: 'Comment les insectes se parlent-ils ?', icone: 'insecte', chapitres: [['lucioles', 'nuit'], ['lucioles', 'vallee'], ['abeilles', 'fretillante'], ['fourmis', 'decouverte'], ['abeilles', 'ronde'], ['fourmis', 'pont'], ['lucioles', 'mangrove'], ['abeilles', 'journee'], ['lucioles', 'dialogues'], ['fourmis', 'societes']] },
     { id: 'nuee', q: 'Qui commande une nuée de milliers d’oiseaux ?', machines: ['boids'] },
-    { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['mycelium', 'ronds'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
+    { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
     { id: 'abysses', q: 'Pourquoi tant d’animaux des profondeurs brillent-ils ?', machines: ['meduses'] },
     { id: 'vie', q: 'Comment des règles simples font-elles naître des formes qui bougent ?', machines: ['vie'] },
     // la Terre et le ciel

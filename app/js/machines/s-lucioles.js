@@ -102,11 +102,17 @@
           const n = Math.ceil(W / 3) + 2, hg = new Float32Array(n);
           for (let i = 0; i < n; i++) { const x = i * 3; hg[i] = amp * (0.5 + 0.5 * Math.sin(x * 0.0031 + seed)) + amp * 0.35 * Math.sin(x * 0.011 + seed * 2); }
           for (let k = 0; k < nT; k++) {
-            const x0 = rnd(W), h = rnd(tH, tH * 0.4), w = h * rnd(0.32, 0.18), con = Math.random() < 0.65;
+            // un bois varié, pas une scie : des hauteurs et des largeurs très différentes, des conifères (flèche)
+            // et des feuillus (dôme) mêlés, chacun un peu penché et bosselé
+            const x0 = rnd(W), h = tH * (0.3 + 1.3 * Math.pow(Math.random(), 1.7)), kind = Math.random();
+            const w = h * (kind < 0.5 ? rnd(0.22, 0.12) : rnd(0.62, 0.3)), lean = rnd(0.5, -0.5);
+            const taper = kind < 0.5 ? rnd(1.5, 0.8) : 1, bump = rnd(3.5, 1.5), ph = rnd(TAU);
             for (let i = Math.max(0, ((x0 - w) / 3) | 0); i < Math.min(n, (x0 + w) / 3 + 1); i++) {
-              const u = Math.abs(i * 3 - x0) / w;
-              if (u > 1) continue;
-              const p = con ? h * (1 - u) * (1 + 0.1 * Math.sin(i * 2.7)) : h * Math.sqrt(1 - u * u) * (0.9 + 0.1 * Math.sin(i * 1.3));
+              const u = (i * 3 - x0) / w;                           // signé : permet de pencher l'arbre
+              const ua = Math.abs(u + lean * (1 - Math.abs(u)) * 0.3);
+              if (ua > 1) continue;
+              let p = kind < 0.5 ? h * Math.pow(1 - ua, taper) : h * Math.sqrt(Math.max(0, 1 - ua * ua));
+              p *= 0.86 + 0.14 * Math.sin(i * bump + ph);           // le feuillage bosselé
               if (p > hg[i]) hg[i] = p;
             }
           }
@@ -116,11 +122,11 @@
             gg.lineTo(W, H); gg.closePath(); gg.fill();
           }
         };
-        ridge(hor - H * 0.03, H * 0.05, Math.round(W / 14), H * 0.09, '#0b1222', 1.3, '#ff0000');
+        ridge(hor - H * 0.03, H * 0.05, Math.round(W / 9), H * 0.085, '#0b1222', 1.3, '#ff0000');
         const mist = g.createLinearGradient(0, hor - H * 0.12, 0, hor + H * 0.02);
         mist.addColorStop(0, 'rgba(120,140,190,0)'); mist.addColorStop(0.7, 'rgba(120,140,190,.09)'); mist.addColorStop(1, 'rgba(120,140,190,0)');
         g.fillStyle = mist; g.fillRect(0, hor - H * 0.12, W, H * 0.14);
-        ridge(hor, H * 0.025, Math.round(W / 10), H * 0.12, '#060a14', 4.1, '#00ff00');
+        ridge(hor, H * 0.025, Math.round(W / 7), H * 0.11, '#060a14', 4.1, '#00ff00');
         gm.fillStyle = '#0000ff'; gm.fillRect(0, hor, W, H - hor);
         const gr = g.createLinearGradient(0, hor, 0, H);
         gr.addColorStop(0, '#060913'); gr.addColorStop(1, '#020305');
@@ -158,10 +164,21 @@
         }
         tree.cx = sx / clumps.length; tree.cy = sy / clumps.length;
         for (let i = perches.length - 1; i > 0; i--) { const j = rint(i + 1); const t = perches[i]; perches[i] = perches[j]; perches[j] = t; }
+        // les buissons : des touffes posées au sol, au feuillage bosselé (et non des nuages ronds)
         g.beginPath();
-        for (let k = 0; k < W / 34; k++) {
-          const x = rnd(W), y = hor + rnd(H * 0.05, -H * 0.005), r = rnd(30, 10) * kS;
-          for (let j = 0; j < 4; j++) { const xx = x + rnd(r, -r), yy = y + rnd(r * 0.3, -r * 0.4), rr = r * rnd(0.8, 0.4); g.moveTo(xx + rr, yy); g.arc(xx, yy, rr, 0, TAU); }
+        for (let k = 0; k < W / 30; k++) {
+          const x = rnd(W), gnd = hor + rnd(H * 0.055, H * 0.01), r = rnd(34, 12) * kS, wide = rnd(1.6, 1.1);
+          // un bord inférieur plat, posé sur le sol, et un dessus découpé en petites touffes de feuilles
+          const m = 5 + rint(5);
+          g.moveTo(x - r * wide, gnd);
+          for (let j = 0; j <= m; j++) {
+            const u = j / m, ang = Math.PI * (1 - u), rr = r * (0.55 + 0.45 * Math.sin(u * Math.PI));
+            const lx = x + Math.cos(ang) * r * wide, ly = gnd - Math.abs(Math.sin(ang)) * rr - rnd(r * 0.22, 0);
+            g.lineTo(lx, ly);
+            g.lineTo(lx + rnd(r * 0.12, -r * 0.12), gnd - Math.abs(Math.sin(ang + 0.2)) * rr * rnd(1, 0.7));   // une petite dent de feuillage
+          }
+          g.lineTo(x + r * wide, gnd); g.closePath();
+          for (let j = 0; j < 3; j++) { const xx = x + rnd(r * wide, -r * wide), rr = r * rnd(0.5, 0.25); g.moveTo(xx + rr, gnd - rr * 0.3); g.arc(xx, gnd - rr * 0.3, rr, Math.PI, TAU); }   // quelques mottes basses
         }
         g.fill();
         g.strokeStyle = '#03050a'; g.lineWidth = 1;
@@ -454,11 +471,11 @@
         if (kind === 'nuit') for (let k = 0; k < Math.round(170 * area) + 40; k++) mk('pteroptyx', 'm', tree.cx + rnd(60, -60), tree.cy + rnd(60, -60));
         if (kind === 'nuit' || kind === 'dialogues') {
           const D = kind === 'dialogues';
-          for (let k = 0; k < (D ? 32 : 16); k++) mk('pyralis', 'm', rx(), ry('pyralis'));
-          for (let k = 0; k < (D ? 12 : 7); k++) mk('pyralis', 'f', rx());
-          for (let k = 0; k < (D ? 5 : 3); k++) mk('photuris', 'f', rx());
-          for (let k = 0; k < (D ? 12 : 8); k++) mk('photuris', 'm', rx(), ry('photuris'));
-          for (let k = 0; k < 6; k++) mk('lampyris', 'f', rx());
+          for (let k = 0; k < (D ? 54 : 16); k++) mk('pyralis', 'm', rx(), ry('pyralis'));
+          for (let k = 0; k < (D ? 22 : 7); k++) mk('pyralis', 'f', rx());
+          for (let k = 0; k < (D ? 8 : 3); k++) mk('photuris', 'f', rx());
+          for (let k = 0; k < (D ? 20 : 8); k++) mk('photuris', 'm', rx(), ry('photuris'));
+          for (let k = 0; k < (D ? 12 : 6); k++) mk('lampyris', 'f', rx());
         }
       }
       function release(x, y) {
@@ -904,6 +921,7 @@ void main(){
         }
       }
 
+      if (window.FASC_DEBUG) window.FASC_DEBUG.lucioles = { cfg, keep, populate, get F() { return F; }, run(n, h) { for (let i = 0; i < n; i++) frame(0, h); } };
       return {
         frame(tt, dt) {
           VT += dt;

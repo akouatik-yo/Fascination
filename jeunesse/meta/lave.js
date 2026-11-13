@@ -18,7 +18,7 @@ FJ.fiche('lave', {
       essaie: 'Suis un grain brillant des yeux : il naît, grandit puis disparaît en quelques minutes de Soleil.' },
   },
   outils: {
-    observer: { verbe: 'Regarde', aide: 'Touche la cire ou le liquide : tu sauras sa température et s’il monte ou descend.' },
+    observer: { verbe: 'Regarde', aide: 'Touche ce que tu vois : tu sauras ce que c’est, sa température, et s’il monte ou descend.' },
     remuer: { verbe: 'Remue', geste: 'trait', aide: 'Glisse le doigt pour brasser le liquide, comme avec une cuillère : la cire est emportée par le courant.' },
     chauffer: { verbe: 'Chauffe', geste: 'tap', aide: 'Garde le doigt appuyé pour chauffer à cet endroit : la cire chaude devient légère et monte.' },
     refroidir: { verbe: 'Refroidis', geste: 'tap', aide: 'Garde le doigt appuyé pour refroidir : la cire froide s’alourdit et tombe.' },

@@ -65,3 +65,8 @@ Brief de Kurt : « transparent, blanc par diffusion, avec des reflets ; fond som
 ## Les Abysses (`s-abysses.js`) : pas de rouge sans la lampe
 
 - **Écart avec le brief corrigé** : la lumière ambiante des profondeurs contenait du rouge (0,25), et la « lueur propre » des méduses reprenait la couleur de leur pigment. Sans la lampe, Atolla et Periphylla paraissaient rouges, alors qu'« au-delà de quelques dizaines de mètres, pas de rouge ». La lumière ambiante est maintenant bleue (vers 470 nm), et la lueur qui dessine les silhouettes l'est aussi. La lampe révèle toujours les vraies couleurs, comme le dit le texte de la machine.
+
+## Les Spirales (`s-spirales.js`) : la boîte de Petri
+
+- **Avant** : disque orange et bleu en aplat. **Après** (scène BZ, thème sombre) : la boîte posée sur une table lumineuse dans une pièce sombre, en lumière linéaire développée par la cabine. La lumière traverse le liquide (Beer-Lambert) : la ferroïne réduite absorbe le vert et le bleu (rouge orangé), la ferriine oxydée absorbe le rouge (bleu). Le ménisque, plus épais contre le verre, rougit le bord ; la paroi réfracte la lumière ; la lampe se reflète sur le verre. Les fronts d'onde sont un peu plus clairs.
+- Modèle de Barkley inchangé. Cœur, amibes, automate cyclique et thème clair gardent leur rendu.

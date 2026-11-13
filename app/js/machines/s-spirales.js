@@ -155,6 +155,33 @@ void main(){
   o = vec4(col, 1.);
 }`;
 
+  /* La réaction BZ en lumière linéaire, développée par la cabine : la boîte de Petri posée sur une table lumineuse, dans une pièce sombre.
+     La lumière traverse le liquide (Beer-Lambert) : la ferroïne réduite absorbe le vert et le bleu (rouge orangé),
+     la ferriine oxydée absorbe le rouge (bleu). Le ménisque, plus épais contre le verre, assombrit le bord ; la paroi réfracte la lumière. */
+  const FS_BZ_HDR = HEAD + `
+uniform sampler2D uS, uM; uniform vec2 uRes, uDC; uniform float uDR, uT;
+out vec4 o;
+vec4 S(vec2 g){ vec2 sz = vec2(textureSize(uS, 0)); g = clamp(g, vec2(.5), sz - .5) - .5; ivec2 i = ivec2(floor(g)); vec2 f = fract(g); ivec2 m = ivec2(sz) - 1;
+  return mix(mix(texelFetch(uS, i, 0), texelFetch(uS, min(i + ivec2(1, 0), m), 0), f.x), mix(texelFetch(uS, min(i + ivec2(0, 1), m), 0), texelFetch(uS, min(i + 1, m), 0), f.x), f.y); }
+void main(){
+  vec2 sz = vec2(textureSize(uS, 0)); vec2 g = gl_FragCoord.xy / uRes * sz;
+  vec4 s = S(g); float m = texelFetch(uM, ivec2(clamp(g, vec2(0.), sz - 1.)), 0).x;
+  vec2 dv = (g - uDC) / uDR; float r = length(dv);
+  // la pièce sombre, et la lueur de la table lumineuse sous la boîte
+  vec3 col = vec3(.004, .0045, .006) + vec3(.9, .93, 1.) * .06 * exp(-max(r - 1., 0.) * 4.5) * step(1., r);
+  float u = s.x, v = s.y, ox = smoothstep(.12, .7, u);
+  float d = 1. + .9 * smoothstep(.84, 1., r) + .06 * (vnoise(g * .05) - .5);
+  vec3 sig = mix(vec3(.12, 1.7, 2.6), vec3(1.6, .75, .18), ox) * (1. + .25 * smoothstep(0., .6, v));
+  vec3 liq = vec3(1.05) * exp(-sig * d);
+  liq += vec3(.5, .65, 1.) * .12 * smoothstep(.45, .6, u) * (1. - smoothstep(.6, .9, u));   // le front de l'onde, plus clair
+  col = mix(col, liq, m * smoothstep(1.0, .985, r));
+  // le verre : la paroi réfracte la lumière de la table, la lampe s'y reflète
+  col += vec3(1.1, 1.15, 1.2) * .55 * smoothstep(.985, 1., r) * smoothstep(1.045, 1.012, r);
+  col += vec3(1.) * .7 * smoothstep(.02, 0., abs(r - 1.03)) * smoothstep(.2, .9, dot(dv / max(r, 1e-3), vec2(-.6, .8)));
+  col += vec3(1.) * .07 * smoothstep(.5, 0., length(dv - vec2(-.35, .4))) * m;
+  o = vec4(col, 1.);
+}`;
+
   window.FASC.push({
     id: 'spirales', name: 'Les Spirales', cat: 'Motifs', glyph: '🌀', smoothTime: true,
     blurb: 'Ondes chimiques, cœur qui bat, amibes qui se rassemblent',
@@ -184,6 +211,9 @@ void main(){
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
     const dpr = Math.min(1.5, env.dpr || 1), cw = Math.round(W * dpr), ch = Math.round(H * dpr);
     const K = GLKit(cw, ch), gl = K.gl;
+    // la cabine commune (FKR) pour la boîte de Petri en lumière linéaire ; sinon, l'ancien rendu
+    let cab = null, PBZ = null;
+    if (window.FKGL.cabine) { try { PBZ = K.program(FS_BZ_HDR); cab = window.FKGL.cabine(K); } catch (e) { console.warn('Les Spirales : rendu simple', e); cab = null; } }
     if (!K.full) throw new Error('flottants 32 bits indisponibles');
     const PM = K.program(FS_MASK), PSEED = K.program(FS_SEED), PSTEP = K.program(FS_STEP), PCYC = K.program(FS_CYC), PSTIM = K.program(FS_STIM), PSCAR = K.program(FS_SCAR),
       PAI = K.program(FS_AINIT), PAG = K.program(FS_AGENT), PDENS = K.program(FS_DENS, VS_PT), PDOT = K.program(FS_DOT, VS_PT), PBLUR = K.program(FS_BLUR), PRED = K.program(FS_RED), PVIEW = K.program(FS_VIEW);
@@ -255,8 +285,14 @@ void main(){
     }
     function render() {
       const mode = { bz: 0, coeur: 1, dicty: 2, cyc: 3 }[keep.scene];
+      if (mode === 0 && !ink() && cab) {
+        PBZ.use().t('uS', S.r).t('uM', Mk.r).f('uRes', cw, ch).f('uDC', dish[0], dish[1]).f('uDR', dish[2]).f('uT', T);
+        K.run(PBZ, cab.scene);
+        cab.finish({ expo: 1.15, bloom: 0.3, thr: 1.4, knee: 0.5, radius: 0.75, vig: 0.35, grain: 0.03, grainBlack: 0.3 });
+      } else {
       PVIEW.use().t('uS', S.r).t('uM', Mk.r).t('uD', D || Mk.r).f('uRes', cw, ch).i('uMode', mode).f('uInk', ink() ? 1 : 0).f('uGlow', keep.glow).f('uT', T).f('uNs', keep.ns).f('uDC', dish[0], dish[1]).f('uDR', dish[2]);
       K.run(PVIEW, null);
+      }
       if (keep.scene === 'dicty') {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, cw, ch); gl.enable(gl.BLEND);
         if (ink()) gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_COLOR); else gl.blendFunc(gl.ONE, gl.ONE);

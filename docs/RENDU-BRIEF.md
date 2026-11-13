@@ -30,23 +30,26 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 
 | # | Rendu A (`rendu-a`) | Rendu B (`rendu-b`) |
 |---|---|---|
-| 1 | Lucioles | (chaîne optique commune, `fkgl.js`) |
-| 2 | Foudre | Eau |
-| 3 | Abysses (méduses) | Couleurs du ciel |
-| 4 | Cristal | Fourmilière |
-| 5 | Lampe à lave **+ volcans et intérieur de la Terre** | Galaxie |
-| 6 | Écoulement | Bulles |
-| 7 | Mycélium | Murmuration |
-| 8 | Monde quantique | Sable |
-| 9 | Cymatiques | Blob |
-| 10 | Motifs de Turing | Tunnel |
-| 11 | Pendules | Spirales |
-| 12 | Harmonographe | Harpe |
-| 13 | | Spectre |
-| 14 | | Kaléidoscope |
-| 15 | | Jeu de la vie |
-| 16 | | Attracteur |
-| 17 | | Fractales |
+| 0 | | (FKR, la bibliothèque commune) |
+| 1 | Lucioles | Eau **+ houle et tsunamis** |
+| 2 | **Danse des abeilles** (nouvelle machine `s-abeilles.js`) | Couleurs du ciel **+ aurores polaires** |
+| 3 | Lampe à lave **+ volcans et intérieur de la Terre** | Fourmilière |
+| 4 | Foudre | Galaxie **+ système solaire** |
+| 5 | Abysses | Tunnel (dans la Galaxie : retirer ou étiqueter la fiction) |
+| 6 | Cristal | Bulles |
+| 7 | Écoulement | Murmuration **+ bancs de poissons** |
+| 8 | Mycélium | Sable |
+| 9 | Blob | Harpe |
+| 10 | Monde quantique | Spectre |
+| 11 | Motifs de Turing | Cymatiques |
+| 12 | Spirales | Kaléidoscope |
+| 13 | Pendules **+ double pendule** | Jeu de la vie |
+| 14 | Harmonographe | Attracteur |
+| 15 | | Fractales |
+
+**Refonte pédagogique (13/11 vers 1 h 30)** : voir `docs/REFONTE-PEDAGOGIQUE.md`. Les ajouts en gras ont leur cadrage scientifique dans ce document.
+- Les **regroupements** (insectes, réseaux du vivant, motifs, pendule, son) se font dans le shell, par la session Fascinations : chaque moteur reste une machine, et le shell les présente en chapitres d'une même question. Les paires d'un même regroupement sont confiées à la même relève : Blob et Mycélium, Turing et Spirales, Pendules et Harmonographe chez A ; Harpe, Spectre et Cymatiques chez B.
+- **Une nouvelle machine** respecte le contrat habituel (`window.FASC.push`, `make(env)`) et `env.view.y0`, `env.doux`. Envoyez-moi ses chemins de réglages : j'écris sa fiche.
 
 **Échange (13/11 vers 00 h 40)** : les Lucioles passent à rendu A, car c'est la machine d'accueil de l'application adulte, donc la plus vue. La Galaxie passe à rendu B : elle a déjà la chaîne de lumière du Feu, le gain y est moindre.
 

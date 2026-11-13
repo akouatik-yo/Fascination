@@ -151,7 +151,7 @@
         // des bougies comme sur un gâteau : un enfant se reconnaît sans lire
         const bougies = a <= 9 ? h('span', { class: 'bougies' + (a >= 7 ? ' deux' : ''), 'aria-hidden': 'true' }, ...Array.from({ length: a }, () => h('i'))) : null;
         // une couleur par âge (du chaud au froid), les petits en grand sur la première rangée
-        g.append(h('button', { class: 'age' + (a <= 9 ? ' petit' : ' grand'), style: '--h:' + Math.round(20 + (a - 5) * 26) , 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
+        g.append(h('button', { class: 'age' + (a <= 9 ? ' petit' : ' grand'), style: a <= 9 ? '--liseré:' + ['#FF5A4E', '#FF9F3D', '#FFD84A', '#4FE08A', '#5CB8FF'][a - 5] : null, 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
           bougies, h('b', null, a === 16 ? '16 +' : String(a))));
         if (g2) { g2.append(g.lastChild); }
       }
@@ -393,7 +393,7 @@
     const t = now / 1000, dt = last ? Math.min(0.05, t - last) : 0.016;
     last = t;
     const sim = S.sim;
-    if (!sim || S.ecran) return; // la carte et le carnet couvrent l'écran : la machine attend
+    if (!sim || (S.ecran && S.ecran !== 'accueil')) return; // la carte et le carnet couvrent l'écran : la machine attend ; l'accueil, lui, se pose sur la vitrine vivante
     govTick(now);
     if (S.pause) { if (sim.livePaused) { try { sim.frame(vt, 0); } catch (e) { /* rien */ } } return; }
     const sp = S.vitesse * SPEED_UNIT;
@@ -1063,7 +1063,7 @@
   function ecran(nom) {
     S.ecran = nom;
     for (const k of ['carte', 'carnet', 'parents', 'accueil']) $(k).hidden = k !== nom;
-    app.classList.toggle('ecran-ouvert', !!nom);
+    app.classList.toggle('ecran-ouvert', !!nom); app.classList.toggle('accueil-ouvert', nom === 'accueil');
     if (nom) { fermerTiroir(); $('pastille').hidden = true; } else last = 0;
   }
   function appuiLong(el, fn) {
@@ -1167,7 +1167,9 @@
     // la toute première arrivée (et chaque ouverture sans lien) commence par une vitrine : une machine belle dès la première seconde,
     // jamais une qui démarre vide (mycélium, blob, jeu de la vie…)
     const VITRINE = ['feu', 'lucioles', 'galaxie', 'bulles', 'eau', 'foudre', 'cristal', 'meduses', 'ciel', 'fluide'].filter((id) => defs.some((d) => d.id === id));
-    aller(defs.some((d) => d.id === voulu) ? voulu : VITRINE[Math.floor(Math.random() * VITRINE.length)] || sac.suivant());
+    // tout premier lancement : l'accueil s'ouvre sur le Feu ou la Galaxie, qui font l'entrée du musée
+    const ENTREE = S.profil ? VITRINE : ['feu', 'galaxie'].filter((id) => defs.some((d) => d.id === id));
+    aller(defs.some((d) => d.id === voulu) ? voulu : ENTREE[Math.floor(Math.random() * ENTREE.length)] || sac.suivant());
     // première ouverture : la machine tourne déjà derrière, on demande l'âge puis le niveau
     if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }

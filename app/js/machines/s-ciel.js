@@ -237,9 +237,19 @@ void main(){
        cadrage dans trois cibles ; seule la lumière est refaite à chaque image (le soleil peut bouger sans frais). ─ */
   // cadence de rendu : une scène qui ne change pas n'est pas redessinée à chaque image (la tablette ne chauffe pas) ;
   // un changement de réglage est dessiné aussitôt ; le délai court depuis la fin du dernier rendu
+  // plafond de coût : on mesure ce que coûte un rendu (du début du rendu à l'appel suivant, attente de la carte comprise)
+  // et l'on espace les rendus d'au moins 2,5 fois ce coût ; sur une tablette rapide, rien ne change (24 ou 10 images par seconde)
   function cadence() {
-    let t = -1e9;
-    return { ok: (force, ms) => force || performance.now() - t >= ms, fait() { t = performance.now(); } };
+    let t = -1e9, t0 = 0, mesure = false, cout = 0;
+    return {
+      ok(force, ms) {
+        const n = performance.now();
+        if (mesure && n - t0 > 2) { const c = Math.max(0, n - t0 - 17); cout = cout ? cout * 0.6 + c * 0.4 : c; mesure = false; }
+        if (!force && n - t < Math.max(ms, 2.5 * cout)) return false;
+        t0 = n; mesure = true; return true;
+      },
+      fait() { t = performance.now(); },
+    };
   }
   const E0 = 20;
   const ECHELLE = 0.6;   // fraction de la résolution de travail (tablette, et logiciel sans carte graphique) ; les textes restent nets (2D)

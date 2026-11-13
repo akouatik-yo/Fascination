@@ -210,6 +210,21 @@ Une palette est une fonction `t ∈ [0, 1] → [r, g, b]`. Pour en faire une tex
   - voir la scène `#matiere` du banc d'essai.
 - **finition** : `vignetage`, `tramer`.
 
+## Repli automatique selon la cadence réelle : `FKR.veille` (1.3)
+
+Une machine qui garde son ancien rendu, plus léger (souvent en 2D), peut y basculer d'elle-même si l'appareil ne suit pas. Le CEO l'a demandé le 13/11 pour toutes les machines.
+
+```js
+const v = FKR.veille({ id: 'fourmis', seuil: 24, auRepli: (ips) => { modeLeger = true; } });
+if (v.deja) modeLeger = true;          // un repli déjà mémorisé sur cet appareil
+function frame(t, dt) { v.image(performance.now()); /* … */ }
+```
+
+- **Mesure** : après 1,5 s d'attente, on prend la médiane des images sur 4 s. Sous le seuil (24 i/s par défaut), `auRepli` est appelé une fois.
+- **Mémoire** : le choix est retenu pour la machine dans le stockage local, clé `fkr-repli`. `FKR.veille.oublier()` efface tout.
+- **Tests** : la veille est inactive sous un automate de test (`navigator.webdriver`), pour que les bancs mesurent toujours le rendu complet.
+- **Shell** : il ne gère pas le repli de rendu ; son régulateur de résolution (`fj-dpr`) continue d'agir avant.
+
 ## Partager entre les branches
 
 La bibliothèque arrive dans un commit qui ne touche que les fichiers suivants : `app/js/fkrendu.js`, `docs/RENDU-COMMUN.md`, `tools/demo-rendu.html`, `tools/test-rendu.mjs`, une ligne dans chaque `index.html` et `app/sw.js`.

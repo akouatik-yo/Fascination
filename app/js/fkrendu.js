@@ -1054,7 +1054,43 @@ void main(){
     return c;
   }
 
+  /* ═══════════════ 7. Veille de cadence : repli automatique (CEO, 13/11) ═══════════════ */
+  // Une machine qui garde son ancien rendu (2D, plus léger) l'appelle quand la cadence RÉELLE de l'appareil reste
+  // sous un seuil. Usage : const v = FKR.veille({ id: 'fourmis', seuil: 24, auRepli: (ips) => passerAuRendu2D() });
+  // puis v.image(t) à chaque image (t = performance.now()). Après « attente » s, on mesure « duree » s ; si la médiane
+  // des images est sous le seuil, auRepli est appelé une fois, et le choix est mémorisé pour cette machine (clé
+  // fkr-repli du stockage local ; v.deja indique un repli déjà mémorisé, FKR.veille.oublier() efface tout).
+  // Inactive sous automate de test (navigator.webdriver) : les bancs mesurent le rendu complet.
+  const CLE_REPLI = 'fkr-repli';
+  const lireRepli = () => { try { return JSON.parse(localStorage.getItem(CLE_REPLI) || '{}') || {}; } catch (e) { return {}; } };
+  function veille(o) {
+    o = Object.assign({ seuil: 24, attente: 1.5, duree: 4 }, o || {});
+    const memo = lireRepli(), auto = typeof navigator !== 'undefined' && navigator.webdriver;
+    let t0 = null, fini = !!auto, ts = [];
+    const V = {
+      deja: !!(o.id && memo[o.id]) && !auto,
+      image(t) {
+        if (fini) return;
+        if (t0 === null) t0 = t;
+        const age = (t - t0) / 1000;
+        if (age < o.attente) return;
+        ts.push(t);
+        if (age < o.attente + o.duree) return;
+        fini = true;
+        const d = []; for (let i = 1; i < ts.length; i++) d.push(ts[i] - ts[i - 1]);
+        d.sort((a, b) => a - b);
+        const ips = d.length ? 1000 / Math.max(1, d[d.length >> 1]) : 0;
+        if (ips && ips < o.seuil) {
+          if (o.id) { const m = lireRepli(); m[o.id] = Math.round(ips); try { localStorage.setItem(CLE_REPLI, JSON.stringify(m)); } catch (e) { /* rien */ } }
+          try { o.auRepli && o.auRepli(ips); } catch (e) { console.warn('FKR : repli', e); }
+        }
+      },
+    };
+    return V;
+  }
+  veille.oublier = () => { try { localStorage.removeItem(CLE_REPLI); } catch (e) { /* rien */ } };
+
   // fond(nom) : un fond de la DA en linéaire ('defaut', 'eau', 'cosmos')
   const fond = (nom) => deCss(FONDS[nom] || nom || FONDS.defaut);
-  window.FKR = { version: '1.2.0', couleur, palette, GLSL: G, glsl, fs, cabine, cabine2D, cabineOuRepli, cabineK, sprite, DEFAUTS, FONDS, fond, courbeLottes };
+  window.FKR = { version: '1.3.0', couleur, palette, GLSL: G, glsl, fs, cabine, cabine2D, cabineOuRepli, cabineK, sprite, veille, DEFAUTS, FONDS, fond, courbeLottes };
 })();

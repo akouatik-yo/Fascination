@@ -58,27 +58,31 @@ vec3 reflFilm(float e, float ci){
   vec3 c = texture(uFilm, vec2(clamp(max(e, 0.) * ct / ${LUTN}., 0., 1.), .5)).rgb;
   return c * (F / .02006) / (1. + F);
 }
-// la pièce qui se reflète (repère de l'observateur : x à droite, y en haut, z vers l'œil) : murs sombres, une grande
-// fenêtre derrière l'observateur (lumière du jour, croisillons), le mur qu'elle éclaire, une lampe chaude sur le côté
-vec3 piece(vec3 d){
+// la pièce qui se reflète (repère de l'observateur : x à droite, y en haut, z vers l'œil) : une pièce claire (sol plus
+// sombre, plafond lumineux), une seule grande fenêtre douce derrière l'observateur, en hauteur (lumière du jour), une lampe
+// chaude sur le côté. kf : part du reflet de la fenêtre (1 ; la face arrière d'une bulle n'en garde qu'un reflet atténué, stylisé)
+vec3 piece(vec3 d, float kf){
   if (uDecor < .5) return vec3(uInk > .5 ? 9. : 14.);   // sans décor : une lumière blanche uniforme, seul le phénomène reste
-  vec3 c = mix(vec3(.006, .007, .009), vec3(.05, .055, .065), smoothstep(-.7, .9, d.y));
+  vec3 c = mix(vec3(.5, .46, .44), vec3(2., 2.3, 3.), smoothstep(-.8, .9, d.y));
   vec3 ax = normalize(cross(vec3(0., 1., 0.), uFenC)), ay = cross(uFenC, ax);
   float k = dot(d, uFenC);
   if (k > .05){
-    vec2 w = vec2(dot(d, ax), dot(d, ay)) / k;
-    float bord = max(abs(w.x) / uFenT.x, abs(w.y) / uFenT.y);
-    float sf = uFenT.z > .5 ? .03 : .22;           // bords nets (fenêtre) ou diffus (grand écran de lumière)
-    float f = smoothstep(1. + sf, 1. - sf, bord);
-    if (uFenT.z > .5) f *= smoothstep(.006, .016, abs(w.x)) * smoothstep(.006, .016, abs(w.y - .2 * uFenT.y));
-    c += uFenT.w * f * (.78 + .3 * w.y / uFenT.y) * vec3(.98, .99, 1.);
-    c += uFenT.w * .22 / (1. + bord * bord * 1.6);   // le mur et le plafond, éclairés par la fenêtre
+    vec2 w = vec2(dot(d, ax), dot(d, ay)) / k, u = abs(w) / uFenT.xy;
+    float bord = pow(pow(u.x, 4.) + pow(u.y, 4.), .25);  // un rectangle aux coins arrondis
+    float f = smoothstep(1.2, .72, bord);                 // aux bords doux : un seul reflet, sans croisillons
+    c += kf * uFenT.w * f * (.8 + .25 * w.y / uFenT.y) * vec3(.98, .99, 1.);
+    c += uFenT.w * .25 / (1. + bord * bord * 1.4);       // le mur et le plafond, éclairés par la fenêtre
     // un coin de soleil dans la fenêtre : un petit éclat très lumineux (il bave dans le halo)
-    c += uScint * uFenT.w * 6. * pow(max(dot(d, normalize(uFenC + .55 * uFenT.x * ax + .7 * uFenT.y * ay)), 0.), 900.);
+    c += kf * uScint * uFenT.w * 5. * pow(max(dot(d, normalize(uFenC + .45 * uFenT.x * ax + .55 * uFenT.y * ay)), 0.), 900.);
   }
   c += uLampe * pow(max(dot(d, normalize(vec3(.94, .2, -.26))), 0.), 22.);
   c += uLampe * .06 * pow(max(dot(d, normalize(vec3(-.9, .1, -.35))), 0.), 6.) * vec3(.6, .75, 1.);
   return c;
+}
+// le fond vu directement : bleu nuit lumineux, plus clair en haut, une lueur douce au centre (uv : 0..1, y en haut)
+vec3 nuit(vec2 uv){
+  if (uDecor < .5) return vec3(0.);
+  return mix(vec3(.009, .014, .034), vec3(.034, .05, .105), uv.y) + vec3(.016, .022, .04) * exp(-dot(uv - vec2(.5, .6), uv - vec2(.5, .6)) * 5.);
 }
 // les tourbillons sur une sphère : deux tuiles du marbre par tour (raccord), la longitude tourne avec le temps
 float tourb(vec3 n, float rot, float graine){
@@ -95,13 +99,13 @@ out vec4 o;
 vec3 fond(vec2 uv){
   if (uDecor < .5) return vec3(0.);
   float a = uRes.x / uRes.y;
-  vec3 c = mix(vec3(.004, .0045, .006), vec3(.014, .016, .022), uv.y);
+  vec3 c = nuit(uv);
   for (int i = 0; i < 6; i++){
     float fi = float(i);
     vec2 p = vec2(fract(sin(fi * 12.9 + 3.) * 437.) * a, .25 + .6 * fract(sin(fi * 7.3 + 1.) * 91.));
     float r = .05 + .07 * fract(sin(fi * 3.1) * 51.), dd = length(vec2(uv.x * a, uv.y) - p);
     vec3 tc = mod(fi, 3.) < 1. ? vec3(1., .62, .3) : (mod(fi, 3.) < 2. ? vec3(.45, .6, 1.) : vec3(.8, .85, .7));
-    c += tc * .011 * smoothstep(r, r * .82, dd) * (.7 + .3 * smoothstep(r * .5, r, dd));
+    c += tc * .02 * smoothstep(r, r * .82, dd) * (.7 + .3 * smoothstep(r * .5, r, dd));
   }
   return c;
 }
@@ -132,7 +136,7 @@ void main(){
     float df = max(base * (1. + .32 * 1.6 * tourb(nf, rot, b2.w)), 0.), db = max(base * (1. + .32 * 1.6 * tourb(nb, rot, b2.w)), 0.);
     // face avant (convexe) : reflet droit de la pièce ; face arrière (concave, vue au travers) : reflet renversé, plus petit
     vec3 Rf = reflFilm(df, nz), Rb = reflFilm(db, nz);
-    vec3 Lf = piece(reflect(v, nf)), Lb = piece(reflect(v, vec3(-qs.x, qs.y, nz)));
+    vec3 Lf = piece(reflect(v, nf), 1.), Lb = piece(reflect(v, vec3(-qs.x, qs.y, nz)), .3);
     float tf = 1. - luminance(Rf), tb = 1. - luminance(Rb);
     vec3 c = Rf * Lf + tf * Rb * Lb;
     // le bourrelet du trou : un tore de liquide épais, qui renvoie la lumière de la pièce
@@ -153,13 +157,13 @@ vec3 fil(float s, vec2 g){
   vec3 rr = reflect(vec3(0., 0., -1.), n);
   float ci = n.z;
   vec3 f0 = vec3(.56, .57, .58);
-  return (f0 + (1. - f0) * pow(1. - ci, 5.)) * piece(rr) * .35 + f0 * .004;
+  return (f0 + (1. - f0) * pow(1. - ci, 5.)) * piece(rr, 1.) * .35 + f0 * .004;
 }
 void main(){
   vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
   vec2 ctr = uBox.xy + .5 * uBox.zw, hb = .5 * uBox.zw;
   vec2 p = (px - uBox.xy) / uBox.zw;                    // 0..1 dans le cadre (y vers le bas)
-  vec3 col = uDecor > .5 ? mix(vec3(.003, .0035, .005), vec3(.016, .018, .024), vUv.y) : vec3(0.);
+  vec3 col = nuit(vUv);
   float sd = sdB(px - ctr, hb);
   if (sd < 1.){
     float cov = smoothstep(1., -1., sd);
@@ -171,7 +175,7 @@ void main(){
     w.y += mr * .06 * texture(uMarbre, vec2(p.x * 2.1, p.y * .7 + uT * .012)).r;
     for (int i = 0; i < 8; i++){ if (i >= uNV) break; vec4 v = uV[i]; vec2 d = w - v.xy; float r2 = dot(d, d); float a = v.z * exp(-r2 / .012); w = v.xy + mat2(cos(a), -sin(a), sin(a), cos(a)) * d; }
     // épaisseur : quelques nm en haut, plus d'un micron en bas ; tout s'amincit avec le temps
-    float d = 1600. * pow(clamp(w.y, 0., 1.), 1.15) / (1. + uAge * .08) + 30. * texture(uMarbre, w * 2.3 + uT * .003).a;
+    float d = 1150. * pow(clamp(w.y, 0., 1.), 1.15) / (1. + uAge * .08) + 30. * texture(uMarbre, w * 2.3 + uT * .003).a;
     d = max(0., d - 22. * smoothstep(.0, 1., uAge / 25.));
     // bord de Plateau : le liquide se rassemble le long du fil (ménisque), surtout en bas où il s'écoule
     float dist = max(-sd, 0.) / uBox.z;
@@ -179,7 +183,7 @@ void main(){
     // ce que le film reflète : une grande fenêtre en face de lui (derrière l'observateur), un peu plus haut
     vec3 rd = normalize(vec3((p.x - .5) * .42, -(p.y - .5) * .42 * uBox.w / uBox.z, 1.));
     vec3 Rf = reflFilm(d, .99);
-    col = col * mix(1., 1. - luminance(Rf), cov) + Rf * piece(rd) * cov;
+    col = col * mix(1., 1. - luminance(Rf), cov) + Rf * piece(rd, 1.) * cov;
   }
   if (uDecor > .5){
     // le cadre et son manche, en fil d'acier
@@ -207,7 +211,7 @@ vec3 filmEn(vec3 h, vec3 rd, vec3 n, float d, out float tr){
   if (dot(n, rd) > 0.) n = -n;
   vec3 R = reflFilm(d, abs(dot(n, rd)));
   tr = 1. - luminance(R);
-  return R * piece(vue(reflect(rd, n)));
+  return R * piece(vue(reflect(rd, n)), 1.);
 }
 void main(){
   vec2 uv = (gl_FragCoord.xy - uC) / uS;
@@ -216,7 +220,7 @@ void main(){
   FW = normalize(-ro); RT = normalize(cross(FW, vec3(0., 0., 1.))); UP = cross(RT, FW);
   vec3 rd = normalize(FW + uv.x * RT + uv.y * UP);
   // le fond : une pièce sombre, une lueur douce derrière les anneaux
-  vec3 col = uDecor > .5 ? mix(vec3(.003, .0035, .005), vec3(.014, .016, .021), gl_FragCoord.y / uRes.y) + vec3(.02, .022, .03) * exp(-dot(uv, uv) * 6.) : vec3(0.);
+  vec3 col = nuit(gl_FragCoord.xy / uRes);
   // tout tient dans un cylindre de rayon 1,05 et de demi-hauteur uH + 0,05 : on ne cherche que là
   float qa = dot(rd.xy, rd.xy), qb = 2. * dot(ro.xy, rd.xy), qc = dot(ro.xy, ro.xy) - 1.1025, qd = qb * qb - 4. * qa * qc;
   if (qd < 0.){ o = vec4(col, 1.); return; }
@@ -237,7 +241,7 @@ void main(){
           vec3 n = normalize(p - vec3(normalize(p.xy), zz));
           vec3 f0 = vec3(.91, .64, .3);                  // laiton
           float ci = max(dot(n, -rd), 0.);
-          cAnn = uDecor > .5 ? (f0 + (1. - f0) * pow(1. - ci, 5.)) * piece(vue(reflect(rd, n))) * .5 + f0 * .006 : vec3(uInk > .5 ? .02 : .5);
+          cAnn = uDecor > .5 ? (f0 + (1. - f0) * pow(1. - ci, 5.)) * piece(vue(reflect(rd, n)), 1.) * .5 + f0 * .006 : vec3(uInk > .5 ? .02 : .5);
         }
         break;
       }
@@ -265,7 +269,7 @@ void main(){
         // épaisseur : le film s'écoule vers le bas, le haut s'amincit ; tourbillons sur la surface (raccord autour de l'axe)
         vec2 tc = vec2(atan(h.y, h.x) * .3183099, h.z * .55);
         float sw = texture(uMarbre, tc + .12 * texture(uMarbre, tc * .5 + uT * .003).gb).r;
-        float d = 350. * (.3 + .9 * (.5 - .5 * h.z / uH)) * (1. + .4 * sw);
+        float d = 350. * (.42 + 1.2 * (.5 - .5 * h.z / uH)) * (1. + .4 * sw);
         acc += T * filmEn(h, rd, n, d, tr); T *= tr;
         hits++; if (hits == 2) break;
       }
@@ -346,7 +350,7 @@ void main(){
     function addBubble(x, y, r) {
       if (B.length >= MAXB) return;
       const m = Math.min(view().w, H);
-      B.push({ x, y, r: r || m * rnd(0.16, 0.06), vx: rnd(10, -10), vy: rnd(-5, -20), d0: rnd(1100, 700), age: 0, life: rnd(26, 12) * cfg.life, ph: rnd(TAU), seed: rnd(50), pop: 0, px: 0, py: 0, grow: 0 });
+      B.push({ x, y, r: r || m * rnd(0.16, 0.06), vx: rnd(10, -10), vy: rnd(-5, -20), d0: rnd(850, 520), age: 0, life: rnd(26, 12) * cfg.life, ph: rnd(TAU), seed: rnd(50), pop: 0, px: 0, py: 0, grow: 0 });
     }
     function pop(b, x, y) {
       if (b.pop) return;
@@ -415,9 +419,9 @@ void main(){
     }
     // ce que reflète chaque scène : la fenêtre (direction, demi-taille, croisillons, luminance) et la lampe
     const FEN = {
-      bulles: { c: [-0.42, 0.36, 0.83], t: [0.85, 1.05, 1, 14] },
-      cadre: { c: [0.05, 0.22, 1], t: [0.5, 0.33, 0, 13] },
-      cate: { c: [-0.36, 0.32, 0.88], t: [0.9, 1.1, 1, 14] },
+      bulles: { c: [-0.3, 0.62, 0.72], t: [0.62, 0.5, 0, 22] },
+      cadre: { c: [0.04, 0.12, 1], t: [0.55, 0.44, 0, 18] },
+      cate: { c: [-0.3, 0.55, 0.78], t: [0.72, 0.56, 0, 20] },
     };
     function render() {
       if (R.perdu) { if (R.gl.isContextLost()) return; try { construire(); } catch (e) { return; } }

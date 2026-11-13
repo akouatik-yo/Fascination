@@ -135,3 +135,5 @@ Retours de la recette (« un enfant de 5 ans dirait-il c'est moche ? »), repris
   3. **Mycélium** : ronds de sorcières en relief plus marqué (pente mesurée sur 2 cases, ombre et lumière plus fortes) ; la pluie assombrit un peu au lieu de voiler de gris (l'image était délavée). Combat : la pré-croissance fait au moins 140 pas (220 en portrait), avec un budget de 450 ms.
   4. **Détails** : les gouttes de départ de la lampe se répartissent dans la largeur du verre (elles faisaient une colonne). La lampe se loge sous la bande réservée du Labo et tient en largeur sur un écran étroit (elle était rognée en 390 px). Le message de l'Atlas passe à la ligne (il était coupé des deux côtés en 390 px).
 
+
+- **Pause demandée par Yoann (13/11, 16 h 07)** : tout est poussé (2c13f37). Point de reprise : ajouter « à l’œil nu » dans le texte de l’auréole (« la vraie couronne… ne se voit à l’œil nu qu’aux éclipses », demande de Kurt), puis attendre le recontrôle de la qualité sur 2c13f37.

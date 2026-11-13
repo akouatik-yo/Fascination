@@ -206,9 +206,9 @@ void main(){
      uMode : 0 la mare (décor) ; 1 la cuve à ondes (une lampe au-dessus, un écran de papier dessous) ; 2 sans décor (la seule
      lumière des caustiques, sur fond sombre). Repère : x à droite, y vers le bas de l'écran, z vers le ciel. */
   const FS_EAU = window.FKR.fs(['couleur', 'bruit', 'lumiere', 'formes', 'matiere'], `
-uniform sampler2D uW, uD, uFloor, uNuages, uLut;
+uniform sampler2D uW, uD, uFloor, uNuages, uLut, uFilet;
 uniform vec2 uRes, uWt, uOmbre, uDerive;
-uniform float uCell, uSlope, uProf, uProfM, uSoleil, uCouvert, uGlint, uRug, uMode, uMean, uKS;
+uniform float uCell, uSlope, uProf, uProfM, uSoleil, uCouvert, uGlint, uRug, uMode, uMean, uKS, uFoc, uBrise, uTemps, uBrilleMax;
 uniform vec3 uOeil, uL, uLt, uSunCol, uCielZ, uCielH, uLampe;
 uniform vec4 uBarre;
 uniform int uNP; uniform vec4 uPA[16]; uniform vec4 uPB[16];
@@ -221,22 +221,26 @@ vec2 toUv(vec2 q){ return vec2(q.x / uRes.x, 1. - q.y / uRes.y); }
 // au-dessus (décalée selon le soleil) ; là où la surface est bombée, les rayons se resserrent et le fond s'illumine.
 // Éclairement relatif = 1 / |det J| (FKR.caustiqueJacobien), 1 en moyenne ; coût constant, quelles que soient les rides.
 float cauJ(vec2 s){
-  vec2 uv = toUv(s);
+  vec2 uv = toUv(s), dx = vec2(uWt.x * 1.5, 0.), dy = vec2(0., uWt.y * 1.5);
   float h = texture(uW, uv).r;
-  float l = texture(uW, uv - vec2(uWt.x, 0.)).r + texture(uW, uv + vec2(uWt.x, 0.)).r + texture(uW, uv - vec2(0., uWt.y)).r + texture(uW, uv + vec2(0., uWt.y)).r;
-  // (la focale est prise à 45 % de la profondeur : au-delà, les plis couvrent tout et le fond disparaît sous la lumière)
-  return min(caustiqueJacobien((l - 4. * h) / (uCell * uCell) * uSlope, uProf * .45, 1.333), 6.);
+  float a = texture(uW, uv - dx).r + texture(uW, uv + dx).r + texture(uW, uv - dy).r + texture(uW, uv + dy).r;
+  float d = texture(uW, uv - dx - dy).r + texture(uW, uv + dx - dy).r + texture(uW, uv - dx + dy).r + texture(uW, uv + dx + dy).r;
+  // laplacien isotrope à 9 points : une goutte reste ronde (un laplacien à 5 points y dessinait un carré)
+  float lap = (4. * a + d - 20. * h) / (13.5 * uCell * uCell) * uSlope;    // (pas de 1,5 cellule : 6 × 1,5²)
+  // det J au premier ordre (comme FKR.caustiqueJacobien), focale prise à uFoc de la profondeur ; le pli est adouci, comme
+  // le fait le disque du soleil (un demi-degré) : pas de palier, pas de carré
+  float j = 1. + uProf * uFoc * (1. - 1. / 1.333) * lap;
+  return 1. / sqrt(j * j + .02);
 }
 // le ciel que reflète l'eau : dégradé de Rayleigh (bleu profond au zénith, pâle vers l'horizon), nuages sur un plan, soleil
 vec3 ciel(vec3 r){
   r.z = max(r.z, .02);
   vec3 c = mix(uCielH, uCielZ, sqrt(r.z));
-  vec2 nn = texture(uNuages, r.xy / (r.z + .1) * .14 + uDerive).rg;
-  float s = mix(.6, .3, uCouvert), dens = smoothstep(s, s + .14, nn.r) * smoothstep(0., .1, r.z);
+  vec2 nn = texture(uNuages, r.xy / (r.z + .25) * .07 + uDerive).rg;
+  float s = mix(.6, .3, uCouvert), dens = smoothstep(s, s + .2, nn.r) * smoothstep(0., .1, r.z) * mix(.2, 1., uCouvert);
   vec3 cn = mix(uSunCol * (.85 + .35 * uSoleil), vec3(.55, .58, .62), uCouvert) * (.78 + .3 * nn.g);
-  c = mix(c, cn, dens);
-  float cs = max(dot(r, uL), 0.);
-  return c + uSunCol * uSoleil * (1. - dens * .85) * (pow(cs, 3000.) * 80. + pow(cs, 30.) * .4);
+  // (le soleil lui-même n'y est pas : son reflet est le terme « éclat », que commande « Reflets du soleil »)
+  return mix(c, cn, dens);
 }
 // une carpe koï vue de dessus (albédo sRGB, couverture) : corps ondulant, nageoires translucides, robe selon la variété
 vec4 koi(vec2 q, vec4 A, vec4 B){
@@ -314,7 +318,7 @@ float nenuphar(vec2 p, vec4 A, vec4 B, vec3 V, vec3 Es, vec3 Ec, out vec3 c){
   float bord = smoothstep(.8, 1., rho);
   vec2 ond = vec2(bruitV(dl * .07 + B.z * 9.), bruitV(dl * .07 + B.z * 9. + 7.)) - .5;
   vec3 nrm = normalize(vec3(-d / max(l, 1e-3) * bord * .6 + ond * .22, 1.));
-  vec3 alb = mix(vec3(.04, .09, .022), vec3(.064, .088, .026), B.y) * (.93 + .14 * bruitV(dl * .03 + B.z * 3.)) * (1. + nerv * .5);
+  vec3 alb = mix(vec3(.045, .14, .03), vec3(.07, .13, .03), B.y) * (.93 + .14 * bruitV(dl * .03 + B.z * 3.)) * (1. + nerv * .5);
   alb = mix(alb, vec3(.075, .036, .02), smoothstep(.94, 1., rho) * .55);
   float ndl = max(dot(nrm, uL), 0.);
   vec3 h = normalize(V + uL);
@@ -329,7 +333,7 @@ float nenuphar(vec2 p, vec4 A, vec4 B, vec3 V, vec3 Es, vec3 Ec, out vec3 c){
     om = fleur((dl + so) / rf, B.z, 1. / rf).a;
     f = fleur(dl / rf, B.z, 1. / rf);
   }
-  c = alb * Ec + soleil * (1. - .75 * om) + (uCielZ + uCielH) * .5 * schlick(max(dot(nrm, V), 0.), .045) * .3;
+  c = alb * Ec + soleil * (1. - .75 * om) + (uCielZ + uCielH) * .5 * schlick(max(dot(nrm, V), 0.), .045) * .15;
   // pétales : diffusion enveloppante et un peu de lumière transmise ; la lumière du jour les fait presque briller
   if (f.a > 0.) c = mix(c, f.rgb * (Es * .95 / max(uL.z, .2) * .78 + Ec * 1.1), f.a);
   return cov;
@@ -346,7 +350,7 @@ void main(){
     // la cuve à ondes : la lampe éclaire l'écran à travers l'eau ; chaque crête concentre la lumière (frange claire),
     // chaque creux l'étale (frange sombre). L'éclairement de la lampe tombe loin de l'axe (cos⁴).
     vec2 c = (p - uRes * .5) / (.5 * length(uRes));
-    float lampe = 1. / pow(1. + dot(c, c) * 1.3, 2.);
+    float lampe = 1. / pow(1. + dot(c, c) * .8, 2.);
     vec3 pap = versLineaire(texture(uFloor, vUv).rgb);
     float E = lampe * cauJ(p) * (1. - .94 * D.g);
     // les plaques immergées : un verre un peu absorbant, dont les bords dévient la lumière (liseré sombre)
@@ -355,23 +359,29 @@ void main(){
     // les tiges des vibreurs et la règle du générateur d'ondes planes font de l'ombre
     for (int i = 0; i < 4; i++){ if (i >= uNO) break; E *= mix(.12, 1., smoothstep(uO[i].z * .6, uO[i].z * 1.25, length(p - uO[i].xy))); }
     if (uBarre.w > .5) E *= mix(.12, 1., smoothstep(uBarre.z * .5, uBarre.z * 1.3, abs(p.x - uBarre.x)));
-    col = pap * (uLampe * E * 1.6 * uSoleil + vec3(.006, .007, .009));
+    col = pap * (uLampe * E * 1.45 * uSoleil + vec3(.006, .007, .009));
   } else {
     // l'œil : à la verticale de la mare, très haut (vue de dessus) ; le reflet du ciel naît sur le flanc des rides
     vec3 V = uMode < .5 ? normalize(uOeil - vec3(p, 0.)) : vec3(0., 0., 1.);
     float cv = max(dot(n, V), .02);
     float F = fresnelDielectrique(cv, 1.333);         // 2 % vu d'en haut, un miroir en vue rasante
-    vec3 Lc = ciel(reflect(-V, n));
+    vec3 Lc = ciel(reflect(-V, n)) * (uMode < .5 ? 1.5 : 1.);   // un ciel de plein jour, plus lumineux que le fond (stylisé)
     vec3 Tr = refract(-V, n, 1. / 1.333);
     float ct = max(-Tr.z, .3);
     vec2 dec = Tr.xy / ct;                             // décalage du fond vu à travers l'eau, par unité de profondeur
-    vec3 Es = uSunCol * uSoleil * 3.4 * uL.z;          // le soleil sur un plan horizontal
-    vec3 Ec = (uCielZ * .6 + uCielH * .4) * .4;        // la lumière diffuse du ciel
+    vec3 Es = uSunCol * uSoleil * 3.6 * uL.z;          // le soleil sur un plan horizontal
+    vec3 Ec = (uCielZ * .6 + uCielH * .4) * .32;       // la lumière diffuse du ciel
     float brille = 0.;
-    if (uGlint > .5){ vec3 hv = normalize(V + uL); brille = min(ggxD(max(dot(n, hv), 0.), uRug) * fresnelDielectrique(max(dot(V, hv), 0.), 1.333) * .25 / cv, 12.); }
+    if (uGlint > .5){ vec3 hv = normalize(V + uL); brille = min(ggxD(max(dot(n, hv), 0.), uRug) * fresnelDielectrique(max(dot(V, hv), 0.), 1.333) * .25 / cv, uBrilleMax); }
     vec3 eclat = uSunCol * uSoleil * 3.4 * brille;
     vec2 q = p + dec * uProf;                          // le point du fond que l'on voit, réfracté
-    float cau = cauJ(q - uOmbre);
+    q = uRes - abs(uRes - abs(q));                     // (au-delà du cadre, le fond est replié en miroir : pas de bord étiré)
+    vec2 qs = uRes - abs(uRes - abs(q - uOmbre));        // (replié en miroir, comme le fond : pas de bord étiré)
+    float cau = cauJ(qs);
+    // par brise, des rides capillaires trop fines pour la grille tissent en plus un filet de lumière (FKR.caustique) ;
+    // une eau sans vent, miroir, n'en a pas
+    float kf = uMode < .5 ? clamp(uBrise * 1.4, 0., .55) : 0., filet = 1.;
+    if (kf > 0.){ filet = texture(uFilet, toUv(qs)).r; cau *= mix(1., filet, kf); }
     if (uMode > 1.5){
       // sans décor : il ne reste que la lumière — le filet des caustiques en blanc chaud, le ciel sur les flancs des rides
       col = uSunCol * uSoleil * pow(max(cau - .8, 0.), 1.3) * 1.3 + Lc * F * .5 + eclat;
@@ -404,8 +414,10 @@ void main(){
         }
       }
       // un léger voile : la lumière renvoyée par les particules en suspension, déjà filtrée par l'eau
-      sous += (Es * .5 + Ec) * .03 * eauTransmission(pm * .7 + .15) * (1. - exp(-pm / ct * 1.4));
+      sous += (Es * .5 + Ec) * .05 * eauTransmission(pm * .7 + .15) * (1. - exp(-pm / ct * 1.4));
       col = sous * (1. - F) + Lc * F + eclat;
+      // le flanc raide des rides capillaires renvoie le ciel bleu (stylisé : le même filet, vu en surface)
+      col += Lc * .08 * smoothstep(1.3, 3.2, filet) * kf;
       // une paroi construite (outil mur) : une planche sombre posée dans l'eau
       col = mix(col, vec3(.09, .08, .07) * (Es + Ec), smoothstep(.3, .7, D.g));
       // les nénuphars flottent : ni réfractés ni teintés par l'eau ; un fin ménisque, qui renvoie le ciel, les borde
@@ -435,8 +447,14 @@ void main(){
   function paintPond(g, W, H) {
     // le fond de la mare (sa couleur est stylisée) : une vase olive tapissée d'un film d'algues vertes
     const gr = g.createRadialGradient(W * 0.5, H * 0.5, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.7);
-    gr.addColorStop(0, '#56603a'); gr.addColorStop(0.6, '#646a40'); gr.addColorStop(1, '#7a7a4e');
+    gr.addColorStop(0, '#2c4434'); gr.addColorStop(0.45, '#45503a'); gr.addColorStop(1, '#7e6c40');
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    // près du bord, le fond remonte : un sable clair et doré (l'eau y est aussi moins profonde, cf. la carte des profondeurs)
+    for (const [x0, y0, x1, y1, w, h] of [[0, 0, W * 0.2, 0, W * 0.2, H], [W, 0, W * 0.8, 0, W * 0.2, H], [0, 0, 0, H * 0.16, W, H * 0.16], [0, H, 0, H * 0.84, W, H * 0.16]]) {
+      const b = g.createLinearGradient(x0, y0, x1, y1);
+      b.addColorStop(0, 'rgba(206,166,92,.75)'); b.addColorStop(1, 'rgba(206,166,92,0)');
+      g.fillStyle = b; g.fillRect(Math.min(x0, x1, W - w), Math.min(y0, y1, H - h), w, h);
+    }
     grain(g, 0, 0, W, H, W * H / 25, 0.18, false);
     grain(g, 0, 0, W, H, W * H / 40, 0.15, true);
     // plaques d'algues et de vase
@@ -477,7 +495,7 @@ void main(){
   }
   // l'écran de la cuve à ondes : une feuille de papier blanc sous la cuve, avec un quadrillage léger pour mesurer
   function paintTank(g, W, H) {
-    g.fillStyle = '#e6e4de'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#f0efea'; g.fillRect(0, 0, W, H);
     grain(g, 0, 0, W, H, W * H / 30, 0.05, false);
     grain(g, 0, 0, W, H, W * H / 60, 0.08, true);
     g.strokeStyle = 'rgba(60,70,90,.12)'; g.lineWidth = 1;
@@ -561,9 +579,68 @@ void main(){
   const SUNCOL = COUL.corpsNoir(5600);                       // la lumière directe du soleil, haut dans le ciel
   const BLEU = COUL.rayleigh();                              // le bleu du ciel : diffusion Rayleigh (∝ λ⁻⁴)
   const HORIZON = BLEU.map((v, i) => (v * 0.5 + SUNCOL[i] * 0.5) * 1.2);    // vers l'horizon, le ciel pâlit et s'éclaircit
-  const LAMPE = COUL.corpsNoir(5000);                        // la lampe de la cuve à ondes : un blanc chaud
+  const LAMPE = COUL.corpsNoir(6000);                        // la lampe de la cuve à ondes : un blanc franc (pas de sépia)
   const VERT = [0.04, 0.09, 0.022];                          // une feuille de nénuphar : vert chlorophylle mat (albédo)
   const mixv = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+
+  // le filet des rides capillaires (FKR.caustique), calculé en demi-résolution : il est doux, et coûte quatre fois moins
+  const FS_FILET = window.FKR.fs(['bruit'], `
+uniform vec2 uRes; uniform float uKS, uTemps; out vec4 o;
+void main(){ vec2 p = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y); o = vec4(caustique(p * (.052 / uKS), uTemps * .8), 0., 0., 1.); }`);
+
+  /* ───────── la houle et les tsunamis : une coupe de l'océan, en lumière ─────────
+     En haut, trois couloirs de houle en eau profonde (une longueur d'onde chacun, à l'échelle 1 px = 1 m, hauteurs ×uKh) ;
+     en bas, la coupe de l'océan : surface (uOc.r, en m, hauteurs ×uKe), fond (uOc.g, profondeur en m, ×uKd ; négative : la terre). */
+  const FS_COUPE = window.FKR.fs(['couleur', 'bruit', 'lumiere'], `
+uniform sampler2D uOc;
+uniform vec4 uBH, uBT, uLam, uAmp;
+uniform vec2 uRes, uSeisme;
+uniform float uT, uKx, uKd, uKe, uKh, uYmer, uL, uSeismeA;
+uniform vec3 uSunCol, uCielZ, uCielH;
+out vec4 o;
+// la lumière du jour dans l'eau, vue de côté : ce qui reste après la descente et la remontée (l'eau mange le rouge d'abord)
+vec3 eauCote(float z){ return (uSunCol * 1.5 + uCielZ * .7) * .3 * eauTransmission(2. * z + 3.) + vec3(.002, .006, .016); }
+vec3 cielCote(float t){ return mix(uCielH, uCielZ, clamp(t, 0., 1.)); }
+void main(){
+  vec2 p = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  vec3 col = vec3(0.);
+  if (p.x > uBH.x && p.x < uBH.z && p.y > uBH.y && p.y < uBH.w){
+    // la houle, au large : c = √(g·λ/2π) (eau profonde) ; chaque couloir a sa longueur d'onde
+    float hc = (uBH.w - uBH.y) / 3., i = floor((p.y - uBH.y) / hc), yl = uBH.y + i * hc, ym = yl + hc * .42;
+    float lam = i < .5 ? uLam.x : i < 1.5 ? uLam.y : uLam.z, a = i < .5 ? uAmp.x : i < 1.5 ? uAmp.y : uAmp.z;
+    float k = 6.2831853 / lam, w = sqrt(9.81 * k);
+    float ys = ym - uKh * a * cos(k * (p.x - uBH.x) - w * uT);
+    if (p.y < ys) col = cielCote((ym - p.y) / (hc * .42) + .15);
+    else col = eauCote((p.y - ys) / uKh);
+    col += (uCielH * .7 + uSunCol * .5) * exp(-(p.y - ys) * (p.y - ys) / 1.4);
+    if (p.y - yl < 2.) col = vec3(0.);
+  } else if (p.x > uBT.x && p.x < uBT.z && p.y > uBT.y && p.y < uBT.w){
+    // le tsunami : la coupe de l'océan
+    float xm = (p.x - uBT.x) / uKx;
+    vec2 oc = texture(uOc, vec2(xm / uL, .5)).rg;
+    float eta = oc.r, h = oc.g;
+    float ys = uYmer - eta * uKe, yb = uYmer + h * (h > 0. ? uKd : uKd * 2.5);
+    vec3 ciel = cielCote((uYmer - p.y) / (uYmer - uBT.y));
+    float n = bruitG(vec2(xm * 2e-5, p.y * .08)) * .5 + bruitG(vec2(xm * 1.2e-4, p.y * .3)) * .25;
+    if (h <= 0.){
+      // la terre : une plage, puis des collines vertes éclairées par le soleil
+      vec3 sol = mix(vec3(.36, .3, .2), vec3(.07, .11, .035) * (1. + n), smoothstep(-8., -40., h));
+      col = p.y < yb ? ciel : sol * (uSunCol * 2. + uCielZ * .4) * (1. - .35 * smoothstep(0., 30., p.y - yb));
+    } else if (p.y < ys) col = ciel;
+    else if (p.y < yb) col = eauCote((p.y - ys) / uKd) + (p.y < uYmer ? vec3(.02, .06, .08) : vec3(0.));
+    else {
+      // le fond : des roches sombres sous une couche de sédiments ; le plateau continental est sableux
+      vec3 roche = mix(vec3(.11, .095, .08), vec3(.3, .25, .17), smoothstep(400., 60., h)) * (.75 + .5 * n);
+      roche = mix(roche, vec3(.22, .19, .15), exp(-(p.y - yb) / 3.));
+      col = roche * (.22 + .3 * exp(-(p.y - yb) / 40.));     // un éclairage de coupe (stylisé : à ces profondeurs, il fait nuit)
+    }
+    // la surface : un fil de lumière (le ciel s'y reflète)
+    col += (uCielH * .6 + uSunCol * .35) * exp(-(p.y - ys) * (p.y - ys) / 1.2) * step(0., h);
+    // le séisme : une lueur douce sur le fond, qui s'éteint (aucun éclair)
+    if (uSeismeA > 0.){ vec2 d = p - uSeisme; col += vec3(1., .42, .12) * uSeismeA * 1.4 * exp(-dot(d, d) / 300.); }
+  }
+  o = vec4(col, 1.);
+}`);
 
   const QUAL = {
     legere: { cells: 30000, comp: 0.75, mesh: 9 },
@@ -638,7 +715,8 @@ void main(){
         Wv: K.double(GW, GH),
         cau: qk === 'legere' ? K.target(Math.round(cw / 2), Math.round(ch / 2)) : K.target(cw, ch),
         D: gl.createTexture(), floor: gl.createTexture(), nuages: texNuages(K),
-        pg: { wave: K.program(FS.wave), comp: K.program(FS.comp), caust: K.program(FS.caustFS, VS_CAUST), eau: K.program(FS_EAU) },
+        pg: { wave: K.program(FS.wave), comp: K.program(FS.comp), caust: K.program(FS.caustFS, VS_CAUST), eau: K.program(FS_EAU), coupe: K.program(FS_COUPE), filet: K.program(FS_FILET) },
+        filet: K.target(Math.max(2, Math.round(cw / 2)), Math.max(2, Math.round(ch / 2))),
       };
       for (const t of [r.D, r.floor]) {
         gl.bindTexture(gl.TEXTURE_2D, t);
@@ -697,8 +775,9 @@ void main(){
     }
     mkCab();
     // décalage du fond vu à travers une eau plane, par unité de profondeur (l'œil est debout au bord, en bas de l'écran)
-    // une carte vue de dessus : l'œil est à la verticale, très haut (au plus 14° d'écart dans les coins)
-    const oeil = () => { const v = view(); return [v.cx, H * 0.5, H * 3]; };
+    // une carte vue de dessus : l'œil est presque à la verticale, au-dessus du bas de la mare (0° près de soi, 40° tout au
+    // loin) ; au loin, le flanc des rides renvoie le ciel bleu
+    const oeil = () => { const v = view(); return [v.cx, H, H * 1.2]; };
     function decalage(x, y) {
       const E = oeil(); let vx = E[0] - x, vy = E[1] - y; const vz = E[2], l = Math.hypot(vx, vy, vz);
       vx /= l; vy /= l;
@@ -782,12 +861,142 @@ void main(){
     }
     function mkGerris(x, y) { return { x, y, a: rnd(TAU), vx: 0, vy: 0, t: rnd(1.2), st: 'erre', prey: null, fed: 0, sig: 0, sex: Math.random() < 0.5 ? 'm' : 'f', jump: 0 }; }
 
+    /* ───────── la houle et les tsunamis : une coupe de l'océan sur 1 600 km ─────────
+       Le tsunami suit les équations linéaires de l'eau peu profonde (sa longueur d'onde, des centaines de km, dépasse de
+       loin la profondeur) : il va à √(g·h) partout, ralentit et grandit en montant sur le plateau continental (shoaling).
+       La houle suit la loi de l'eau profonde : c = √(g·λ/2π). Temps compressé : 1 s à l'écran = 400 s. */
+    const OC = { N: 800, L: 1600e3, D: 4000, eta: new Float32Array(800), u: new Float32Array(801), h: new Float32Array(800), hf: new Float32Array(801), data: new Float32Array(3200), t: 0, xs: 0.4, seisme: 0, large: 0, cote: 0, lance: false };
+    const HOULE = { lam: [25, 100, 400], amp: [0.4, 1, 1.6], kh: 8 };
+    const COMPRESSION = 400;
+    function profilOcean() {
+      const { N, D, h, hf } = OC, s = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+      for (let i = 0; i < N; i++) {
+        const f = (i + 0.5) / N;
+        let z = D + 140 * Math.sin(f * 41) * Math.sin(f * 17 + 1);              // plaine abyssale et ses collines
+        z += 1800 * Math.exp(-(((f - 0.62) / 0.012) ** 2));                     // la fosse, au pied du continent : une plaque y plonge sous l'autre
+        if (f >= 0.74) z = z + (150 - z) * s((f - 0.74) / 0.06);               // le talus continental
+        if (f >= 0.8) z = 150 + (8 - 150) * Math.min(1, (f - 0.8) / 0.15);     // le plateau continental : de 150 à 8 m
+        if (f >= 0.95) z = 8 - (f - 0.95) * 6000;                              // la côte, puis la terre (jusqu'à 290 m)
+        h[i] = z;
+      }
+      for (let i = 1; i < N; i++) hf[i] = Math.max(0, Math.min(h[i - 1], h[i]));
+      hf[0] = hf[N] = 0;
+    }
+    function lancerTsunami(xf) {
+      const { N, L, eta, h } = OC, x0 = xf == null ? 0.62 : clamp(xf, 0.08, 0.9), s = 35e3 / L;
+      // le séisme soulève le fond d'un coup ; la surface de l'océan copie ce soulèvement (80 cm sur quelques dizaines de km)
+      for (let i = 0; i < N; i++) if (h[i] > 0.5) eta[i] += 0.8 * Math.exp(-((((i + 0.5) / N - x0) / s) ** 2));
+      Object.assign(OC, { xs: x0, t: 0, seisme: 1, large: 0, cote: 0, lance: true });
+    }
+    function oceanPas(dts) {
+      const { N, L, eta, u, h, hf } = OC, dx = L / N, g = 9.81;
+      for (let i = 1; i < N; i++) u[i] = hf[i] > 0.5 ? u[i] - g * dts * (eta[i] - eta[i - 1]) / dx : 0;
+      for (let i = 0; i < N; i++) eta[i] = h[i] > 0.5 ? eta[i] - dts * (hf[i + 1] * u[i + 1] - hf[i] * u[i]) / dx : 0;
+      // une éponge au large (à gauche) : l'onde y sort sans revenir
+      const ne = Math.round(N * 0.06);
+      for (let i = 0; i < ne; i++) { const k = 1 - 0.03 * (1 - i / ne) ** 2; eta[i] *= k; u[i] *= k; }
+    }
+    function oceanAvance(dt) {
+      const dtSim = Math.min(dt, 0.25) * COMPRESSION, cmax = Math.sqrt(9.81 * (OC.D + 2100)), dx = OC.L / OC.N;
+      const n = Math.max(1, Math.ceil(dtSim / (0.7 * dx / cmax)));
+      for (let k = 0; k < n; k++) oceanPas(dtSim / n);
+      OC.t += dtSim; OC.seisme = Math.max(0, OC.seisme - dt * 0.7);
+      // hauteurs mesurées : au large (en plein océan) et sur la côte (là où il reste moins de 30 m d'eau)
+      let large = 0, cote = 0;
+      for (let i = 0; i < OC.N; i++) { const f = (i + 0.5) / OC.N, e = OC.eta[i]; if (f > 0.1 && f < 0.72) large = Math.max(large, e); else if (OC.h[i] > 0.5 && OC.h[i] < 30) cote = Math.max(cote, e); }
+      OC.large = large; OC.cote = Math.max(OC.cote, cote);
+      // un nouveau séisme quand le précédent a fini son œuvre (la scène reste vivante)
+      if (OC.t > 5.5 * 3600) lancerTsunami();
+    }
+    const fmtNb = (x, d = 0) => x.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    let coupeMise = null;
+    function renderCoupe() {
+      const { K, gl, pg } = R, v = view(), y0 = (env.view && env.view.y0) || 0;
+      const x0 = v.x0 + 28, x1 = v.x1 - 28, wp = Math.max(100, x1 - x0);
+      const hH = (H - y0) * 0.26, bH = [x0, y0 + 46, x1, y0 + 46 + hH], bT = [x0, bH[3] + 58, x1, H - 50];
+      const yMer = bT[1] + (bT[3] - bT[1]) * 0.24, Kx = wp / OC.L, Kd = (bT[3] - 6 - yMer) / (OC.D + 2100), Ke = 22;
+      coupeMise = { x0, x1, wp, bH, bT, yMer, Kx, Kd, Ke };
+      const d = OC.data;
+      for (let i = 0; i < OC.N; i++) { d[i * 4] = OC.eta[i]; d[i * 4 + 1] = OC.h[i]; }
+      if (!R.oc) R.oc = K.texture(OC.N, 1, 'h', gl.LINEAR, d);
+      else { gl.bindTexture(gl.TEXTURE_2D, R.oc); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, OC.N, 1, gl.RGBA, gl.FLOAT, d); }
+      const iS = Math.min(OC.N - 1, Math.floor(OC.xs * OC.N)), ySe = yMer + OC.h[iS] * Kd;
+      cab.regler({ fond: window.FKR.fond('defaut'), vignetage: 0.3, contraste: 1.04, expo: 1 });
+      cab.debut(rdt);
+      pg.coupe.use().t('uOc', R.oc).f('uRes', W, H).f('uBH', bH[0], bH[1], bH[2], bH[3]).f('uBT', bT[0], bT[1], bT[2], bT[3])
+        .f('uLam', HOULE.lam[0], HOULE.lam[1], HOULE.lam[2], 0).f('uAmp', HOULE.amp[0], HOULE.amp[1], HOULE.amp[2], 0)
+        .f('uT', VT).f('uKx', Kx).f('uKd', Kd).f('uKe', Ke).f('uKh', HOULE.kh).f('uYmer', yMer).f('uL', OC.L)
+        .f('uSeisme', x0 + OC.xs * wp, ySe).f('uSeismeA', OC.seisme * (env.doux ? 0.5 : 1))
+        .f('uSunCol', SUNCOL[0], SUNCOL[1], SUNCOL[2]).f('uCielZ', BLEU[0] * 0.95, BLEU[1] * 0.95, BLEU[2] * 0.95).f('uCielH', HORIZON[0], HORIZON[1], HORIZON[2]);
+      cab.passe(pg.coupe);
+      cab.fin(rdt);
+      dessinCoupe();
+      drawLabel(false);
+    }
+    // les textes et les échelles de la coupe (en 2D, nets, après le tirage)
+    function dessinCoupe() {
+      const M = coupeMise; if (!M) return;
+      const { x0, wp, bH, bT, yMer, Kx, Kd, Ke } = M, hc = (bH[3] - bH[1]) / 3;
+      const titre = (t, x, y) => { ctx.font = '600 14px "Space Grotesk", sans-serif'; ctx.fillStyle = 'rgba(250,248,240,.96)'; ctx.fillText(t, x, y); };
+      const petit = (t, x, y, a = 0.82) => { ctx.font = '500 9.5px "JetBrains Mono", monospace'; ctx.fillStyle = `rgba(250,248,240,${a})`; ctx.fillText(t, x, y); };
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 5; ctx.textAlign = 'left';
+      titre('La houle, au large : plus une vague est longue, plus elle va vite', x0, bH[1] - 22);
+      petit('EAU PROFONDE · c = √(g·λ/2π) · 1 PX = 1 M · HAUTEURS ×' + HOULE.kh + ' · TEMPS RÉEL', x0, bH[1] - 8);
+      HOULE.lam.forEach((lam, i) => {
+        const c = Math.sqrt(9.81 * lam / TAU), yl = bH[1] + i * hc, ym = yl + hc * 0.42, k = TAU / lam, w = Math.sqrt(9.81 * k);
+        ctx.textAlign = 'right';
+        petit('λ ' + lam + ' M · ' + fmtNb(c, 1) + ' M/S · ' + Math.round(c * 3.6) + ' KM/H', x0 + wp - 8, yl + 14, 0.95);
+        ctx.textAlign = 'left';
+        // un bouchon : il monte, descend et décrit un petit cercle, mais n'avance pas (la vague passe, l'eau reste)
+        const xb = 0.3 * wp, th = k * xb - w * VT, a = HOULE.amp[i];
+        const bx = x0 + xb - a * Math.sin(th) * 1, by = ym - HOULE.kh * a * Math.cos(th);
+        ctx.shadowBlur = 0; ctx.fillStyle = '#e8e2d6'; ctx.beginPath(); ctx.arc(bx, by, 4, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#c8402a'; ctx.beginPath(); ctx.arc(bx, by, 4, Math.PI, TAU); ctx.fill(); ctx.shadowBlur = 5;
+      });
+      titre('Le tsunami : si long qu’il « sent » le fond partout, il va à √(g·h)', x0, bT[1] - 24);
+      petit('COUPE DE L’OCÉAN SUR 1 600 KM · PROFONDEURS ×' + fmtNb(Kd / Kx) + ' · HAUTEUR DES VAGUES ×' + fmtNb(Math.round(Ke / Kx / 1000) * 1000) + ' · 1 S À L’ÉCRAN = 6 MIN 40 S', x0, bT[1] - 10);
+      // le niveau moyen de la mer, en pointillé
+      ctx.setLineDash([4, 6]); ctx.strokeStyle = 'rgba(230,240,255,.35)'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.moveTo(x0, yMer + 0.5); ctx.lineTo(x0 + wp * 0.955, yMer + 0.5); ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur = 5;
+      // la crête qui file vers la côte : sa vitesse dépend de la profondeur sous elle
+      if (OC.lance) {
+        let ic = -1, m = 0.02;
+        for (let i = Math.floor(OC.xs * OC.N) + 3; i < OC.N; i++) if (OC.h[i] > 0.5 && OC.eta[i] > m) { m = OC.eta[i]; ic = i; }
+        if (ic > 0) {
+          const hx = OC.h[ic], c = Math.sqrt(9.81 * hx), xc = x0 + (ic + 0.5) / OC.N * wp, yc = yMer - m * Ke;
+          ctx.textAlign = 'center';
+          titre('≈ ' + fmtNb(Math.round(c * 3.6 / 10) * 10) + ' km/h', xc, yc - 26);
+          petit((m < 1 ? Math.round(m * 100) + ' CM' : fmtNb(m, 1) + ' M') + ' · FOND À ' + fmtNb(Math.round(hx / 10) * 10) + ' M', xc, yc - 12);
+        }
+        const tm = OC.t / 60, txt = Math.floor(tm / 60) + ' h ' + String(Math.floor(tm % 60)).padStart(2, '0') + ' min après le séisme';
+        ctx.textAlign = 'left';
+        petit(txt.toUpperCase() + ' · AU LARGE : ' + Math.round(OC.large * 100) + ' CM · SUR LA CÔTE : ' + (OC.cote < 1 ? Math.round(OC.cote * 100) + ' CM' : fmtNb(OC.cote, 1) + ' M'), x0, bT[3] + 16, 0.95);
+        if (OC.seisme > 0) { ctx.textAlign = 'center'; petit('SÉISME', x0 + OC.xs * wp, yMer + OC.h[Math.floor(OC.xs * OC.N)] * Kd + 22, Math.min(0.95, OC.seisme * 2)); }
+      }
+      ctx.textAlign = 'center';
+      petit('CÔTE', x0 + 0.952 * wp, yMer - 30, 0.9);
+      // l'échelle horizontale : 200 km
+      const e = 200e3 * Kx, xe = x0 + 8, ye = bT[3] - 10;
+      ctx.strokeStyle = 'rgba(250,248,240,.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(xe, ye); ctx.lineTo(xe + e, ye); ctx.moveTo(xe, ye - 4); ctx.lineTo(xe, ye + 4); ctx.moveTo(xe + e, ye - 4); ctx.lineTo(xe + e, ye + 4); ctx.stroke();
+      ctx.textAlign = 'left'; petit('200 KM', xe + e + 6, ye + 3);
+      ctx.restore();
+    }
+
     /* ───────── scènes et expériences ───────── */
     function setScene(id) {
       cfg.scene = id;
       plates.length = 0; walls = []; osc = []; line = null; mover = null; srcs = [];
       R.K.clear(R.Wv.r); R.K.clear(R.Wv.w);
       label = null;
+      if (id === 'houle') {
+        // la coupe de l'océan : pas de mare, pas de cuve ; un séisme dès l'arrivée
+        gerris = []; gyrins = []; kois = []; pads = []; flies = []; pellets = []; spray = []; bulles = [];
+        weather.rain = weather.target = 0; gust = null;
+        Object.assign(cfg, { auto: false, mean: false });
+        OC.eta.fill(0); OC.u.fill(0); profilOcean(); lancerTsunami();
+        return;
+      }
       if (id === 'cuve') {
         gerris = []; gyrins = []; kois = []; pads = []; flies = []; pellets = [];
         weather.rain = weather.target = 0;
@@ -806,7 +1015,8 @@ void main(){
       plates.length = 0; walls = []; osc = []; line = null; mover = null;
       const v = view(), cx = v.cx, cy = H / 2, lam = 80 * kS;
       const gap = (0.3 + cfg.gap * 1.4) * lam;
-      if (k === 'deux') { const d = (0.6 + cfg.gap * 2.6) * lam / 2; osc.push({ x: cx - d, y: cy * 0.55 }, { x: cx + d, y: cy * 0.55 }); }
+      // les deux sources : sous la barre du haut (env.view.y0), au tiers de ce qui reste visible
+      if (k === 'deux') { const d = (0.6 + cfg.gap * 2.6) * lam / 2, y0 = (env.view && env.view.y0) || 0, ys = y0 + (H - y0) * 0.3; osc.push({ x: cx - d, y: ys }, { x: cx + d, y: ys }); }
       else if (k === 'fente' || k === 'double') {
         line = { x: v.x0 + 64 * kS };
         const wx = v.x0 + v.w * 0.42, th = 8 * kS;
@@ -1087,6 +1297,7 @@ void main(){
     // dans la cuve, la distance entre l'eau et l'écran de projection
     const profPx = () => (cfg.scene === 'cuve' ? 110 * (0.5 + cfg.depth * 0.7) : 20 + 100 * cfg.depth) * kS;
     function render() {
+      if (cfg.scene === 'houle') return renderCoupe();
       const { K, gl, pg } = R;
       const bare = env.decor === false, ink = bare && env.theme === 'light';
       const tank = cfg.scene === 'cuve';
@@ -1116,14 +1327,15 @@ void main(){
       }
       // la lumière (HDR linéaire), développée par la cabine commune
       const A = ambiance(), E = oeil(), mode = tank ? 1 : bare ? 2 : 0;
-      cab.regler({ fond: window.FKR.fond(tank ? 'defaut' : 'eau'), vignetage: tank ? 0.5 : 0.39, contraste: tank ? 1.06 : 1.12, expo: tank ? 1 : 0.8 });
+      cab.regler({ fond: window.FKR.fond(tank ? 'defaut' : 'eau'), vignetage: tank ? 0.42 : 0.39, contraste: tank ? 1.14 : 1.12, expo: tank ? 1 : 0.8 });
+      if (!mode && cfg.breeze > 0) { pg.filet.use().f('uRes', W, H).f('uKS', kS).f('uTemps', VT); K.run(pg.filet, R.filet); }
       cab.debut(rdt);
-      pg.eau.use().t('uW', R.Wv.r).t('uD', R.D).t('uFloor', R.floor).t('uNuages', R.nuages).t('uLut', R.lut)
+      pg.eau.use().t('uW', R.Wv.r).t('uD', R.D).t('uFloor', R.floor).t('uNuages', R.nuages).t('uLut', R.lut).t('uFilet', R.filet)
         .f('uRes', W, H).f('uWt', 1 / R.GW, 1 / R.GH)
         .f('uOmbre', tank ? 0 : SOL.ombre[0] * depthPx, tank ? 0 : SOL.ombre[1] * depthPx).f('uDerive', VT * 0.004, VT * 0.0013)
         .f('uCell', cell()).f('uSlope', slope).f('uProf', depthPx).f('uProfM', (10 + cfg.depth * 50) / 100)
-        .f('uSoleil', A.soleil).f('uCouvert', A.couvert).f('uGlint', cfg.glint && !tank ? 1 : 0).f('uRug', env.doux ? 0.3 : 0.13)
-        .f('uMode', mode).f('uMean', cfg.mean ? 1 : 0).f('uKS', kS)
+        .f('uSoleil', A.soleil).f('uCouvert', A.couvert).f('uGlint', cfg.glint && !tank ? 1 : 0).f('uRug', 0.045).f('uBrilleMax', env.doux ? 0.08 : 0.25)
+        .f('uMode', mode).f('uMean', cfg.mean ? 1 : 0).f('uKS', kS).f('uFoc', tank ? 0.55 : 0.62).f('uBrise', tank ? 0 : cfg.breeze).f('uTemps', VT)
         .f('uOeil', E[0], E[1], E[2]).f('uL', SOL.L[0], SOL.L[1], SOL.L[2]).f('uLt', SOL.Lt[0], SOL.Lt[1], SOL.Lt[2])
         .f('uSunCol', SUNCOL[0], SUNCOL[1], SUNCOL[2]).f('uCielZ', A.zen[0], A.zen[1], A.zen[2]).f('uCielH', A.hor[0], A.hor[1], A.hor[2])
         .f('uLampe', LAMPE[0], LAMPE[1], LAMPE[2]).f('uBarre', line ? line.x : 0, 0, 3.5 * kS, line && tank ? 1 : 0)
@@ -1236,6 +1448,8 @@ void main(){
       if (l.kind === 'mouche') return ['Musca domestica', 'mouche · ' + (l.o.by ? 'capturée' : l.o.t < 8 ? 'se débat, fait vibrer l’eau' : 'épuisée'), '#b0a490'];
       if (l.kind === 'pad') return ['Nymphaea alba', 'nénuphar blanc · ' + (l.o.flower ? 'en fleur · ' : '') + 'feuille de ' + Math.round(l.o.r / kS * 0.5) + ' cm', '#6fcf6a'];
       if (l.kind === 'koi') { const k = l.o; return ['Cyprinus rubrofuscus', 'koï ' + KOI[k.var].nom + ' · ' + KOI[k.var].desc + ' · ' + (k.startle > 0 ? 'départ en C, fuit' : k.target ? 'monte gober' : 'à ' + Math.round(k.depth * 60) + ' cm de fond'), '#ff7a3c']; }
+      if (l.kind === 'houle') { const c = Math.sqrt(9.81 * l.lam / TAU); return ['Houle de ' + l.lam + ' m', 'eau profonde · ' + fmtNb(c, 1) + ' m/s · ' + Math.round(c * 3.6) + ' km/h', '#9fd0ff']; }
+      if (l.kind === 'coupe') { if (l.h <= 0.5) return ['La côte', 'la terre ferme', '#c9b48a']; const c = Math.sqrt(9.81 * l.h); return ['Fond à ' + fmtNb(Math.round(l.h / 10) * 10) + ' m', 'un tsunami y va à ' + fmtNb(Math.round(c * 3.6 / 10) * 10) + ' km/h · √(g·h)', '#9fd0ff']; }
       const m = l.m;
       if (!m || !m.ok) return ['Mesure indisponible', 'ce navigateur ne lit pas les textures flottantes', '#9fd0ff'];
       const mm = m.h * 2.5;
@@ -1277,7 +1491,9 @@ void main(){
     /* ───────── boucle ───────── */
     let pending = false, finger = null, rainAt = null, rTimer = 0, waveAcc = 0;
     function frame(t, dt) {
-      if (dt > 0) {
+      // la coupe de l'océan : son propre modèle (1D), le simulateur de la mare se repose
+      if (dt > 0 && cfg.scene === 'houle') { rdt = dt; VT += dt; oceanAvance(dt); if (label) label.t += dt; }
+      else if (dt > 0) {
         rdt = dt;
         update(dt);
         waveAcc += dt * 120;
@@ -1330,6 +1546,16 @@ void main(){
       frame,
       down(p) {
         const tool = env.tool;
+        if (cfg.scene === 'houle') {
+          // la coupe : toucher l'océan y déclenche un séisme ; observer lit la profondeur, ou la houle d'un couloir
+          const M = coupeMise; if (!M) return;
+          const f = (p.x - M.x0) / M.wp; if (f < 0 || f > 1) return;
+          if (p.y < M.bT[1]) { const i = clamp(Math.floor((p.y - M.bH[1]) / ((M.bH[3] - M.bH[1]) / 3)), 0, 2); label = { kind: 'houle', x: p.x, y: p.y, t: 0, lam: HOULE.lam[i] }; return; }
+          const hx = OC.h[clamp(Math.floor(f * OC.N), 0, OC.N - 1)];
+          if (tool === 'observer' || hx <= 0.5) label = { kind: 'coupe', x: p.x, y: p.y, t: 0, h: hx };
+          else lancerTsunami(f);
+          return;
+        }
         if (tool === 'observer') {
           const l = env.decor === false ? null : pick(p.x, p.y);
           label = l ? Object.assign(l, { t: 0 }) : { kind: 'eau', x: p.x, y: p.y, t: 0, m: measure(p.x, p.y) };
@@ -1351,6 +1577,7 @@ void main(){
       },
       up() { finger = null; rainAt = null; drag = null; },
       clear() {
+        if (cfg.scene === 'houle') { OC.eta.fill(0); OC.u.fill(0); Object.assign(OC, { lance: false, seisme: 0, large: 0, cote: 0, t: 0 }); label = null; return; }
         gerris = []; gyrins = []; kois = []; pads = []; flies = []; pellets = []; osc = []; line = null; mover = null; walls = []; plates.length = 0;
         spray = []; bulles = [];
         weather.rain = weather.target = 0; cfg.auto = false; gust = null; label = null;
@@ -1362,7 +1589,7 @@ void main(){
       },
       ui() {
         const L = [];
-        if (cfg.scene !== 'cuve') {
+        if (cfg.scene !== 'cuve' && cfg.scene !== 'houle') {
           L.push({ type: 'section', label: 'La mare' });
           const fed = gerris.reduce((s, g) => s + g.fed, 0);
           L.push({ type: 'note', text: `${gerris.length} gerris · ${gyrins.length} gyrins · ${kois.length} koïs · ${pads.length} nénuphars · ${flies.filter((f) => !f.gone).length} mouche${flies.length > 1 ? 's' : ''} à l’eau${fed ? ' · ' + fed + ' proie' + (fed > 1 ? 's' : '') + ' dévorée' + (fed > 1 ? 's' : '') : ''}` });
@@ -1375,7 +1602,13 @@ void main(){
           L.push({ type: 'toggle', label: 'Météo changeante (averses, risées, mouches)', value: cfg.auto, set: (x) => { cfg.auto = x; } });
         }
         L.push({ type: 'section', label: 'Scènes' });
-        L.push({ type: 'buttons', items: [{ label: 'La mare', act: () => setScene('mare') }, { label: 'Averse', act: () => setScene('averse') }, { label: 'Cuve à ondes', act: () => setScene('cuve') }] });
+        L.push({ type: 'buttons', items: [{ label: 'La mare', act: () => setScene('mare') }, { label: 'Averse', act: () => setScene('averse') }, { label: 'Cuve à ondes', act: () => setScene('cuve') }, { label: 'La houle et les tsunamis', act: () => setScene('houle') }] });
+        if (cfg.scene === 'houle') {
+          L.push({ type: 'section', label: 'La houle et les tsunamis' });
+          L.push({ type: 'buttons', items: [{ label: 'Lancer un tsunami', act: () => lancerTsunami() }] });
+          L.push({ type: 'slider', label: 'Profondeur de l’océan', min: 0, max: 1, step: 0.01, value: (OC.D - 1000) / 5000, fmt: (x) => { const d = 1000 + x * 5000; return fmtNb(Math.round(d / 100) * 100) + ' m · un tsunami y va à ' + fmtNb(Math.round(Math.sqrt(9.81 * d) * 3.6 / 10) * 10) + ' km/h'; }, set: (x) => { OC.D = 1000 + x * 5000; profilOcean(); } });
+          L.push({ type: 'note', text: 'Une coupe de l’océan, stylisée : les profondeurs et surtout la hauteur des vagues sont exagérées (les facteurs sont écrits sur l’image), et le temps est accéléré 400 fois. Au large, un tsunami ne mesure que quelques dizaines de centimètres ; il ralentit et grandit en montant sur le plateau continental. Touchez l’océan pour y déclencher un séisme.' });
+        }
         if (cfg.scene === 'cuve') {
           L.push({ type: 'section', label: 'Expériences de la cuve' });
           L.push({ type: 'choice', label: 'Dispositif', value: cfg.exp, set: setExp, options: [
@@ -1395,12 +1628,12 @@ void main(){
           if (cfg.exp === 'doppler') L.push({ type: 'slider', label: 'Vitesse de la source', min: 0, max: 1, step: 0.01, value: cfg.vsrc, fmt: (x) => { const r = 0.2 + x * 1.3; return (Math.round(r * 100) / 100).toString().replace('.', ',') + ' × la vitesse des ondes' + (r > 1 ? ' · mur du son !' : ''); }, set: (x) => { cfg.vsrc = x; } });
           L.push({ type: 'toggle', label: 'Montrer l’amplitude moyenne (nœuds et ventres)', value: cfg.mean, set: (x) => { cfg.mean = x; } });
         }
-        L.push({ type: 'section', label: 'L’eau' });
-        if (cfg.scene !== 'cuve') L.push({ type: 'slider', label: 'Brise', min: 0, max: 1, step: 0.01, value: cfg.breeze, fmt: (x) => (x < 0.03 ? 'miroir' : x > 0.8 ? 'vent frais' : Math.round(x * 100) + ' %'), set: (x) => { cfg.breeze = x; } });
-        L.push({ type: 'slider', label: 'Profondeur', min: 0, max: 1, step: 0.01, value: cfg.depth, fmt: (x) => (x < 0.25 ? 'très peu profonde · ondes lentes' : x > 0.8 ? 'profonde · ondes rapides' : Math.round(10 + x * 50) + ' cm'), set: (x) => { cfg.depth = x; } });
-        L.push({ type: 'slider', label: 'Amortissement', min: 0, max: 1, step: 0.01, value: cfg.damp, fmt: (x) => (x < 0.05 ? 'eau parfaite' : x > 0.8 ? 'eau sirupeuse' : Math.round(x * 100) + ' %'), set: (x) => { cfg.damp = x; } });
-        L.push({ type: 'slider', label: 'Soleil', min: 0, max: 1, step: 0.01, value: cfg.sun, fmt: (x) => (x < 0.1 ? 'ciel couvert' : x > 0.9 ? 'plein soleil' : Math.round(x * 100) + ' %'), set: (x) => { cfg.sun = x; } });
-        L.push({ type: 'toggle', label: 'Reflets du soleil', value: cfg.glint, set: (x) => { cfg.glint = x; } });
+        if (cfg.scene !== 'houle') L.push({ type: 'section', label: 'L’eau' });
+        if (cfg.scene !== 'cuve' && cfg.scene !== 'houle') L.push({ type: 'slider', label: 'Brise', min: 0, max: 1, step: 0.01, value: cfg.breeze, fmt: (x) => (x < 0.03 ? 'miroir' : x > 0.8 ? 'vent frais' : Math.round(x * 100) + ' %'), set: (x) => { cfg.breeze = x; } });
+        if (cfg.scene !== 'houle') L.push({ type: 'slider', label: 'Profondeur', min: 0, max: 1, step: 0.01, value: cfg.depth, fmt: (x) => (x < 0.25 ? 'très peu profonde · ondes lentes' : x > 0.8 ? 'profonde · ondes rapides' : Math.round(10 + x * 50) + ' cm'), set: (x) => { cfg.depth = x; } });
+        if (cfg.scene !== 'houle') L.push({ type: 'slider', label: 'Amortissement', min: 0, max: 1, step: 0.01, value: cfg.damp, fmt: (x) => (x < 0.05 ? 'eau parfaite' : x > 0.8 ? 'eau sirupeuse' : Math.round(x * 100) + ' %'), set: (x) => { cfg.damp = x; } });
+        if (cfg.scene !== 'houle') L.push({ type: 'slider', label: 'Soleil', min: 0, max: 1, step: 0.01, value: cfg.sun, fmt: (x) => (x < 0.1 ? 'ciel couvert' : x > 0.9 ? 'plein soleil' : Math.round(x * 100) + ' %'), set: (x) => { cfg.sun = x; } });
+        if (cfg.scene !== 'houle') L.push({ type: 'toggle', label: 'Reflets du soleil', value: cfg.glint, set: (x) => { cfg.glint = x; } });
         L.push({ type: 'section', label: 'Affichage' });
         L.push({ type: 'choice', label: 'Qualité du calcul', value: cfg.q, set: setQuality, options: [{ id: 'legere', label: 'Légère' }, { id: 'normale', label: 'Normale' }, { id: 'haute', label: 'Haute' }] });
         L.push({ type: 'note', text: `Grille de ${R.GW}×${R.GH} pour l’onde · caustiques calculées en chaque point, d’après la courbure de la surface.` });

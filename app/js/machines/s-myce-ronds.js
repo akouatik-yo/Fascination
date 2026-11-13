@@ -190,7 +190,10 @@
           // vert sombre : l'azote libéré ; paille : l'herbe desséchée ; brun : terre nue ou tas de feuilles
           let r = 0, g = 0, b = 0, a = 0;
           const add = (cr, cg, cb, ca) => { if (ca <= 0) return; const na = ca + a * (1 - ca); r = (cr * ca + r * a * (1 - ca)) / na; g = (cg * ca + g * a * (1 - ca)) / na; b = (cb * ca + b * a * (1 - ca)) / na; a = na; };
-          add(14, 66, 12, Math.min(0.72, N[i] * 0.9));
+          add(10, 60, 8, Math.min(0.8, N[i] * 1.05));
+          // l'herbe de l'anneau, plus haute et plus drue : un côté au soleil, l'autre dans son ombre (un relief, pas un aplat)
+          const gx = (N[i + 2] || 0) - (N[i - 2] || 0), gy = (N[i + 2 * GW] || 0) - (N[i - 2 * GW] || 0), sh = clamp((gy - gx) * 3.2, -1, 1);
+          if (sh > 0) add(206, 236, 130, sh * 0.5); else add(4, 16, 2, -sh * 0.6);
           add(204, 180, 112, (1 - G[i]) * 0.88);
           add(92, 66, 42, BARE[i] * 0.95);
           const ex = S[i] - S0[i] - 0.15; if (ex > 0) add(78, 52, 30, Math.min(0.85, ex * 0.8));
@@ -314,7 +317,7 @@
           drawShrooms();
           if (snowA > 0.02) { ctx.globalAlpha = snowA * 0.72; ctx.drawImage(snow.c, 0, 0, W, H); ctx.globalAlpha = 1; }
           if (rain) {
-            ctx.fillStyle = 'rgba(30,40,60,.16)'; ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = 'rgba(10,18,30,.1)'; ctx.fillRect(0, 0, W, H);   // la pluie assombrit un peu, sans voiler de gris
             ctx.strokeStyle = 'rgba(210,225,240,.35)'; ctx.lineWidth = 1; ctx.beginPath();
             for (let k = 0; k < (W * H) / 5000; k++) { const x = rnd(W + 80), y = rnd(H); ctx.moveTo(x, y); ctx.lineTo(x - 7, y + 22); }
             ctx.stroke();

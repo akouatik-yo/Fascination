@@ -8,13 +8,13 @@
     // le vivant s'organise
     { id: 'insectes', q: 'Comment les insectes se parlent-ils ?', icone: 'insecte', chapitres: [['lucioles', 'nuit'], ['lucioles', 'vallee'], ['abeilles', 'fretillante'], ['fourmis', 'decouverte'], ['abeilles', 'ronde'], ['fourmis', 'pont'], ['lucioles', 'mangrove'], ['abeilles', 'journee'], ['lucioles', 'dialogues'], ['fourmis', 'societes']] },
     { id: 'nuee', q: 'Qui commande une nuée de milliers d’oiseaux ?', machines: ['boids'] },
-    { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
+    { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['mycelium', 'ronds'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
     { id: 'abysses', q: 'Pourquoi tant d’animaux des profondeurs brillent-ils ?', machines: ['meduses'] },
     { id: 'vie', q: 'Comment des règles simples font-elles naître des formes qui bougent ?', machines: ['vie'] },
     // la Terre et le ciel
     { id: 'lave', q: 'Que se passe-t-il quand on chauffe par en dessous ?', icone: 'flamme', chapitres: [['lave', 'lampe'], ['lave', 'volcan'], ['lave', 'benard'], ['lave', 'coupe'], ['lave', 'pointchaud'], ['lave', 'soleil']] },
     { id: 'ciel', q: 'Pourquoi le ciel est-il bleu, et le couchant rouge ?', machines: ['ciel'] },
-    { id: 'foudre', q: 'Pourquoi un éclair fait-il des zigzags ?', machines: ['foudre'] },
+    { id: 'foudre', q: 'Pourquoi un éclair fait-il des zigzags ?', icone: 'eclair', chapitres: [['foudre', 'orage'], ['foudre', 'lich'], ['foudre', 'plasma']] },
     { id: 'eau', q: 'Pourquoi des filets de lumière dansent-ils au fond de l’eau ?', machines: ['eau'] },
     { id: 'sable', q: 'Comment le vent fabrique-t-il une dune ?', machines: ['sable'] },
     // la matière dessine

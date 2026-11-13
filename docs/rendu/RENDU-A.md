@@ -155,3 +155,19 @@ Trois demandes du CEO :
    - **Le diamètre affiché est mesuré** sur la crête du mycélium (médiane de 16 rayons), et non plus calculé par la formule. La formule annonçait 6,4 m pour un rond qui en mesure 5,5 en 1280 et 4,4 en 390 : le sol est plus ou moins riche, la croissance suit les saisons et un rond met du temps à démarrer.
    - **Départ** : un matin de septembre, juste après une pluie ; les champignons sont déjà sortis sur les anneaux. Ils sont dessinés 2,5 fois plus grands que nature (1,6 fois avant ; c'est annoncé dans la notice), sinon on ne les verrait pas d'aussi haut. Les spores apportées par le vent ne tombent plus sous la bande du haut.
    - **Hors de mon périmètre** : dans le Labo, le texte d'état en bas à gauche est caché par les boutons Bidouiller et Pourquoi. C'est le cas de toutes les machines qui écrivent en bas (Foudre, Lave, Réseau…) : c'est à décider côté shell.
+
+## « Au-dessus des orages », repris (13/11, 19 h)
+
+Le verdict de Constance et de la qualité sur ded80e4 était « moche, de justesse » : trois enclumes visibles, mais pâles et sans lumière, sous 70 % de noir. Kurt a sorti la scène du parcours des enfants jusqu'à sa reprise. Les changements :
+
+- **Clair de lune** : une Lune gibbeuse, éclairée par le Soleil qui est sous l'horizon.
+  - Elle argente le dessus des enclumes et des tours. Une surface est éclairée quand il n'y a plus de nuage juste au-dessus d'elle, un peu vers la Lune.
+  - Elle éclaire la mer de nuages sous le limbe, bosselée, et se reflète sur la mer dans les trouées : un chemin de lumière étiré vers nous par la perspective.
+  - Elle allume la basse atmosphère en bleu (diffusion Rayleigh, hauteur d'échelle de l'air environ 8 km). C'est la lumière des photos prises depuis la Station spatiale.
+  - La notice l'annonce : l'image est une pose longue, et le dessus des nuages comme la basse atmosphère y paraissent plus clairs qu'à l'œil nu. Un réglage « Clair de lune » permet de l'éteindre.
+- **La Voie lactée** traverse le vide entre les orages et la lueur nocturne, avec ses bandes de poussière. Au-dessus de l'air, le ciel reste noir même au clair de lune : on la voit. L'outil OBSERVER nomme la Lune et la Voie lactée.
+- **Éclairs dans les orages** : leur cadence passe de 0,6-2,5 s à 0,4-1,7 s par orage. Les lueurs restent locales. Avec `env.doux`, la cadence reste l'ancienne, l'amplitude est de 0,55, et la montée (50 ms) comme la descente (140 ms) sont plus lentes.
+- **Cadrage** : la vue monte jusque vers 104 km au lieu de 115, ce qui grossit les orages de 10 %. En portrait, le limbe est à 56 % de la hauteur utile au lieu de 62 % : les orages sortent de sous les boutons du Labo, et la mer de nuages au clair de lune occupe le bas. La Lune est à droite, dans le vide, loin des farfadets. Placée derrière la lueur nocturne, elle verdissait.
+- Captures : `foudre-atmo-labo.jpg` (1280 × 800, des farfadets en cours) et `foudre-atmo-labo-tel.jpg` (390 × 844).
+- **L'orage au repos en 390 px** (« limite » : nuage presque noir) : en portrait, la base du nuage était à 21 % de la hauteur. La bande réservée du Labo en couvrait l'essentiel, et il ne restait qu'une quarantaine de pixels de nuage visibles. La base descend sous la bande réservée (`y0` + 14 % de la hauteur), et les lueurs et éclairs intranuages se placent dans la partie visible. La pose est un peu plus longue en portrait (×1,35), où l'on voit moins de ciel. Le paysage ne change pas. Capture : `foudre-repos-labo-tel.jpg`.
+- Tests : smoke OK ; test-jeunesse 8/8, lancé seul (en parallèle d'autres navigateurs, le test des 40 machines dépasse 500 s en rendu logiciel) ; test-fiches : seulement les 4 problèmes Blob déjà connus.

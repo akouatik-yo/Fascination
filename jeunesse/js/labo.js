@@ -36,6 +36,7 @@
     son: false, spectacle: false, tiroir: null, ecran: null, hist: [], hpos: -1, lb: false, ouverture: 0, nom: null,
     vus: new Set(lireJSON('fj-vus', [])), outilsMontres: new Set(), etsiVu: new Set(lireJSON('fj-etsi', [])),
     prefs: Object.assign({ doux: true, calme: false }, lireJSON('fj-prefs', {})), constructions: 0, doigts: 0,
+    q: null,   // la question en cours (FJ.QUESTIONS)
     profils: [], profil: null,   // les joueurs de la tablette { id, avatar, age, niveau } ; tout reste dans l'appareil
   };
   let defs = [], audio = null, sac = null, raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null;
@@ -61,6 +62,12 @@
   const palier = () => { const a = S.profil ? S.profil.age : 11; return a <= 6 ? 1 : a <= 9 ? 2 : a <= 14 ? 3 : 4; };
   const niveau = () => (S.profil ? S.profil.niveau : 2);
   const ZOOM = { 1: 1.3, 2: 1.15, 3: 1, 4: 1 };
+  // le chemin d'une question : le niveau ouvre 2 chapitres (Je découvre), 4 (J'aime comprendre), ou tous
+  const questionParId = (qid) => FJ.QUESTIONS.find((q) => q.id === qid) || null;
+  function chapitresVisibles(q) {
+    const tous = FJ.chapitresDe(q), n = niveau();
+    return n <= 1 ? tous.slice(0, 2) : n === 2 ? tous.slice(0, 4) : tous;
+  }
   (function chargerProfils() {
     let ps = lireJSON('fj-profils', null);
     if (!Array.isArray(ps)) { const ancien = lireJSON('fj-profil', null); ps = ancien && ancien.age ? [Object.assign({ id: 'p1', avatar: 0 }, ancien)] : []; }
@@ -226,6 +233,16 @@
   /* ───────── ouvrir une machine ───────── */
   let jeton = 0;
   async function ouvrir(id, opt = {}) {
+    // arrivée sans scène imposée : on reste dans les chapitres que le niveau ouvre
+    let permises = opt.scene ? [opt.scene] : null;
+    if (!opt.etat && !opt.scene) {
+      const q = (opt.q && questionParId(opt.q)) || FJ.questionDe(id);
+      const vis = q ? chapitresVisibles(q) : [];
+      const miens = vis.filter(([m]) => m === id);
+      if (vis.length && !miens.length) { const [m, sc] = vis[Math.floor(Math.random() * vis.length)]; id = m; permises = sc ? [sc] : null; }
+      else if (miens.length) permises = miens.map(([, sc]) => sc).filter(Boolean);
+      if (q) opt = Object.assign({}, opt, { q: q.id });
+    }
     const def = defs.find((d) => d.id === id); if (!def) return;
     const mon = ++jeton;
     S.id = id; S.def = def; S.meta = FJ.META[id] || ficheAuto(def); S.pause = false;
@@ -240,7 +257,7 @@
       pilote.restaurer(opt.etat.inst);
       S.outil = opt.etat.outil || outilDefaut(); S.nom = opt.etat.nom || null;
     } else {
-      t = FJ.tirage(S.meta, opt.seed);
+      t = FJ.tirage(S.meta, opt.seed, permises);
       S.scene = t.scene;
       if (S.scene && S.meta.scenes[S.scene]) { pilote.scene(S.meta.scenes[S.scene].via); await images(2); }
       if (mon !== jeton) return;
@@ -249,6 +266,7 @@
       S.nom = t.nom;
     }
     if (mon !== jeton) return;
+    { const q = (opt.q && questionParId(opt.q)) || FJ.questionDe(S.id, S.scene); S.q = q ? q.id : null; }
     S.ouverture = performance.now(); S.touche = false; govReset();
     S.vus.add(id); store.set('fj-vus', JSON.stringify([...S.vus]));
     if (sac) sac.vu(id);
@@ -452,19 +470,23 @@
   function rendre() {
     rendreHaut(); rendreGestes(); rendreActions(); rendreDroite();
     if (S.tiroir) rendreTiroir();
-    document.documentElement.style.setProperty('--accent', FJ.mondeDe(S.id).couleur);
+    document.documentElement.style.setProperty('--accent', (S.q ? FJ.mondeDeQuestion(S.q) : FJ.mondeDe(S.id)).couleur);
   }
   function nomMachine() { return (S.meta && S.meta.nom) || S.def.name; }
   function rendreHaut() {
     $('nom').textContent = nomMachine();
     const box = $('scenes'); box.textContent = '';
-    const cles = Object.keys(S.meta.scenes || {});
-    if (cles.length < 2) { box.hidden = true; return; }
+    // le chemin de la question : un chapitre = une machine et une scène, du plus simple au plus profond
+    const q = questionParId(S.q), chap = q ? chapitresVisibles(q) : Object.keys(S.meta.scenes || {}).map((k) => [S.id, k]);
+    if (chap.length < 2) { box.hidden = true; return; }
     box.hidden = false;
-    for (const k of cles) {
-      const sc = S.meta.scenes[k];
-      box.append(h('button', { class: 'pil' + (k === S.scene ? ' on' : ''), onclick: () => changerScene(k), 'aria-pressed': k === S.scene ? 'true' : 'false' }, sc.nom || k));
-    }
+    chap.forEach(([m, k], i) => {
+      const meta = FJ.META[m] || {}, sc = (meta.scenes && meta.scenes[k]) || {};
+      const ici = m === S.id && (k === S.scene || !k);
+      box.append(h('button', { class: 'pil' + (ici ? ' on' : '') + (m !== S.id ? ' autre' : ''), 'aria-pressed': ici ? 'true' : 'false', 'aria-label': 'Chapitre ' + (i + 1) + ' : ' + (sc.nom || meta.nom || m),
+        onclick: () => { if (ici) return; if (m === S.id && k) changerScene(k); else aller(m, { scene: k || undefined, q: S.q }); } },
+        h('i', { class: 'num' }, String(i + 1)), sc.nom || meta.nom || m));
+    });
     const on = box.querySelector('.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ } }
   }
   function verbe(t) {
@@ -514,7 +536,8 @@
     c.append(h('b', null, nomMachine()));
     if (S.nom) c.append(h('span', { class: 'graine' }, '✦ ' + S.nom));
     else if (sc && sc.nom && Object.keys(S.meta.scenes).length > 1) c.append(h('span', { class: 'graine' }, sc.nom));
-    if (S.meta.question) c.append(h('i', null, S.meta.question));
+    const q = questionParId(S.q);
+    if (q || S.meta.question) c.append(h('i', null, q ? q.q : S.meta.question));
     c.hidden = false; c.classList.remove('part'); void c.offsetWidth; c.classList.add('vient');
     clearTimeout(cartonT); cartonT = setTimeout(effacerCarton, 4200);
   }
@@ -912,22 +935,26 @@
     const box = $('carte'); box.textContent = '';
     const logo = h('div', { class: 'logo', title: 'Appui long : le coin des grands' }, h('b', null, 'Fascinations'), h('span', null, 'labo'));
     appuiLong(logo, ouvrirParents);
-    box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${S.vus.size} / ${defs.length} découvertes`),
+    box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${FJ.QUESTIONS.filter((q) => FJ.chapitresDe(q).some(([m]) => S.vus.has(m))).length} / ${FJ.QUESTIONS.length} questions explorées`),
       h('button', { class: 'bt', onclick: () => { ecran(null); aller(sac.suivant()); } }, FJ.icone('encore'), h('span', null, 'Au hasard')),
       h('button', { class: 'bt', onclick: () => ouvrirCarnet() }, FJ.icone('carnet'), h('span', null, 'Mon carnet')),
       h('button', { class: 'bt profil', 'aria-label': 'Qui joue ?', onclick: ouvrirAccueil }, S.profil ? avatar(S.profil.avatar) : FJ.icone('mains'), h('span', null, 'Qui joue ?')),
       h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer'))));
-    for (const m of FJ.MONDES) {
-      const sec = h('section', { class: 'monde', style: '--c:' + m.couleur });
-      sec.append(h('div', { class: 'mh' }, FJ.icone(m.icone), h('div', null, h('h3', null, m.nom), h('p', null, m.idee))));
+    for (const w of FJ.MONDES) {
+      const sec = h('section', { class: 'monde', style: '--c:' + w.couleur });
+      sec.append(h('div', { class: 'mh' }, FJ.icone(w.icone), h('div', null, h('h3', null, w.nom), h('p', null, w.idee))));
       const rang = h('div', { class: 'vignettes' }); sec.append(rang);
-      for (const id of m.machines) {
-        const def = defs.find((d) => d.id === id); if (!def) continue;
-        const meta = FJ.META[id] || {};
-        const img = (FJ.VIGNETTES && FJ.VIGNETTES[id]) || null;
-        const v = h('button', { class: 'vignette' + (S.vus.has(id) ? '' : ' neuve') + (id === S.id ? ' ici' : ''), onclick: () => { ecran(null); if (id !== S.id) aller(id); } },
-          img ? h('img', { src: img, alt: '' }) : h('div', { class: 'ph' }, FJ.icone(m.icone)),
-          h('b', null, meta.nom || def.name), meta.question ? h('span', null, meta.question) : null);
+      for (const qid of w.questions) {
+        const q = questionParId(qid); if (!q) continue;
+        const ch = chapitresVisibles(q); if (!ch.length) continue;
+        const [m0, s0] = ch[0];
+        const ms = [...new Set(FJ.chapitresDe(q).map(([m]) => m))];
+        const vue = ms.some((m) => S.vus.has(m)), ici = qid === S.q;
+        // vignettes fixes (images en cache) : 25 machines vivantes à la fois feraient fondre la tablette
+        const img = (FJ.VIGNETTES && FJ.VIGNETTES[m0]) || null;
+        const v = h('button', { class: 'vignette' + (vue ? ' vue' : '') + (ici ? ' ici' : ''), onclick: () => { ecran(null); if (!ici) aller(m0, { scene: s0 || undefined, q: qid }); } },
+          img ? h('img', { src: img, alt: '' }) : h('div', { class: 'ph' }, FJ.icone(w.icone)),
+          h('b', null, q.q), ms.length > 1 ? h('span', null, ms.length + ' machines · ' + FJ.chapitresDe(q).length + ' chapitres') : null);
         rang.append(v);
       }
       box.append(sec);
@@ -1041,7 +1068,7 @@
     if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }
   if (TEST) {
-    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, ouvrirAccueil, exposes, outilsVisibles };
+    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, chapitresVisibles, ouvrirAccueil, exposes, outilsVisibles };
   }
   init();
 })();

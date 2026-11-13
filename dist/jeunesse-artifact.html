@@ -270,6 +270,11 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
 .joueurGrand .opts button { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 12px; border-radius: 12px; background: rgba(255, 255, 255, .07); border: 1px solid var(--trait); }
 .joueurGrand .opts button.on { border-color: #7ee8a9; background: rgba(126, 232, 169, .14); }
 .joueurGrand .opts .ic { width: 20px; height: 20px; }
+/* les questions : un point de couleur pour ce qui a été vu (pas de score) ; le chemin numéroté */
+.vignette.vue::before { content: ''; position: absolute; top: 10px; right: 10px; width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px rgba(10, 11, 20, .7); z-index: 1; }
+.pil { display: inline-flex; align-items: center; gap: 8px; }
+.pil .num { font-style: normal; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, .12); font-size: 13px; font-weight: 700; }
+.pil.on .num { background: var(--accent); color: #0a0b14; }
 
 </style>
 <div id="fj">
@@ -21752,9 +21757,12 @@ void main(){
     return plage;
   }
   /* le tirage d'une machine : une scène (pondérée), parfois une graine remarquable, sinon des réglages dans les plages */
-  function tirage(meta, seed) {
+  // permises (facultatif) : les seules scènes tirables (les chapitres que le niveau ouvre, ou une scène imposée)
+  function tirage(meta, seed, permises) {
     const R = rng(seed == null ? graine() : seed), t = { seed: R.seed, scene: null, regle: {}, nom: null, outil: null };
-    const scenes = meta.scenes || {}, cles = Object.keys(scenes);
+    const scenes = meta.scenes || {};
+    let cles = Object.keys(scenes);
+    if (permises && permises.length) { const p = cles.filter((k) => permises.includes(k)); if (p.length) cles = p; }
     if (cles.length) { const poids = {}; for (const k of cles) poids[k] = scenes[k].poids == null ? 1 : scenes[k].poids; t.scene = pondere(R, poids); }
     const sc = (t.scene && scenes[t.scene]) || {};
     const graines = (meta.graines || []).filter((g) => !g.scene || !cles.length || g.scene === t.scene);
@@ -21903,25 +21911,69 @@ void main(){
 
 ;
 /* ═════ js/mondes.js ═════ */
-/* Fascinations Labo — les sept mondes de la Carte : chacun porte une idée qui voyage d'une machine à l'autre. */
+/* Fascinations Labo — les grandes questions et leurs mondes (refonte du 13/11/2026, docs/REFONTE-PEDAGOGIQUE.md).
+   Une question = un chemin de chapitres ; un chapitre = une machine et une de ses scènes [machine, scène].
+   Les chapitres vont du plus simple au plus profond : le niveau en ouvre 2 (Je découvre), 4 (J'aime comprendre), ou tous.
+   Une question sans liste explicite prend toutes les scènes de sa machine, dans l'ordre de la fiche. */
 (function () {
   const FJ = (window.FJ = window.FJ || {});
-  FJ.MONDES = [
-    { id: 'personne', nom: 'Personne ne commande', idee: 'Des milliers d’individus, aucun chef… et pourtant ça s’organise.', couleur: '#7ee8a9', icone: 'oiseau',
-      machines: ['boids', 'lucioles', 'fourmis', 'blob', 'mycelium', 'vie'] },
-    { id: 'dessine', nom: 'La nature dessine', idee: 'Taches, spirales, flocons : des motifs que personne n’a dessinés.', couleur: '#c9a0ff', icone: 'flocon',
-      machines: ['rd', 'spirales', 'cristal', 'sable', 'lave', 'fractal'] },
-    { id: 'imprevisible', nom: 'Imprévisible', idee: 'Des lois simples, et pourtant impossible de prévoir la suite.', couleur: '#ff9a5c', icone: 'flamme',
-      machines: ['attracteur', 'fluide', 'feu', 'eau', 'foudre'] },
-    { id: 'son', nom: 'Voir le son', idee: 'Un son, c’est une vibration. Ici, on la voit.', couleur: '#ff86c8', icone: 'onde',
-      machines: ['chladni', 'viz', 'harpe', 'pendules', 'harmono'] },
-    { id: 'lumiere', nom: 'Secrets de lumière', idee: 'Bleu du ciel, arc-en-ciel, bulles irisées : d’où viennent les couleurs ?', couleur: '#ffd36e', icone: 'soleil',
-      machines: ['ciel', 'bulles', 'meduses', 'kaleido'] },
-    { id: 'cerveau', nom: 'Ton cerveau se fait avoir', idee: 'Tes yeux et tes oreilles ne disent pas toujours la vérité.', couleur: '#6fd4ff', icone: 'oeil',
-      machines: ['illusions', 'sonillus', 'moire'] },
-    { id: 'limites', nom: 'Aux limites du monde', idee: 'Trop petit, trop loin, trop vite : là où le monde devient étrange.', couleur: '#8fa2ff', icone: 'planete',
-      machines: ['quantique', 'galaxie', 'tunnel'] },
+  FJ.QUESTIONS = [
+    // le vivant s'organise
+    { id: 'insectes', q: 'Comment les insectes se parlent-ils ?', icone: 'insecte', chapitres: [['lucioles', 'nuit'], ['lucioles', 'vallee'], ['fourmis', 'decouverte'], ['lucioles', 'mangrove'], ['fourmis', 'pont'], ['lucioles', 'dialogues'], ['fourmis', 'societes']] },
+    { id: 'nuee', q: 'Qui commande une nuée de milliers d’oiseaux ?', machines: ['boids'] },
+    { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['mycelium', 'ronds'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
+    { id: 'abysses', q: 'Pourquoi tant d’animaux des profondeurs brillent-ils ?', machines: ['meduses'] },
+    { id: 'vie', q: 'Comment des règles simples font-elles naître des formes qui bougent ?', machines: ['vie'] },
+    // la Terre et le ciel
+    { id: 'lave', q: 'Pourquoi la cire monte-t-elle, puis redescend-elle ?', machines: ['lave'] },
+    { id: 'ciel', q: 'Pourquoi le ciel est-il bleu, et le couchant rouge ?', machines: ['ciel'] },
+    { id: 'foudre', q: 'Pourquoi un éclair fait-il des zigzags ?', machines: ['foudre'] },
+    { id: 'eau', q: 'Pourquoi des filets de lumière dansent-ils au fond de l’eau ?', machines: ['eau'] },
+    { id: 'sable', q: 'Comment le vent fabrique-t-il une dune ?', machines: ['sable'] },
+    // la matière dessine
+    { id: 'feu', q: 'Pourquoi une flamme est-elle pointue ?', machines: ['feu'] },
+    { id: 'cristal', q: 'Pourquoi un flocon a-t-il six branches ?', machines: ['cristal'] },
+    { id: 'bulles', q: 'D’où viennent les couleurs d’une bulle de savon ?', machines: ['bulles'] },
+    { id: 'fluide', q: 'Pourquoi l’eau fait-elle des tourbillons derrière un rocher ?', machines: ['fluide'] },
+    { id: 'motifs', q: 'Comment des motifs se dessinent-ils tout seuls ?', icone: 'motif', chapitres: [['rd', 'galerie'], ['spirales', 'bz'], ['rd', 'pelages'], ['spirales', 'coeur'], ['spirales', 'amibes'], ['rd', 'atlas'], ['rd', 'labo'], ['spirales', 'couleurs']] },
+    // le son et les rythmes
+    { id: 'son', q: 'À quoi ressemble un son ?', icone: 'onde', chapitres: [['harpe', 'harpe'], ['chladni', 'plaque'], ['viz', 'liss'], ['harpe', 'mono'], ['chladni', 'eau'], ['viz', 'timbre'], ['chladni', 'tube'], ['harpe', 'eolienne']] },
+    { id: 'pendule', q: 'Que fait un pendule ?', icone: 'spirale', chapitres: [['pendules', 'vague'], ['harmono', 'harmono'], ['pendules', 'arcs'], ['harmono', 'spiro']] },
+    // ton cerveau
+    { id: 'illusions', q: 'Pourquoi ton cerveau voit-il ce qui n’est pas là ?', machines: ['illusions'] },
+    { id: 'sonillus', q: 'Un son peut-il monter sans jamais aller plus haut ?', machines: ['sonillus'] },
+    { id: 'moire', q: 'D’où viennent ces grandes bandes que personne n’a dessinées ?', machines: ['moire'] },
+    // aux limites
+    { id: 'galaxie', q: 'Pourquoi les galaxies dessinent-elles des spirales ?', icone: 'planete', chapitres: [['galaxie', 'spirale'], ['galaxie', 'collision'], ['galaxie', 'trounoir'], ['tunnel', 'relat'], ['tunnel', 'worm']] },
+    { id: 'quantique', q: 'Pourquoi des particules lancées une à une dessinent-elles des bandes ?', machines: ['quantique'] },
+    { id: 'chaos', q: 'Pourquoi ne peut-on pas prévoir la météo du mois prochain ?', machines: ['attracteur'] },
+    { id: 'fractales', q: 'Une forme peut-elle avoir des détails sans fin ?', icone: 'motif', chapitres: [['fractal', 'mandelbrot'], ['fractal', 'julia'], ['kaleido', 'tube'], ['fractal', 'flammes'], ['fractal', 'courbes']] },
   ];
+  FJ.MONDES = [
+    { id: 'vivant', nom: 'Le vivant s’organise', idee: 'Des milliers d’individus, aucun chef… et pourtant ça s’organise.', couleur: '#7ee8a9', icone: 'oiseau', questions: ['insectes', 'nuee', 'reseaux', 'abysses', 'vie'] },
+    { id: 'terre', nom: 'La Terre et le ciel', idee: 'Le feu de la Terre, la foudre, l’eau, le vent : la planète en mouvement.', couleur: '#ff9a5c', icone: 'eclair', questions: ['lave', 'ciel', 'foudre', 'eau', 'sable'] },
+    { id: 'matiere', nom: 'La matière dessine', idee: 'Flammes, flocons, bulles, tourbillons : des formes que personne n’a dessinées.', couleur: '#c9a0ff', icone: 'flocon', questions: ['feu', 'cristal', 'bulles', 'fluide', 'motifs'] },
+    { id: 'son', nom: 'Sons et rythmes', idee: 'Un son, c’est une vibration. Ici, on la voit.', couleur: '#ff86c8', icone: 'onde', questions: ['son', 'pendule'] },
+    { id: 'cerveau', nom: 'Ton cerveau se fait avoir', idee: 'Tes yeux et tes oreilles ne disent pas toujours la vérité.', couleur: '#6fd4ff', icone: 'oeil', questions: ['illusions', 'sonillus', 'moire'] },
+    { id: 'limites', nom: 'Aux limites du monde', idee: 'Trop petit, trop loin, trop vite, trop compliqué : là où le monde devient étrange.', couleur: '#8fa2ff', icone: 'planete', questions: ['galaxie', 'quantique', 'chaos', 'fractales'] },
+  ];
+  // une question sans liste explicite : toutes les scènes de ses machines (les fiches sont chargées après ce fichier)
+  FJ.chapitresDe = (q) => {
+    if (!q) return [];
+    if (q.chapitres) return q.chapitres.filter(([m, s]) => FJ.META[m] && (!s || !FJ.META[m].scenes || FJ.META[m].scenes[s]));
+    const out = [];
+    for (const m of q.machines || []) {
+      const sc = (FJ.META[m] && FJ.META[m].scenes) || {};
+      const ks = Object.keys(sc);
+      if (ks.length) for (const k of ks) out.push([m, k]); else out.push([m, null]);
+    }
+    return out;
+  };
+  FJ.questionDe = (m, s) => FJ.QUESTIONS.find((q) => FJ.chapitresDe(q).some(([mm, ss]) => mm === m && (s == null || ss === s || ss == null)))
+    || FJ.QUESTIONS.find((q) => FJ.chapitresDe(q).some(([mm]) => mm === m)) || null;
+  FJ.mondeDeQuestion = (qid) => FJ.MONDES.find((w) => w.questions.includes(qid)) || FJ.MONDES[0];
+  // compatibilité : les machines de chaque monde (le sac, la couleur d'accent)
+  for (const w of FJ.MONDES) Object.defineProperty(w, 'machines', { get() { const ms = []; for (const qid of w.questions) for (const [m] of FJ.chapitresDe(FJ.QUESTIONS.find((q) => q.id === qid))) if (!ms.includes(m)) ms.push(m); return ms; } });
   FJ.mondeDe = (id) => FJ.MONDES.find((m) => m.machines.includes(id)) || FJ.MONDES[0];
 })();
 
@@ -24579,6 +24631,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     son: false, spectacle: false, tiroir: null, ecran: null, hist: [], hpos: -1, lb: false, ouverture: 0, nom: null,
     vus: new Set(lireJSON('fj-vus', [])), outilsMontres: new Set(), etsiVu: new Set(lireJSON('fj-etsi', [])),
     prefs: Object.assign({ doux: true, calme: false }, lireJSON('fj-prefs', {})), constructions: 0, doigts: 0,
+    q: null,   // la question en cours (FJ.QUESTIONS)
     profils: [], profil: null,   // les joueurs de la tablette { id, avatar, age, niveau } ; tout reste dans l'appareil
   };
   let defs = [], audio = null, sac = null, raf = 0, last = 0, vt = 0, pend = 0, acc = 0, errId = null;
@@ -24604,6 +24657,12 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   const palier = () => { const a = S.profil ? S.profil.age : 11; return a <= 6 ? 1 : a <= 9 ? 2 : a <= 14 ? 3 : 4; };
   const niveau = () => (S.profil ? S.profil.niveau : 2);
   const ZOOM = { 1: 1.3, 2: 1.15, 3: 1, 4: 1 };
+  // le chemin d'une question : le niveau ouvre 2 chapitres (Je découvre), 4 (J'aime comprendre), ou tous
+  const questionParId = (qid) => FJ.QUESTIONS.find((q) => q.id === qid) || null;
+  function chapitresVisibles(q) {
+    const tous = FJ.chapitresDe(q), n = niveau();
+    return n <= 1 ? tous.slice(0, 2) : n === 2 ? tous.slice(0, 4) : tous;
+  }
   (function chargerProfils() {
     let ps = lireJSON('fj-profils', null);
     if (!Array.isArray(ps)) { const ancien = lireJSON('fj-profil', null); ps = ancien && ancien.age ? [Object.assign({ id: 'p1', avatar: 0 }, ancien)] : []; }
@@ -24769,6 +24828,16 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   /* ───────── ouvrir une machine ───────── */
   let jeton = 0;
   async function ouvrir(id, opt = {}) {
+    // arrivée sans scène imposée : on reste dans les chapitres que le niveau ouvre
+    let permises = opt.scene ? [opt.scene] : null;
+    if (!opt.etat && !opt.scene) {
+      const q = (opt.q && questionParId(opt.q)) || FJ.questionDe(id);
+      const vis = q ? chapitresVisibles(q) : [];
+      const miens = vis.filter(([m]) => m === id);
+      if (vis.length && !miens.length) { const [m, sc] = vis[Math.floor(Math.random() * vis.length)]; id = m; permises = sc ? [sc] : null; }
+      else if (miens.length) permises = miens.map(([, sc]) => sc).filter(Boolean);
+      if (q) opt = Object.assign({}, opt, { q: q.id });
+    }
     const def = defs.find((d) => d.id === id); if (!def) return;
     const mon = ++jeton;
     S.id = id; S.def = def; S.meta = FJ.META[id] || ficheAuto(def); S.pause = false;
@@ -24783,7 +24852,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
       pilote.restaurer(opt.etat.inst);
       S.outil = opt.etat.outil || outilDefaut(); S.nom = opt.etat.nom || null;
     } else {
-      t = FJ.tirage(S.meta, opt.seed);
+      t = FJ.tirage(S.meta, opt.seed, permises);
       S.scene = t.scene;
       if (S.scene && S.meta.scenes[S.scene]) { pilote.scene(S.meta.scenes[S.scene].via); await images(2); }
       if (mon !== jeton) return;
@@ -24792,6 +24861,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
       S.nom = t.nom;
     }
     if (mon !== jeton) return;
+    { const q = (opt.q && questionParId(opt.q)) || FJ.questionDe(S.id, S.scene); S.q = q ? q.id : null; }
     S.ouverture = performance.now(); S.touche = false; govReset();
     S.vus.add(id); store.set('fj-vus', JSON.stringify([...S.vus]));
     if (sac) sac.vu(id);
@@ -24995,19 +25065,23 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   function rendre() {
     rendreHaut(); rendreGestes(); rendreActions(); rendreDroite();
     if (S.tiroir) rendreTiroir();
-    document.documentElement.style.setProperty('--accent', FJ.mondeDe(S.id).couleur);
+    document.documentElement.style.setProperty('--accent', (S.q ? FJ.mondeDeQuestion(S.q) : FJ.mondeDe(S.id)).couleur);
   }
   function nomMachine() { return (S.meta && S.meta.nom) || S.def.name; }
   function rendreHaut() {
     $('nom').textContent = nomMachine();
     const box = $('scenes'); box.textContent = '';
-    const cles = Object.keys(S.meta.scenes || {});
-    if (cles.length < 2) { box.hidden = true; return; }
+    // le chemin de la question : un chapitre = une machine et une scène, du plus simple au plus profond
+    const q = questionParId(S.q), chap = q ? chapitresVisibles(q) : Object.keys(S.meta.scenes || {}).map((k) => [S.id, k]);
+    if (chap.length < 2) { box.hidden = true; return; }
     box.hidden = false;
-    for (const k of cles) {
-      const sc = S.meta.scenes[k];
-      box.append(h('button', { class: 'pil' + (k === S.scene ? ' on' : ''), onclick: () => changerScene(k), 'aria-pressed': k === S.scene ? 'true' : 'false' }, sc.nom || k));
-    }
+    chap.forEach(([m, k], i) => {
+      const meta = FJ.META[m] || {}, sc = (meta.scenes && meta.scenes[k]) || {};
+      const ici = m === S.id && (k === S.scene || !k);
+      box.append(h('button', { class: 'pil' + (ici ? ' on' : '') + (m !== S.id ? ' autre' : ''), 'aria-pressed': ici ? 'true' : 'false', 'aria-label': 'Chapitre ' + (i + 1) + ' : ' + (sc.nom || meta.nom || m),
+        onclick: () => { if (ici) return; if (m === S.id && k) changerScene(k); else aller(m, { scene: k || undefined, q: S.q }); } },
+        h('i', { class: 'num' }, String(i + 1)), sc.nom || meta.nom || m));
+    });
     const on = box.querySelector('.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { /* rien */ } }
   }
   function verbe(t) {
@@ -25057,7 +25131,8 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     c.append(h('b', null, nomMachine()));
     if (S.nom) c.append(h('span', { class: 'graine' }, '✦ ' + S.nom));
     else if (sc && sc.nom && Object.keys(S.meta.scenes).length > 1) c.append(h('span', { class: 'graine' }, sc.nom));
-    if (S.meta.question) c.append(h('i', null, S.meta.question));
+    const q = questionParId(S.q);
+    if (q || S.meta.question) c.append(h('i', null, q ? q.q : S.meta.question));
     c.hidden = false; c.classList.remove('part'); void c.offsetWidth; c.classList.add('vient');
     clearTimeout(cartonT); cartonT = setTimeout(effacerCarton, 4200);
   }
@@ -25455,22 +25530,26 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     const box = $('carte'); box.textContent = '';
     const logo = h('div', { class: 'logo', title: 'Appui long : le coin des grands' }, h('b', null, 'Fascinations'), h('span', null, 'labo'));
     appuiLong(logo, ouvrirParents);
-    box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${S.vus.size} / ${defs.length} découvertes`),
+    box.append(h('div', { class: 'tete' }, logo, h('p', { class: 'sous' }, `${FJ.QUESTIONS.filter((q) => FJ.chapitresDe(q).some(([m]) => S.vus.has(m))).length} / ${FJ.QUESTIONS.length} questions explorées`),
       h('button', { class: 'bt', onclick: () => { ecran(null); aller(sac.suivant()); } }, FJ.icone('encore'), h('span', null, 'Au hasard')),
       h('button', { class: 'bt', onclick: () => ouvrirCarnet() }, FJ.icone('carnet'), h('span', null, 'Mon carnet')),
       h('button', { class: 'bt profil', 'aria-label': 'Qui joue ?', onclick: ouvrirAccueil }, S.profil ? avatar(S.profil.avatar) : FJ.icone('mains'), h('span', null, 'Qui joue ?')),
       h('button', { class: 'x', 'aria-label': 'Fermer', onclick: () => ecran(null) }, FJ.icone('fermer'))));
-    for (const m of FJ.MONDES) {
-      const sec = h('section', { class: 'monde', style: '--c:' + m.couleur });
-      sec.append(h('div', { class: 'mh' }, FJ.icone(m.icone), h('div', null, h('h3', null, m.nom), h('p', null, m.idee))));
+    for (const w of FJ.MONDES) {
+      const sec = h('section', { class: 'monde', style: '--c:' + w.couleur });
+      sec.append(h('div', { class: 'mh' }, FJ.icone(w.icone), h('div', null, h('h3', null, w.nom), h('p', null, w.idee))));
       const rang = h('div', { class: 'vignettes' }); sec.append(rang);
-      for (const id of m.machines) {
-        const def = defs.find((d) => d.id === id); if (!def) continue;
-        const meta = FJ.META[id] || {};
-        const img = (FJ.VIGNETTES && FJ.VIGNETTES[id]) || null;
-        const v = h('button', { class: 'vignette' + (S.vus.has(id) ? '' : ' neuve') + (id === S.id ? ' ici' : ''), onclick: () => { ecran(null); if (id !== S.id) aller(id); } },
-          img ? h('img', { src: img, alt: '' }) : h('div', { class: 'ph' }, FJ.icone(m.icone)),
-          h('b', null, meta.nom || def.name), meta.question ? h('span', null, meta.question) : null);
+      for (const qid of w.questions) {
+        const q = questionParId(qid); if (!q) continue;
+        const ch = chapitresVisibles(q); if (!ch.length) continue;
+        const [m0, s0] = ch[0];
+        const ms = [...new Set(FJ.chapitresDe(q).map(([m]) => m))];
+        const vue = ms.some((m) => S.vus.has(m)), ici = qid === S.q;
+        // vignettes fixes (images en cache) : 25 machines vivantes à la fois feraient fondre la tablette
+        const img = (FJ.VIGNETTES && FJ.VIGNETTES[m0]) || null;
+        const v = h('button', { class: 'vignette' + (vue ? ' vue' : '') + (ici ? ' ici' : ''), onclick: () => { ecran(null); if (!ici) aller(m0, { scene: s0 || undefined, q: qid }); } },
+          img ? h('img', { src: img, alt: '' }) : h('div', { class: 'ph' }, FJ.icone(w.icone)),
+          h('b', null, q.q), ms.length > 1 ? h('span', null, ms.length + ' machines · ' + FJ.chapitresDe(q).length + ' chapitres') : null);
         rang.append(v);
       }
       box.append(sec);
@@ -25584,7 +25663,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }
   if (TEST) {
-    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, ouvrirAccueil, exposes, outilsVisibles };
+    window.FJ_TEST = { ouvertures: 0, get S() { return S; }, pilote, ouvrir: (id, o) => aller(id, o), encore, precedent, suivant, changerScene, ouvrirTiroir, fermerTiroir, spectacle, basculerSon, photo, epingler, ouvrirCarte, ouvrirCarnet, ecran, carnet, etatCourant, recette, rendre, enregistrerProfil, devenir, chapitresVisibles, ouvrirAccueil, exposes, outilsVisibles };
   }
   init();
 })();

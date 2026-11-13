@@ -48,7 +48,7 @@ void main(){
   const COMMUN = `
 uniform sampler2D uFilm, uMarbre;
 uniform float uT, uDecor, uInk, uScint;
-uniform vec3 uFenC; uniform vec4 uFenT; uniform vec3 uLampe;
+uniform vec3 uFenC; uniform vec4 uFenT; uniform vec3 uLampe, uSalleB, uSalleH; uniform float uCentre;
 const float NF = 1.33;
 // réflectance d'un film d'épaisseur e (nm), vu sous une incidence de cosinus ci : les couleurs d'interférence (filmMince,
 // au chemin optique e·cos θt) × le Fresnel exact d'une face, borné comme la formule d'Airy (miroir en incidence rasante)
@@ -58,22 +58,34 @@ vec3 reflFilm(float e, float ci){
   vec3 c = texture(uFilm, vec2(clamp(max(e, 0.) * ct / ${LUTN}., 0., 1.), .5)).rgb;
   return c * (F / .02006) / (1. + F);
 }
-// la pièce qui se reflète (repère de l'observateur : x à droite, y en haut, z vers l'œil) : une pièce claire (sol plus
-// sombre, plafond lumineux), une seule grande fenêtre douce derrière l'observateur, en hauteur (lumière du jour), une lampe
-// chaude sur le côté. kf : part du reflet de la fenêtre (1 ; la face arrière d'une bulle n'en garde qu'un reflet atténué, stylisé)
+// la pièce qui se reflète (repère de l'observateur : x à droite, y en haut, z vers l'œil), de deux manières :
+// uFenT.z = 1 : une pièce sombre et une grande fenêtre à croisillons (la caténoïde) ; uFenT.z = 0 : une pièce claire
+// (sol plus sombre, plafond lumineux) et une petite fenêtre douce, en hauteur (les bulles, le film). Une lampe chaude sur
+// le côté. uCentre : part de la pièce située derrière l'observateur, celle que reflète le centre des bulles (plus faible :
+// le centre reste transparent, les bords brillent). kf : part de la fenêtre (la face arrière d'une bulle n'en garde qu'un
+// reflet atténué, stylisé)
 vec3 piece(vec3 d, float kf){
   if (uDecor < .5) return vec3(uInk > .5 ? 9. : 14.);   // sans décor : une lumière blanche uniforme, seul le phénomène reste
-  vec3 c = mix(vec3(.5, .46, .44), vec3(2., 2.3, 3.), smoothstep(-.8, .9, d.y));
+  bool croisee = uFenT.z > .5;
+  vec3 c = mix(uSalleB, uSalleH, smoothstep(croisee ? -.7 : -.8, .9, d.y)) * mix(1., uCentre, smoothstep(.3, .9, d.z));
   vec3 ax = normalize(cross(vec3(0., 1., 0.), uFenC)), ay = cross(uFenC, ax);
   float k = dot(d, uFenC);
   if (k > .05){
     vec2 w = vec2(dot(d, ax), dot(d, ay)) / k, u = abs(w) / uFenT.xy;
-    float bord = pow(pow(u.x, 4.) + pow(u.y, 4.), .25);  // un rectangle aux coins arrondis
-    float f = smoothstep(1.2, .72, bord);                 // aux bords doux : un seul reflet, sans croisillons
-    c += kf * uFenT.w * f * (.8 + .25 * w.y / uFenT.y) * vec3(.98, .99, 1.);
-    c += uFenT.w * .25 / (1. + bord * bord * 1.4);       // le mur et le plafond, éclairés par la fenêtre
-    // un coin de soleil dans la fenêtre : un petit éclat très lumineux (il bave dans le halo)
-    c += kf * uScint * uFenT.w * 5. * pow(max(dot(d, normalize(uFenC + .45 * uFenT.x * ax + .55 * uFenT.y * ay)), 0.), 900.);
+    if (croisee){
+      float bord = max(u.x, u.y);
+      float f = smoothstep(1.03, .97, bord) * smoothstep(.006, .016, abs(w.x)) * smoothstep(.006, .016, abs(w.y - .2 * uFenT.y));
+      c += uFenT.w * f * (.78 + .3 * w.y / uFenT.y) * vec3(.98, .99, 1.);
+      c += uFenT.w * .22 / (1. + bord * bord * 1.6);
+      c += uScint * uFenT.w * 6. * pow(max(dot(d, normalize(uFenC + .55 * uFenT.x * ax + .7 * uFenT.y * ay)), 0.), 900.);
+    } else {
+      float bord = pow(pow(u.x, 4.) + pow(u.y, 4.), .25);  // un rectangle aux coins arrondis
+      float f = smoothstep(1.2, .72, bord);                 // aux bords doux : un seul reflet, sans croisillons
+      c += kf * uFenT.w * f * (.8 + .25 * w.y / uFenT.y) * vec3(.98, .99, 1.);
+      c += uFenT.w * .25 / (1. + bord * bord * 1.4);       // le mur et le plafond, éclairés par la fenêtre
+      // un coin de soleil dans la fenêtre : un éclat très lumineux, assez large pour baver dans le halo
+      c += kf * uScint * uFenT.w * 4. * pow(max(dot(d, normalize(uFenC + .4 * uFenT.x * ax + .5 * uFenT.y * ay)), 0.), 260.);
+    }
   }
   c += uLampe * pow(max(dot(d, normalize(vec3(.94, .2, -.26))), 0.), 22.);
   c += uLampe * .06 * pow(max(dot(d, normalize(vec3(-.9, .1, -.35))), 0.), 6.) * vec3(.6, .75, 1.);
@@ -133,14 +145,14 @@ void main(){
     // épaisseur : plus mince en haut (drainage), tourbillons de Marangoni qui tournent avec la bulle
     float top = .5 - .5 * nf.y, rot = b2.x * .3;
     float base = b.w * (.25 + 1.15 * pow(top, 1.3));
-    float df = max(base * (1. + .32 * 1.6 * tourb(nf, rot, b2.w)), 0.), db = max(base * (1. + .32 * 1.6 * tourb(nb, rot, b2.w)), 0.);
+    float df = max(base * (1. + .32 * 1.1 * tourb(nf, rot, b2.w)), 0.), db = max(base * (1. + .32 * 1.1 * tourb(nb, rot, b2.w)), 0.);
     // face avant (convexe) : reflet droit de la pièce ; face arrière (concave, vue au travers) : reflet renversé, plus petit
     vec3 Rf = reflFilm(df, nz), Rb = reflFilm(db, nz);
     vec3 Lf = piece(reflect(v, nf), 1.), Lb = piece(reflect(v, vec3(-qs.x, qs.y, nz)), .3);
     float tf = 1. - luminance(Rf), tb = 1. - luminance(Rb);
     vec3 c = Rf * Lf + tf * Rb * Lb;
     // le bourrelet du trou : un tore de liquide épais, qui renvoie la lumière de la pièce
-    c += lev * (.05 * Lf + .04 * uFenT.w * .1);
+    c += lev * (.12 * Lf + .25);
     col = col * mix(1., tf * tb, cov) + c * max(cov, lev * step(0., b2.z));
   }
   o = vec4(col, 1.);
@@ -220,7 +232,7 @@ void main(){
   FW = normalize(-ro); RT = normalize(cross(FW, vec3(0., 0., 1.))); UP = cross(RT, FW);
   vec3 rd = normalize(FW + uv.x * RT + uv.y * UP);
   // le fond : une pièce sombre, une lueur douce derrière les anneaux
-  vec3 col = nuit(gl_FragCoord.xy / uRes);
+  vec3 col = uDecor > .5 ? mix(vec3(.003, .0035, .005), vec3(.014, .016, .021), gl_FragCoord.y / uRes.y) + vec3(.02, .022, .03) * exp(-dot(uv, uv) * 6.) : vec3(0.);
   // tout tient dans un cylindre de rayon 1,05 et de demi-hauteur uH + 0,05 : on ne cherche que là
   float qa = dot(rd.xy, rd.xy), qb = 2. * dot(ro.xy, rd.xy), qc = dot(ro.xy, ro.xy) - 1.1025, qd = qb * qb - 4. * qa * qc;
   if (qd < 0.){ o = vec4(col, 1.); return; }
@@ -230,12 +242,12 @@ void main(){
   for (int s = 0; s < 2; s++){
     float zz = s == 0 ? uH : -uH;
     float t = max(c0 - .05, 0.), dmin = 1e9, tmin = 0.;
-    for (int i = 0; i < 220; i++){
+    for (int i = 0; i < 120; i++){
       vec3 p = ro + rd * t; float dd = length(vec2(length(p.xy) - 1., p.z - zz)) - .03;
       if (dd < dmin){ dmin = dd; tmin = t; }
-      bool fin = t > c1 + .05 || i == 219;
+      bool fin = t > c1 + .05 || i == 119;
       if (fin && dmin < .004){ t = tmin; p = ro + rd * t; dd = 0.; }   // rayon rasant : on garde le point le plus proche du tube
-      if (dd < .0008){
+      if (dd < .0012){
         if (t < tAnn){
           tAnn = t;
           vec3 n = normalize(p - vec3(normalize(p.xy), zz));
@@ -245,7 +257,7 @@ void main(){
         }
         break;
       }
-      t += max(dd, .0012); if (t > c1 + .05 && dmin >= .004) break;
+      t += max(dd, .0025); if (t > c1 + .05 && dmin >= .004) break;
     }
   }
   if (tAnn < 1e8) col = cAnn;
@@ -269,7 +281,7 @@ void main(){
         // épaisseur : le film s'écoule vers le bas, le haut s'amincit ; tourbillons sur la surface (raccord autour de l'axe)
         vec2 tc = vec2(atan(h.y, h.x) * .3183099, h.z * .55);
         float sw = texture(uMarbre, tc + .12 * texture(uMarbre, tc * .5 + uT * .003).gb).r;
-        float d = 350. * (.42 + 1.2 * (.5 - .5 * h.z / uH)) * (1. + .4 * sw);
+        float d = 350. * (.3 + .9 * (.5 - .5 * h.z / uH)) * (1. + .4 * sw);
         acc += T * filmEn(h, rd, n, d, tr); T *= tr;
         hits++; if (hits == 2) break;
       }
@@ -343,7 +355,7 @@ void main(){
       gouttes = R.lot({ forme: 'gauss' });
     }
     construire();
-    const LAMPE = FKR.couleur.corpsNoir(3000).map((c) => c * 3.2);
+    const LAMPE = FKR.couleur.corpsNoir(3000).map((c) => c * 3.2), LAMPE_N = FKR.couleur.corpsNoir(3000), BLANC = [1, 1, 1.02];
 
     /* ───────── les bulles ───────── */
     let B = [], drops = [];
@@ -356,7 +368,7 @@ void main(){
       if (b.pop) return;
       b.pop = 0.001; b.px = clamp((x - b.x) / b.r, -0.9, 0.9); b.py = clamp((y - b.y) / b.r, -0.9, 0.9);
       // gouttelettes projetées par le bord qui se rétracte
-      for (let i = 0; i < 18; i++) { const a = rnd(TAU); drops.push({ x: b.x + Math.cos(a) * b.r, y: b.y + Math.sin(a) * b.r, vx: Math.cos(a) * rnd(260, 80), vy: Math.sin(a) * rnd(260, 80), life: rnd(0.5, 0.2) }); }
+      for (let i = 0; i < 18; i++) { const a = rnd(TAU); drops.push({ x: b.x + Math.cos(a) * b.r, y: b.y + Math.sin(a) * b.r, vx: Math.cos(a) * rnd(260, 80), vy: Math.sin(a) * rnd(260, 80), life: rnd(0.5, 0.2), teinte: Math.random() < 0.3 ? LAMPE_N : BLANC }); }
       if (snd()) { au.noise(0.05, 0.12, 3500, 1.2, 'bandpass'); au.noise(0.12, 0.05, 900, 1, 'lowpass'); }
     }
     let wind = [];
@@ -419,10 +431,13 @@ void main(){
     }
     // ce que reflète chaque scène : la fenêtre (direction, demi-taille, croisillons, luminance) et la lampe
     const FEN = {
-      bulles: { c: [-0.3, 0.62, 0.72], t: [0.62, 0.5, 0, 22] },
+      bulles: { c: [-0.3, 0.62, 0.72], t: [0.36, 0.28, 0, 22] },
       cadre: { c: [0.04, 0.12, 1], t: [0.55, 0.44, 0, 18] },
-      cate: { c: [-0.3, 0.55, 0.78], t: [0.72, 0.56, 0, 20] },
+      cate: { c: [-0.36, 0.32, 0.88], t: [0.9, 1.1, 1, 14] },
     };
+    // la pièce : couleur du sol et du plafond, part reflétée au centre des bulles ; le halo de chaque scène
+    const SALLE = { bulles: [[0.5, 0.46, 0.44], [2, 2.3, 3], 0.3], cadre: [[0.5, 0.46, 0.44], [2, 2.3, 3], 1], cate: [[0.006, 0.007, 0.009], [0.05, 0.055, 0.065], 1] };
+    const HALO = { bulles: 0.2, cadre: 0.15, cate: 0.06 };
     function render() {
       if (R.perdu) { if (R.gl.isContextLost()) return; try { construire(); } catch (e) { return; } }
       const sx = R.sx, cw = R.cw, ch = R.ch;
@@ -430,8 +445,10 @@ void main(){
       // serait invisible sur un fond crème (c'est vrai aussi d'une vraie bulle devant un mur blanc)
       const bare = env.decor === false, ink = false, v = view();
       const fen = FEN[cfg.scene], fc = fen.c, nf = Math.hypot(fc[0], fc[1], fc[2]);
+      const sa = SALLE[cfg.scene];
+      R.regler({ halo: HALO[cfg.scene] });
       R.debut(lastDt);
-      const commun = (Pg) => Pg.t('uFilm', lutT).t('uMarbre', marT).f('uT', T).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uScint', env.doux ? 0.5 : 1)
+      const commun = (Pg) => Pg.f('uSalleB', sa[0][0], sa[0][1], sa[0][2]).f('uSalleH', sa[1][0], sa[1][1], sa[1][2]).f('uCentre', sa[2]).t('uFilm', lutT).t('uMarbre', marT).f('uT', T).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uScint', env.doux ? 0.5 : 1)
         .f('uFenC', fc[0] / nf, fc[1] / nf, fc[2] / nf).f('uFenT', fen.t[0], fen.t[1], fen.t[2], fen.t[3]).f('uLampe', LAMPE[0], LAMPE[1], LAMPE[2]);
       if (cfg.scene === 'bulles') {
         const A = new Float32Array(MAXB * 4), A2 = new Float32Array(MAXB * 4), A3 = new Float32Array(MAXB * 4);
@@ -440,7 +457,7 @@ void main(){
         R.passe(P.bub);
         // les gouttelettes du bord qui se rétracte : de petites perles qui renvoient la fenêtre, en traînées
         gouttes.vider();
-        for (const d of drops) { const a = clamp(d.life * 3, 0, 1) * (bare ? 0.8 : 1.6); gouttes.trainee(d.x, d.y, d.vx * 0.02, d.vy * 0.02, 0.9, a, a, a * 1.02); }
+        for (const d of drops) { const a = clamp(d.life * 3, 0, 1) * (bare ? 2 : 5) * (env.doux ? 0.6 : 1), c = d.teinte; gouttes.trainee(d.x, d.y, d.vx * 0.012, d.vy * 0.012, 1.3, a * c[0], a * c[1], a * c[2]); }
         gouttes.dessiner();
       } else if (cfg.scene === 'cadre') {
         const bx = cadreBox();

@@ -70,3 +70,8 @@ Brief de Kurt : « transparent, blanc par diffusion, avec des reflets ; fond som
 
 - **Avant** : disque orange et bleu en aplat. **Après** (scène BZ, thème sombre) : la boîte posée sur une table lumineuse dans une pièce sombre, en lumière linéaire développée par la cabine. La lumière traverse le liquide (Beer-Lambert) : la ferroïne réduite absorbe le vert et le bleu (rouge orangé), la ferriine oxydée absorbe le rouge (bleu). Le ménisque, plus épais contre le verre, rougit le bord ; la paroi réfracte la lumière ; la lampe se reflète sur le verre. Les fronts d'onde sont un peu plus clairs.
 - Modèle de Barkley inchangé. Cœur, amibes, automate cyclique et thème clair gardent leur rendu.
+
+## Les Motifs de Turing (`s-rd.js`) : une matière, pas du plastique
+
+- **Avant** : des tubes roses et lisses avec de grands reflets blancs, comme du plastique moulé. **Après** (palettes sombres : corail, nacre, ambre, néon) : en lumière linéaire, développé par la cabine (courbe AgX, qui ne jaunit pas le corail). Lumière large et douce qui contourne les bords, creux moins éclairés (occlusion d'après les hauteurs voisines), ombre courte des crêtes, lumière qui ressort teintée du cœur des crêtes, reflet mouillé discret, gel du fond à peine visible. La hauteur reste la concentration de V : rien n'est inventé, tout est éclairé.
+- Modèle de Gray-Scott inchangé. L'encre sur papier, les pelages et le thème clair gardent leur rendu direct (la cabine grisait le papier et verdissait le guépard).

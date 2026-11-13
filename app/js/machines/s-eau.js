@@ -224,7 +224,8 @@ float cauJ(vec2 s){
   vec2 uv = toUv(s);
   float h = texture(uW, uv).r;
   float l = texture(uW, uv - vec2(uWt.x, 0.)).r + texture(uW, uv + vec2(uWt.x, 0.)).r + texture(uW, uv - vec2(0., uWt.y)).r + texture(uW, uv + vec2(0., uWt.y)).r;
-  return caustiqueJacobien((l - 4. * h) / (uCell * uCell) * uSlope, uProf, 1.333);
+  // (la focale est prise à 45 % de la profondeur : au-delà, les plis couvrent tout et le fond disparaît sous la lumière)
+  return min(caustiqueJacobien((l - 4. * h) / (uCell * uCell) * uSlope, uProf * .45, 1.333), 6.);
 }
 // le ciel que reflète l'eau : dégradé de Rayleigh (bleu profond au zénith, pâle vers l'horizon), nuages sur un plan, soleil
 vec3 ciel(vec3 r){
@@ -1112,7 +1113,7 @@ void main(){
       }
       // la lumière (HDR linéaire), développée par la cabine commune
       const A = ambiance(), E = oeil(), mode = tank ? 1 : bare ? 2 : 0;
-      cab.regler({ fond: window.FKR.fond(tank ? 'defaut' : 'eau'), vignetage: tank ? 0.5 : 0.39, contraste: tank ? 1.06 : 1.12 });
+      cab.regler({ fond: window.FKR.fond(tank ? 'defaut' : 'eau'), vignetage: tank ? 0.5 : 0.39, contraste: tank ? 1.06 : 1.12, expo: tank ? 1 : 0.8 });
       cab.debut(rdt);
       pg.eau.use().t('uW', R.Wv.r).t('uD', R.D).t('uFloor', R.floor).t('uNuages', R.nuages).t('uLut', R.lut)
         .f('uRes', W, H).f('uWt', 1 / R.GW, 1 / R.GH)

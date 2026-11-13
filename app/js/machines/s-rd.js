@@ -268,7 +268,16 @@ void main(){
         const ks = v.w < 640 ? '← k PLUS PETIT · k PLUS GRAND →' : '← k PLUS PETIT · k PLUS GRAND →  (k SUIT LA FRONTIÈRE OÙ LES MOTIFS EXISTENT)';
         tag(ks, v.cx - ctx.measureText(ks).width / 2, H - 18);
       } else tag(`${keep.scene === 'pelage' ? COATS[keep.coat].label.toUpperCase() : keep.scene === 'galerie' ? PRESETS[keep.cur].label.toUpperCase() : 'LABORATOIRE'} · f = ${fr(f, 4)} · k = ${fr(k, 4)}`, v.x0 + 18, H - 18);
-      if (toast && T - toast.t < 6) { ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toast.s).width; ctx.fillStyle = dark ? 'rgba(6,6,12,.55)' : 'rgba(255,255,255,.75)'; ctx.fillRect(v.cx - w / 2 - 12, 52, w + 24, 28); ctx.fillStyle = dark ? '#fff' : '#2a2238'; ctx.textAlign = 'center'; ctx.fillText(toast.s, v.cx, ((env.view && env.view.y0) || 0) + 71); ctx.textAlign = 'left'; ctx.globalAlpha = 1; }
+      if (toast && T - toast.t < 6) {
+        // le message passe à la ligne s'il est plus large que l'écran (il était coupé des deux côtés en 390 px)
+        ctx.globalAlpha = Math.min(1, (6 - (T - toast.t)) * 1.2); ctx.font = 'italic 500 15px "Space Grotesk", sans-serif';
+        const maxW = v.w - 40, lines = []; let cur = '';
+        for (const wd of toast.s.split(' ')) { const nx = cur ? cur + ' ' + wd : wd; if (cur && ctx.measureText(nx).width > maxW) { lines.push(cur); cur = wd; } else cur = nx; }
+        if (cur) lines.push(cur);
+        const w = Math.max(...lines.map((t) => ctx.measureText(t).width)), y0t = ((env.view && env.view.y0) || 0) + 52;
+        ctx.fillStyle = dark ? 'rgba(6,6,12,.55)' : 'rgba(255,255,255,.75)'; ctx.fillRect(v.cx - w / 2 - 12, y0t, w + 24, 10 + lines.length * 19);
+        ctx.fillStyle = dark ? '#fff' : '#2a2238'; ctx.textAlign = 'center'; lines.forEach((t, i) => ctx.fillText(t, v.cx, y0t + 19 + i * 19)); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+      }
     }
 
     setScene(keep.scene);

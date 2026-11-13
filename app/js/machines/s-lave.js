@@ -902,7 +902,8 @@ void main(){
     // profil du verre : un fuseau renflé en bas (demi-largeur en fraction de la grille)
     const hw = (y) => 0.17 + 0.29 * Math.exp(-Math.pow((y - 0.24) / 0.4, 2));
     // gouttes de départ : x, y (fractions de la grille), rayon (en hauteur de grille), température (0 froid → 1 chaud)
-    const LAMP_BLOBS = [[0.5, 0.3, 0.05, 0.42], [0.43, 0.5, 0.036, 0.4], [0.57, 0.66, 0.042, 0.34], [0.48, 0.84, 0.032, 0.26], [0.53, 0.17, 0.035, 0.45]];
+    // réparties dans la largeur du verre (empilées au centre, elles faisaient une colonne)
+    const LAMP_BLOBS = [[0.38, 0.3, 0.048, 0.42], [0.62, 0.42, 0.036, 0.4], [0.44, 0.6, 0.04, 0.34], [0.58, 0.76, 0.03, 0.26], [0.6, 0.19, 0.034, 0.45], [0.42, 0.88, 0.024, 0.26]];
     function build() {
       const Q = QUAL[cfg.q], { K, gl } = G;
       let GW, GH;
@@ -969,8 +970,11 @@ void main(){
     /* ───────── géométrie à l'écran ───────── */
     function lampBox() {
       // le verre, puis son socle (22 % de sa hauteur) qui pose sur une table : de quoi voir la lampe s'y refléter
-      const v = view(), hh = H * 0.66, ww = hh * (R.GW / R.GH);
-      return { x: v.cx - ww / 2, y: H * 0.075, w: ww, h: hh };
+      // sous la bande réservée du Labo (titre, pastilles), et en largeur sur un écran étroit
+      const v = view(), y0 = (env.view && env.view.y0) || 0, Hu = H - y0;
+      let hh = Hu * 0.64, ww = hh * (R.GW / R.GH);
+      if (ww * 1.6 > v.w) { ww = v.w / 1.6; hh = ww / (R.GW / R.GH); }   // le socle est plus large que le verre
+      return { x: v.cx - ww / 2, y: y0 + Hu * 0.075, w: ww, h: hh };
     }
     function toGrid(x, y) {
       if (cfg.scene === 'lampe') { const b = lampBox(); return [((x - b.x) / b.w) * R.GW, (1 - (y - b.y) / b.h) * R.GH, R.GW / b.w]; }

@@ -670,6 +670,10 @@ void main(){
       vec2 q = d.xy * g1.w * 9000.;
       float rr = alea(floor(q)), scint = step(.9965, rr) * (1. - smoothstep(0., .3, g1.w)) * (.4 + .6 * exp(-pow(th / 25., 2.)));
       L += uEs0 * scint * .02;                                                     // quelques gouttes qui scintillent (fixes : aucun clignotement)
+    } else {
+      // au loin, le relief se perd dans la grisaille de l'averse, pas dans un horizon de ciel clair
+      vec3 hor = horizonDir(d), sombre = mix(hor, vec3(luminance(hor)) * vec3(.72, .84, 1.1), .6) * .2;
+      L = mix(L, sombre, (1. - exp(-g1.w / 10.)) * .8);
     }
   }
   else {

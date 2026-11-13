@@ -2,7 +2,7 @@
    Une machine dessine sa scène en lumière linéaire (HDR, sans plafond à 1) dans cab.scene,
    puis cab.finish(opt) la « développe » comme une pellicule, sur le modèle du Feu :
    halo à plusieurs échelles (filtre double de Bjørge, 2015, conçu pour les GPU mobiles),
-   exposition, courbe filmique (ACES de Narkowicz, ou AgX), étalonnage, vignettage naturel (cos⁴),
+   exposition, courbe filmique (ACES de Narkowicz, AgX, ou aucune pour une image déjà colorisée), étalonnage, vignettage naturel (cos⁴),
    grain argentique et tramage contre les bandes.
    Usage :
      const K = FKGL.GLKit(cw, ch);
@@ -68,7 +68,8 @@ void main(){
   c *= 1. / ((1. + r2) * (1. + r2));
   float l = dot(c, vec3(.2126, .7152, .0722));
   c = max(mix(vec3(l), c, uSat), 0.);
-  vec3 t = uTone > .5 ? agx(c) : aces(c);
+  // 0 : ACES (comme le Feu) · 1 : AgX · 2 : aucune courbe (image déjà colorisée par la machine, comme une photo d'observatoire)
+  vec3 t = uTone > 1.5 ? clamp(c, 0., 1.) : uTone > .5 ? agx(c) : aces(c);
   // contraste autour du gris moyen, en espace perceptif
   t = pow(t, vec3(1. / 2.2));
   t = clamp((t - .5) * uCon + .5, 0., 1.);
@@ -133,7 +134,7 @@ void main(){
           .f('uExpo', o.expo == null ? 1 : o.expo).f('uBloom', o.bloom == null ? 0.7 : o.bloom)
           .f('uSat', o.sat == null ? 1 : o.sat).f('uCon', o.con == null ? 1 : o.con).f('uVig', o.vig == null ? 0.35 : o.vig)
           .f('uGrain', o.grain == null ? 0.035 : o.grain).f('uBlack', o.grainBlack == null ? 0.25 : o.grainBlack).f('uTime', C.t)
-          .f('uTone', o.tone === 'agx' ? 1 : 0).f('uInk', o.ink ? 1 : 0)
+          .f('uTone', o.tone === 'agx' ? 1 : o.tone === 'none' ? 2 : 0).f('uInk', o.ink ? 1 : 0)
           .f('uTint', tint[0], tint[1], tint[2]).f('uPaper', paper[0], paper[1], paper[2]).f('uLift', lift[0], lift[1], lift[2]);
         K.run(pf, o.out || null);
       },

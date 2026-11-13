@@ -307,6 +307,140 @@ void main(){
   o = vec4(pow(clamp(col, 0., 1.), vec3(1. / 2.2)), 1.);
 }`;
 
+  /* Les cellules de Bénard en lumière linéaire : la cuve entre une plaque de cuivre chauffée (qui rougeoie)
+     et une plaque froide ; la température en palette « inferno » (perceptuellement régulière), avec un relief
+     qui fait sortir les panaches ; ou le colorant, fluorescent sous ultraviolet, comme la fluorescéine. */
+  const FS_BEN_HDR = HEAD + `
+uniform sampler2D uS; uniform vec2 uRes, uPx; uniform vec4 uRect; uniform float uView, uRa, uT;
+out vec4 o;
+vec3 inferno(float t){
+  t = clamp(t, 0., 1.);
+  const vec3 c0 = vec3(.0002189, .001651, -.0194809), c1 = vec3(.1065134, .5639564, 3.9327124), c2 = vec3(11.6024931, -3.972854, -15.9423941);
+  const vec3 c3 = vec3(-41.7039961, 17.4363989, 44.3541452), c4 = vec3(77.1629357, -33.4023589, -81.8073093), c5 = vec3(-71.3194282, 32.6260643, 73.2095199), c6 = vec3(25.1311262, -12.242669, -23.070325);
+  return pow(clamp(c0 + t * (c1 + t * (c2 + t * (c3 + t * (c4 + t * (c5 + t * c6))))), 0., 1.), vec3(2.2));
+}
+void main(){
+  vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  vec2 tu = vec2((px.x - uRect.x) / uRect.z, 1. - (px.y - uRect.y) / uRect.w);
+  float heat = .4 + 1.8 * uRa;
+  vec3 col = vec3(.0035, .004, .0055);
+  // la lumière des deux plaques sur le fond du laboratoire
+  float db = (px.y - (uRect.y + uRect.w)) / uRes.y, dt = ((uRect.y) - px.y) / uRes.y;
+  col += vec3(1., .3, .08) * heat * .025 / (1. + db * db * 60.) + vec3(.3, .55, 1.) * .01 / (1. + dt * dt * 60.);
+  float pl = uRes.y * .012;
+  if (px.x > uRect.x && px.x < uRect.x + uRect.z){
+    if (tu.y >= 0. && tu.y <= 1.){
+      vec4 s = texture(uS, tu);
+      float T = s.g;
+      if (uView < .5){
+        // température : relief (les panaches chauds bombent), palette inferno, les parties chaudes un peu lumineuses
+        float gx = texture(uS, tu + vec2(uPx.x, 0.)).g - texture(uS, tu - vec2(uPx.x, 0.)).g, gy = texture(uS, tu + vec2(0., uPx.y)).g - texture(uS, tu - vec2(0., uPx.y)).g;
+        vec3 n = normalize(vec3(-gx * 9., -gy * 9., 1.));
+        float sh = .72 + .4 * dot(n, normalize(vec3(-.5, .6, .65)));
+        col = inferno(T) * (.35 + .9 * T) * sh;
+      } else {
+        // colorant fluorescent : des filets verts qui suivent l'écoulement, sur un liquide sombre
+        float dye = s.b, l = 1. - smoothstep(.0, .08, .5 - abs(fract(dye * 9.) - .5) - .04);   // filets fins là où le colorant change de bande
+        col = vec3(.003, .005, .009) + inferno(T) * .05 + vec3(.25, 1., .4) * l * 1.3;
+      }
+      // les parois de verre : un liseré clair sur les bords
+      float e = min(px.x - uRect.x, uRect.x + uRect.z - px.x);
+      col += vec3(.5, .55, .6) * .08 * exp(-e * .8);
+    } else if (px.y > uRect.y + uRect.w && px.y < uRect.y + uRect.w + pl){
+      // plaque de cuivre chauffée : elle rougeoie d'autant plus que l'écart de température est grand
+      float k = (px.y - uRect.y - uRect.w) / pl;
+      col = vec3(.55, .2, .08) * (.3 + .7 * (1. - k)) * .25 + vec3(1., .32, .06) * heat * .9 * (1. - k * .6);
+    } else if (px.y < uRect.y && px.y > uRect.y - pl){
+      float k = (uRect.y - px.y) / pl;
+      col = vec3(.35, .5, .7) * (.12 + .2 * (1. - k)) + vec3(.6, .8, 1.) * .15 * (1. - k);
+    }
+  }
+  o = vec4(col, 1.);
+}`;
+
+  /* Le Soleil en lumière linéaire, développé par la cabine : granules bombés (le gaz chaud monte au centre),
+     couloirs sombres et points brillants magnétiques, facules près du bord, tache solaire, chromosphère.
+     La teinte dorée est celle des photographies prises à travers un filtre, comme celles du télescope Inouye. */
+  const FS_SUN_HDR = HEAD + `
+uniform vec2 uRes, uC; uniform float uT, uZoom, uSpot, uR; out vec4 o;
+vec2 h22(vec2 p){ p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
+vec3 bb(float T){
+  T = clamp(T, 1000., 40000.) / 100.;
+  float r = T <= 66. ? 1. : clamp(1.29293618 * pow(T - 60., -.1332047592), 0., 1.);
+  float g = T <= 66. ? clamp(.39008157876 * log(T) - .63184144378, 0., 1.) : clamp(1.12989086 * pow(T - 60., -.0755148492), 0., 1.);
+  float b = T >= 66. ? 1. : (T <= 19. ? 0. : clamp(.54320678911 * log(T - 10.) - 1.19625408914, 0., 1.));
+  return pow(vec3(r, g, b), vec3(2.2));
+}
+// distance au bord de la cellule (0 dans les couloirs), âge de la cellule, et son identité
+vec4 gran(vec2 p, float t){
+  vec2 i = floor(p), f = fract(p); float d1 = 9., d2 = 9., life = 0., idh = 0.;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++){
+    vec2 g = vec2(x, y), id = i + g, h = h22(id);
+    float ph = t * (.25 + .2 * h.x) + h.y * 6.28;
+    vec2 c = g + .5 + .32 * vec2(sin(ph), cos(ph * .9 + h.x * 3.));
+    float d = length(c - f) * (.85 + .3 * (.5 + .5 * sin(ph * .7)));
+    if (d < d1){ d2 = d1; d1 = d; life = .5 + .5 * sin(ph * .7); idh = h.x; } else if (d < d2) d2 = d;
+  }
+  return vec4(d2 - d1, life, idh, d1);
+}
+void main(){
+  vec2 q = (gl_FragCoord.xy - uC) / uR;
+  float rr = length(q), zoom = uZoom;
+  vec3 col = vec3(0.);
+  if (rr < 1. || zoom > .5){
+    vec2 p = q * 7.;
+    float T;
+    vec4 g = vec4(.5);
+    float dome = 1.;
+    if (zoom > .5){
+    // les cellules se déforment lentement : un bruit tord la grille de Voronoï
+    vec2 wp = p + (vec2(fbm(p * .3 + uT * .04), fbm(p * .3 + 7.3 - uT * .04)) - .5) * .9;
+    g = gran(wp, uT);
+    dome = smoothstep(.0, .42, g.x);                            // le gaz chaud bombe le centre du granule
+    dome *= 1. - .35 * smoothstep(.25, .5, g.x) * smoothstep(.75, .95, g.y);   // les vieux granules « explosent » : leur centre s'assombrit
+    T = 5150. + 1150. * dome * (.7 + .3 * g.y) + 420. * (fbm(p * 2.3 + uT * .03) - .5) * (.4 + .6 * dome);
+    // points brillants : le champ magnétique concentré dans certains couloirs
+    float bp = smoothstep(.05, .0, g.x) * step(.9, fract(g.z * 13.7)) * smoothstep(.2, .05, abs(g.w - .5));
+    T += 500. * bp;
+    } else {
+      // vue d'ensemble : un granule (1 000 km) est bien plus petit qu'un pixel ; on ne voit qu'un léger moutonnement (supergranules)
+      T = 5700. + 160. * (fbm(q * 22. + uT * .01) - .5) + 90. * (vnoise(q * 90.) - .5);
+    }
+    float sd = 9.;
+    vec2 sc = zoom > .5 ? vec2(.35, -.1) : vec2(.25, .2);
+    if (uSpot > .5){
+      sd = length(q - sc) / (zoom > .5 ? .3 : .06);
+      if (sd < 1.){
+        float a = atan(q.y - sc.y, q.x - sc.x);
+        float fil = .5 + .5 * sin(a * 60. + fbm(vec2(a * 8., sd * 3.)) * 4.);
+        float um = smoothstep(.5, .42, sd), pen = smoothstep(1., .9, sd) * (1. - um);
+        T = mix(T, 4250. + 650. * fil, pen);
+        T = mix(T, 3600., um);
+      }
+    }
+    float I = pow(T / 5800., 7.);                               // en lumière visible, l'éclat varie bien plus vite que T⁴
+    if (zoom > .5){
+      // en gros plan, les granules ont du relief (ombre douce côté opposé à la lumière)
+      float rl = clamp(.5 + (dFdx(dome) - dFdy(dome)) * 2.2, 0., 1.);
+      I *= .82 + .36 * rl;
+    } else {
+      float mu = sqrt(max(0., 1. - rr * rr));
+      I *= .38 + .62 * pow(mu, .7);                            // assombrissement centre-bord
+      I *= 1. + .55 * pow(1. - mu, 2.) * smoothstep(.45, .7, fbm(q * 18. + 3.));   // facules, visibles près du bord
+      I *= smoothstep(1., .995, rr);
+    }
+    // comme les images des observatoires : une luminance colorisée par une palette or (brun, orange, or pâle)
+    float Y = clamp(I * (zoom > .5 ? .6 : .92), 0., 1.5);
+    col = vec3(Y * Y, .51 * Y * Y * Y, .08 * pow(Y, 5.));
+  }
+  if (zoom < .5 && rr > .99){
+    // chromosphère rose et couronne, très ténues
+    float e = rr - 1.;
+    col += vec3(.9, .25, .12) * exp(-max(e, 0.) * 160.) * .35 + vec3(.6, .3, .1) * exp(-max(e, 0.) * 6.) * .02;
+  }
+  o = vec4(col, 1.);
+}`;
+
   const WAX = {
     classique: { nom: 'Orange dans du violet', wax: [1.0, 0.42, 0.08], liq: [0.35, 0.12, 0.55] },
     rouge: { nom: 'Rouge dans du jaune', wax: [0.95, 0.12, 0.08], liq: [0.75, 0.6, 0.12] },
@@ -361,7 +495,7 @@ void main(){
       pg.lamp = K.program(FS_LAMP); pg.ben = K.program(FS_BEN); pg.sun = K.program(FS_SUN);
       // la cabine commune (halo, courbe filmique, grain) : seulement si elle est chargée
       let cab = null;
-      if (window.FKGL.cabine) { try { pg.lampH = K.program(FS_LAMP_HDR); cab = window.FKGL.cabine(K); } catch (e) { console.warn('Lampe à lave : rendu simple', e); cab = null; } }
+      if (window.FKGL.cabine) { try { pg.lampH = K.program(FS_LAMP_HDR); pg.sunH = K.program(FS_SUN_HDR); pg.benH = K.program(FS_BEN_HDR); cab = window.FKGL.cabine(K); } catch (e) { console.warn('Lampe à lave : rendu simple', e); cab = null; } }
       return { K, gl: K.gl, s, pg, cab };
     }
     G = initGL();
@@ -466,16 +600,27 @@ void main(){
         pg.lamp.use().t('uS', R.S.r).t('uM', R.M).f('uRes', cw, ch).f('uPx', R.px[0], R.px[1]).f('uBox', b.x * s, b.y * s, b.w * s, b.h * s).f('uWax', ...C.wax).f('uLiq', ...C.liq).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uOn', cfg.on ? 1 : 0.15).f('uT', T);
         K.run(pg.lamp, null);
         }
+      } else if (cfg.scene === 'benard' && !bare && G.cab) {
+        const y0 = H * 0.2, hh = H * 0.6;
+        pg.benH.use().t('uS', R.S.r).f('uRes', cw, ch).f('uPx', R.px[0], R.px[1]).f('uRect', v.x0 * s, y0 * s, v.w * s, hh * s).f('uView', cfg.benView).f('uRa', cfg.ra).f('uT', T);
+        K.run(pg.benH, G.cab.scene);
+        G.cab.finish({ expo: 1.25, bloom: 0.8, thr: 0.8, knee: 0.5, radius: 0.75, vig: 0.35, grain: 0.03, grainBlack: 0.35 });
       } else if (cfg.scene === 'benard') {
         pg.ben.use().t('uS', R.S.r).f('uRes', cw, ch).f('uPx', R.px[0], R.px[1]).f('uView', cfg.benView).f('uInk', ink ? 1 : 0);
         K.run(pg.ben, { fb: null, w: cw, h: ch });
       } else {
         const R0 = Math.min(v.w, H) * 0.44 * s;
+        if (!bare && G.cab) {
+          pg.sunH.use().f('uRes', cw, ch).f('uC', v.cx * s, (H / 2) * s).f('uT', T * cfg.sunSpeed).f('uZoom', cfg.zoom).f('uSpot', cfg.spot ? 1 : 0).f('uR', cfg.zoom ? Math.max(v.w, H) * 0.5 * s : R0);
+          K.run(pg.sunH, G.cab.scene);
+          G.cab.finish({ tone: 'none', expo: 1, bloom: cfg.zoom ? 0.25 : 0.6, thr: 0.8, knee: 0.5, radius: 0.85, vig: cfg.zoom ? 0.3 : 0.2, grain: 0.025, grainBlack: 0.3 });
+        } else {
         pg.sun.use().f('uRes', cw, ch).f('uC', v.cx * s, (H / 2) * s).f('uT', T * cfg.sunSpeed).f('uZoom', cfg.zoom).f('uSpot', cfg.spot ? 1 : 0).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uR', cfg.zoom ? Math.max(v.w, H) * 0.5 * s : R0);
         K.run(pg.sun, null);
+        }
       }
       ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.imageSmoothingEnabled = true;
-      if (cfg.scene === 'benard') {
+      if (cfg.scene === 'benard' && (bare || !G.cab)) {
         const y0 = H * 0.2, hh = H * 0.6;
         ctx.fillStyle = ink ? '#f3eee3' : '#06060a'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over';
         ctx.drawImage(K.canvas, 0, 0, cw, ch, v.x0, y0, v.w, hh);

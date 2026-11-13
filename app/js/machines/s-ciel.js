@@ -110,13 +110,16 @@
   });
 
   function makeCiel(env) {
+    // FKR.veille : si l'appareil ne suit pas (moins de 24 i/s), on reconstruit le rendu une fois, plus léger ; les réglages sont gardés
+    const veille = window.FKR && FKR.veille ? FKR.veille({ id: 'ciel', seuil: 24, auRepli: () => { if (!leger) { leger = true; rebuild(); } } }) : null;
+    if (veille && veille.deja) leger = true;
     let w = build(env);
     function build(e) { return keep.scene === 'arc' ? arc(e) : keep.scene === 'halos' ? halos(e) : keep.scene === 'aurores' ? aurores(e) : ciel(e); }
     const rebuild = () => { try { w.dispose && w.dispose(); } catch (e) { /* rien */ } w = build(env); };
     const api = {
       livePaused: true,
       // contexte WebGL perdu : on attend qu'il revienne, puis on reconstruit la scène (sans toucher aux réglages)
-      frame: (t, dt) => { if (w.R && w.R.perdu) { if (!w.R.gl.isContextLost()) rebuild(); return; } w.frame(t, dt); }, down: (p) => w.down && w.down(p), move: (p) => w.move && w.move(p), up: () => w.up && w.up(),
+      frame: (t, dt) => { if (veille) veille.image(performance.now()); if (w.R && w.R.perdu) { if (!w.R.gl.isContextLost()) rebuild(); return; } w.frame(t, dt); }, down: (p) => w.down && w.down(p), move: (p) => w.move && w.move(p), up: () => w.up && w.up(),
       dispose: () => w.dispose && w.dispose(),
       ui() {
         const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [
@@ -261,6 +264,7 @@ void main(){
   const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   // un champ d'étoiles (partagé par le ciel et les aurores) : beaucoup de faibles, quelques brillantes
   const champEtoiles = () => Array.from({ length: 520 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), Math.pow(Math.random(), 3) * 1.4 + 0.25]; });
+  let leger = false;   // repli (FKR.veille) : résolution de travail plus basse
   const ECHELLE = 0.6;   // fraction de la résolution de travail (tablette, et logiciel sans carte graphique) ; les textes restent nets (2D)
   const FOND = window.FKR ? window.FKR.couleur.deCss(window.FKR.FONDS.defaut) : [0.0015, 0.0018, 0.003];
   function atmosphere(R, sc) {
@@ -536,7 +540,7 @@ void main(){
 }`;
   function ciel(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: leger ? 0.4 : ECHELLE });
     const atmo = atmosphere(R, 0.25), dec = decor(R, NU_CIEL);
     const PC = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + CIEL_FS));
     const lueurs = R.lot({ forme: 'gauss' });
@@ -708,7 +712,7 @@ void main(){
 
   function arc(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: leger ? 0.4 : ECHELLE });
     const atmo = atmosphere(R, 0.25), dec = decor(R, NU_ARC);
     const PB = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + ARC_FS));
     let LUT = null, lutA = -1, lutT = 0;
@@ -913,7 +917,7 @@ void main(){
     const acc = new Float32Array(GW * GH * 3), octets = new Uint8Array(GW * GH * 4);
     let nT = 0, C = null, s = null, key = '', cleC = '', expo = 1, info = null, nf = 0, neuf = true;
     const cad = cadence();
-    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], plafond: 1, echelle: leger ? 0.4 : ECHELLE });
     const atmo = atmosphere(R, 0.25), dec = decor(R, NU_HALO);
     const PH = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + HALO_FS));
     const gl = R.gl, texH = gl.createTexture();
@@ -1172,7 +1176,7 @@ void main(){
 
   function aurores(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: leger ? 0.4 : ECHELLE });
     const K = R.K, dec = decor(R, NU_VIDE);
     const AUR = K.target(Math.max(2, R.cw >> 1), Math.max(2, R.ch >> 1));
     const PA = K.program(FKR.fs(['bruit'], camGLSL + AUR_FS));

@@ -16,6 +16,7 @@
 - vers 15 h 10 (v31) : la **Lampe à lave** reprise (couleurs, départ en marche), les **Lucioles** au décor repris, les **Motifs de Turing** (thème sombre) et le **Mycélium** (combat et réseau ; les ronds de sorcières sont retirés du chemin le temps de leur reprise). La **Foudre** attend : l'attente entre les éclairs est encore jugée moche.
 - vers 16 h (v32) : la **Lampe à lave** avec le Soleil entier (auréole, chromosphère, protubérances), les **Motifs de Turing** en thème clair (pigment sur papier), le **Mycélium** et les **Lucioles** repris. La **Foudre** attend encore, à peu près : des lueurs plus fortes et un nuage bleu-gris la feraient passer.
 - vers 18 h 30 (v34) : la **Foudre** entre (orage, figure de Lichtenberg, globe à plasma ; « Au-dessus des orages » reste hors du chemin le temps de sa reprise), les **ronds de sorcières** reviennent, Lave et Turing retouchés.
+- vers 19 h (v35) : la ligne d'état des machines n'est plus cachée par les boutons du bas ; le Soleil dit que la couronne ne se voit « à l'œil nu » qu'aux éclipses ; les ronds de sorcières en vue de drone, avec la vitesse de l'anneau corrigée (une vraie erreur de modèle).
 
 
 Session Fascinations, chef de projet et garant de la science. **Rien n'est sur `main` depuis la fusion de 0 h 40.** Tout est sur `jeunesse`, et l'application unique sur `app-unique` (voir `POUR-YOANN.md`). Le travail s'est arrêté de 1 h 46 à 5 h 10 (limite d'usage).

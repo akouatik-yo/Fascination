@@ -4,16 +4,16 @@
    l'arc-en-ciel (une goutte tracée rayon par rayon ; le ciel par la théorie d'Airy),
    les halos (rayons lancés au hasard à travers des prismes de glace hexagonaux). */
 (function boot() {
-  if (!window.FK || !window.FKGL) return setTimeout(boot, 12);
+  if (!window.FK || !window.FKGL || !window.FKR) return setTimeout(boot, 12);
   const { TAU, clamp, rnd, rint, layer } = window.FK;
-  const { GLKit, HEAD } = window.FKGL;
+  const { HEAD } = window.FKGL;
   const D2R = Math.PI / 180, R2D = 180 / Math.PI;
   const fr = (x, d = 0) => x.toFixed(d).replace('.', ',').replace('-', '−');
 
   // réglages gardés d'une scène à l'autre
   const keep = {
     scene: 'ciel', el: 6, anim: true,
-    look: 'soleil', planet: 'terre', haze: 1, ozone: true, alt: 0,
+    look: 'soleil', planet: 'terre', haze: 1, ozone: true, alt: 0, nuages: 0.25,
     view: 'ciel', drop: 0.35, refl: 1, rbEl: 12,
     hEl: 18, mix: { plaques: 0.5, colonnes: 0.25, desordre: 0.5 }, proj: 'soleil', guides: true,
   };
@@ -96,6 +96,7 @@
       'Le bleu du ciel au crépuscule doit beaucoup à l’ozone (Edward Hulburt, 1953) : quand le soleil est sous l’horizon, la lumière qui éclaire le zénith a traversé la couche d’ozone en biais, et l’ozone absorbe l’orangé (bandes de Chappuis). Sans ozone, le zénith du crépuscule serait grisâtre. Dos au soleil, juste après le coucher : la bande sombre bleutée au-dessus de l’horizon est l’ombre de la Terre projetée sur l’atmosphère, surmontée d’une frange rose, la ceinture de Vénus.',
       'L’arc-en-ciel : René Descartes (1637) trace des milliers de rayons à travers une goutte et remarque qu’ils s’accumulent vers 42° : c’est l’angle de déviation minimale. Isaac Newton y ajoute la dispersion : le violet dévie un peu plus que le rouge. L’arc secondaire (deux réflexions dans la goutte) est à 51°, couleurs inversées ; entre les deux, la bande sombre d’Alexandre d’Aphrodise. Les arcs surnuméraires, de fines franges roses et vertes sous l’arc, sont des interférences : George Airy (1838) les a expliqués par l’optique ondulatoire. Ils n’apparaissent qu’avec de petites gouttes toutes semblables ; avec des gouttelettes de brouillard, les franges s’élargissent tant que les couleurs se mêlent : l’arc devient blanc.',
       'Les halos naissent dans les cirrus et le brouillard glacé, où flottent des prismes hexagonaux de glace. Deux faces latérales non voisines forment un prisme de 60° : la lumière y est déviée d’au moins 22°, d’où le halo de 22°. Une face latérale et une base forment un prisme de 90° : halo de 46°. Les plaquettes tombent à plat comme des feuilles : elles produisent les parhélies (les « faux soleils », à gauche et à droite du soleil) et l’arc circumzénithal, un arc-en-ciel à l’envers près du zénith, qui n’existe que si le soleil est à moins de 32° de hauteur. Les colonnes tombent couchées : arcs tangents. Ici, chaque image est faite de millions de rayons lancés au hasard à travers des cristaux orientés au hasard.',
+      'Le disque du Soleil est montré trois fois plus grand que nature pour qu\'on le voie (en vrai : un demi-degré, la largeur de ton petit doigt à bout de bras).',
     ],
     tools: [{ id: 'soleil', label: 'soleil', desc: 'Glissez de haut en bas pour déplacer le soleil (la marche automatique s’arrête).' }],
     make(env) {
@@ -112,7 +113,8 @@
     const rebuild = () => { try { w.dispose && w.dispose(); } catch (e) { /* rien */ } w = build(env); };
     const api = {
       livePaused: true,
-      frame: (t, dt) => w.frame(t, dt), down: (p) => w.down && w.down(p), move: (p) => w.move && w.move(p), up: () => w.up && w.up(),
+      // contexte WebGL perdu : on attend qu'il revienne, puis on reconstruit la scène (sans toucher aux réglages)
+      frame: (t, dt) => { if (w.R && w.R.perdu) { if (!w.R.gl.isContextLost()) rebuild(); return; } w.frame(t, dt); }, down: (p) => w.down && w.down(p), move: (p) => w.move && w.move(p), up: () => w.up && w.up(),
       dispose: () => w.dispose && w.dispose(),
       ui() {
         const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [
@@ -129,10 +131,11 @@
 
   /* ─ caméras : perspective (lacet, tangage) ou fish-eye (zénith au centre, soleil en bas) ─ */
   function camera(W, H, view, o) {
-    const cx = (view.x0 + view.x1) / 2, cy = H / 2, vw = view.x1 - view.x0;
+    // le fish-eye se centre sous la barre du haut (view.y0) : rien d'important n'y est caché
+    const y0 = o.fish ? view.y0 || 0 : 0, cx = (view.x0 + view.x1) / 2, cy = (y0 + H) / 2, vw = view.x1 - view.x0;
     const C = { cx, cy, fish: !!o.fish, yaw: o.yaw || 0, pitch: o.pitch || 0 };
     C.f = (H / 2) / Math.tan((o.vfov || 90) * D2R / 2);
-    C.rf = Math.min(vw, H) * 0.46;
+    C.rf = Math.min(vw, H - y0) * 0.46;
     const cp = Math.cos(C.pitch), sp = Math.sin(C.pitch), cyw = Math.cos(C.yaw), syw = Math.sin(C.yaw);
     C.F = [cp * cyw, cp * syw, sp]; C.R = [syw, -cyw, 0]; C.U = [-cyw * sp, -syw * sp, cp];
     C.proj = (v) => {
@@ -214,14 +217,6 @@ void main(){
   if (ground){ vec3 Tg = exp(-(uBR * oR + uBMe * oM)); L += Tg * vec3(.05, .055, .045) * 20. * max(uSun.z, 0.) * .2; }
   o = vec4(L, ground ? 1. : 0.);
 }`;
-  const TONE_FS = HEAD + `
-uniform sampler2D uA; uniform float uExp; out vec4 o;
-void main(){ vec4 a = texture(uA, vUv); if (a.a > 1.5){ o = vec4(0., 0., 0., 1.); return; }
-  // on comprime la luminance en gardant la teinte (sinon tout ce qui est vif tourne au blanc)
-  vec3 c = a.rgb * uExp; float m = max(max(c.r, c.g), max(c.b, 1e-6)); vec3 h = c * (1. - exp(-m)) / m;
-  c = mix(h, vec3(1. - exp(-m)), smoothstep(2., 12., m) * .5);
-  o = vec4(pow(c, vec3(1. / 2.2)), 1.); }`;
-
   // la même atmosphère en JavaScript, le long d'un seul rayon : couleur du disque solaire
   function sunColor(P, el, alt) {
     const s = sunVec(el), p0 = [0, 0, P.Rp + alt + 0.002];
@@ -235,17 +230,311 @@ void main(){ vec4 a = texture(uA, vUv); if (a.a > 1.5){ o = vec4(0., 0., 0., 1.)
     return [0, 1, 2].map((k) => Math.exp(-(P.bR[k] * oR + P.bMe[k] * oM + BO[k] * oO)));
   }
 
+
+  /* ─ le rendu (FKR) : chaque scène écrit de la lumière (HDR linéaire, unités du ciel : le soleil hors atmosphère
+       éclaire à E0) ; la cabine commune la développe (exposition, halo, AgX, grain). Le ciel physique est calculé
+       en basse résolution, seulement quand il change ; une sonde « tout le ciel » de 32 × 32 en tire l'exposition
+       et l'éclairement que le ciel donne au paysage. Le décor (relief, albédo, nuages) est calculé une fois par
+       cadrage dans trois cibles ; seule la lumière est refaite à chaque image (le soleil peut bouger sans frais). ─ */
+  // cadence de rendu : une scène qui ne change pas n'est pas redessinée à chaque image (la tablette ne chauffe pas) ;
+  // un changement de réglage est dessiné aussitôt ; le délai court depuis la fin du dernier rendu
+  // plafond de coût : on mesure ce que coûte un rendu (du début du rendu à l'appel suivant, attente de la carte comprise)
+  // et l'on espace les rendus d'au moins 2,5 fois ce coût ; sur une tablette rapide, rien ne change (24 ou 10 images par seconde)
+  function cadence() {
+    let t = -1e9, t0 = 0, mesure = false, cout = 0;
+    return {
+      ok(force, ms) {
+        const n = performance.now();
+        if (mesure && n - t0 > 2) { const c = Math.max(0, n - t0 - 17); cout = cout ? cout * 0.6 + c * 0.4 : c; mesure = false; }
+        if (!force && n - t < Math.max(ms, 2.5 * cout)) return false;
+        t0 = n; mesure = true; return true;
+      },
+      fait() { t = performance.now(); },
+    };
+  }
+  const E0 = 20;
+  const ECHELLE = 0.6;   // fraction de la résolution de travail (tablette, et logiciel sans carte graphique) ; les textes restent nets (2D)
+  const FOND = window.FKR ? window.FKR.couleur.deCss(window.FKR.FONDS.defaut) : [0.0015, 0.0018, 0.003];
+  function atmosphere(R, sc) {
+    const K = R.K, gl = R.gl, W = R.W, H = R.H;
+    const gw = Math.max(64, Math.round(W * sc)), gh = Math.max(48, Math.round(H * sc));
+    const PS = K.program(SKY_FS), A = K.target(gw, gh, 'f32', gl.NEAREST), AE = K.target(gw, gh);
+    // copie exposée en demi-flottants : filtrable par la carte (une lecture au lieu de quatre), sans perte de précision la nuit
+    const PE = K.program(FKR.fs([], 'uniform sampler2D uA; uniform float uK; out vec4 o;\nvoid main(){ vec4 a = texelFetch(uA, ivec2(gl_FragCoord.xy), 0); o = vec4(min(a.rgb * uK, vec3(6e4)), a.a); }'));
+    const NP = 32, PR = K.target(NP, NP, 'f32', gl.NEAREST), buf = new Float32Array(NP * NP * 4);
+    const CP = camera(NP, NP, { x0: 0, x1: NP }, { fish: true }), kr = CP.rf / (Math.PI / 2);
+    const dirs = [];
+    for (let j = 0; j < NP; j++) for (let i = 0; i < NP; i++) {
+      const dx = i + 0.5 - CP.cx, dy = NP - (j + 0.5) - CP.cy, r = Math.hypot(dx, dy) / CP.rf;
+      if (r > 1) { dirs.push(null); continue; }
+      const z = r * Math.PI / 2, ph = Math.atan2(dx, dy);
+      dirs.push([Math.sin(z) * Math.cos(ph), Math.sin(z) * Math.sin(ph), Math.cos(z), z > 1e-4 ? Math.sin(z) / (z * kr * kr) : 1 / (kr * kr)]);
+    }
+    const uni = (Cm, Ww, Hh, P, s, o) => {
+      PS.use(); setCam(PS, Cm, Ww, Hh)
+        .f('uSun', s[0], s[1], s[2]).f('uRp', P.Rp).f('uRa', P.Ra).f('uHr', P.Hr).f('uHm', P.Hm).f('uAlt', o.alt || 0).f('uOz', o.oz || 0)
+        .f('uBR', ...P.bR).f('uBMs', ...P.bMs.map((x) => x * o.haze)).f('uBMe', ...P.bMe.map((x) => x * o.haze)).f('uG', ...P.g);
+    };
+    return {
+      A, AE,
+      // le ciel multiplié par l'exposition, dans AE
+      exposer(k) { PE.use().t('uA', A).f('uK', k); K.run(PE, AE); },
+      // le ciel vu par la caméra C ; renvoie l'éclairement du ciel sur le sol (E) et la luminance moyenne (géométrique) du ciel vu
+      calc(C, P, s, o) {
+        uni(C, W, H, P, s, o); K.run(PS, A);
+        if (o.sonde === false && this.der) return this.der;
+        uni(CP, NP, NP, P, s, o); K.run(PS, PR);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, PR.fb); gl.readPixels(0, 0, NP, NP, gl.RGBA, gl.FLOAT, buf);
+        const E = [0, 0, 0], F = C.F, cc = Math.cos(o.cone || 1);
+        let sl = 0, n = 0;
+        for (let k = 0; k < dirs.length; k++) {
+          const q = dirs[k]; if (!q) continue;
+          const o4 = k * 4, w = q[2] * q[3];
+          E[0] += buf[o4] * w; E[1] += buf[o4 + 1] * w; E[2] += buf[o4 + 2] * w;
+          if (C.fish || q[0] * F[0] + q[1] * F[1] + q[2] * F[2] > cc) { sl += Math.log(1e-7 + 0.2126 * buf[o4] + 0.7152 * buf[o4 + 1] + 0.0722 * buf[o4 + 2]); n++; }
+        }
+        return (this.der = { E, moy: n ? Math.exp(sl / n) : 1e-7 });
+      },
+    };
+  }
+  // le décor : G0 = albédo, nature (0 ciel, 1 sol ou relief, 1 à 1,5 flaques, 2 lac, −1 hors champ) ; G1 = normale, distance (km) ;
+  // G2 = ce que la scène veut (nuages, averse, voile de cirrus). Recalculé seulement quand le cadrage change.
+  function decor(R, fsNu) {
+    const K = R.K, G0 = K.target(R.cw, R.ch), G1 = K.target(R.cw, R.ch), G2 = K.target(R.cw, R.ch);
+    const PG = K.program(FKR.fs(['bruit', 'couleur'], camGLSL + PAYS_GLSL + GEO_FS)), PN = K.program(FKR.fs(['bruit'], camGLSL + fsNu));
+    return {
+      G0, G1, G2,
+      calc(C, W, H, o) {
+        PG.use(); setCam(PG, C, W, H).f('uOeil', o.oeil).f('uSol', o.sol).f('uLac', o.lac || 0).f('uMouille', o.mouille || 0).f('uYaw', o.yaw || 0).f('uDiam', o.diam || 12742).v4('uRangs', o.rangs);
+        K.run(PG, G0, G1);
+        PN.use(); setCam(PN, C, W, H); if (o.nu) o.nu(PN);
+        K.run(PN, G2);
+      },
+      lier(P) { return P.t('uG0', G0).t('uG1', G1).t('uG2', G2); },
+    };
+  }
+  // les rangs de relief de chaque scène : distance (km), relief (km), hauteur des arbres (km), graine
+  const RANGS = {
+    ciel: [0.9, 0.02, 0.02, 1.37, 5, 0.28, 0.024, 4.11, 28, 2.2, 0, 7.73],
+    arc: [0.65, 0.016, 0.017, 2.21, 4, 0.16, 0.02, 5.37, 18, 0.9, 0, 9.13],
+    halos: [1.2, 0.035, 0.02, 3.71, 6, 0.42, 0.022, 6.29, 30, 2.4, 0, 8.47],
+  };
+  const SOLS = { terre: 0, neige: 1, mars: 2, lune: 3 };
+  const RAYON = { terre: 6371, mars: 3390, lune: 1737 };   // courbure du relief : le vrai rayon de la planète (km)
+  function setLum(P, o) {
+    return P.f('uSoleil', o.s[0], o.s[1], o.s[2]).f('uEs0', ...o.Es0).f('uEs1', ...o.Es1).f('uEc', ...o.Ec).f('uExt', ...o.ext)
+      .f('uOeil', o.oeil).f('uT', o.T).f('uExpo', o.expo).f('uDiam', o.diam || 12742).f('uFondE', FOND[0] / o.expo, FOND[1] / o.expo, FOND[2] / o.expo);
+  }
+  const extinction = (P, hz) => [0, 1, 2].map((k) => P.bR[k] + P.bMe[k] * hz);
+  const eclat = (T) => T.map((v) => v * E0);
+  // le paysage (stylisé) : un sol, un lac, trois rangs de relief boisés, la courbure de la Terre
+  const PAYS_GLSL = `
+uniform float uOeil, uSol, uLac, uMouille, uYaw, uDiam;
+uniform vec4 uRangs[3];
+const float PI = 3.14159265;
+// une rangée d'arbres : cônes (conifères) et dômes (feuillus), par endroits des clairières
+float arbres(float s, float ht, float g){
+  float w = ht * .55, c = floor(s / w), h = 0.;
+  float dens = smoothstep(-.3, .25, bruitG(vec2(s / (w * 21.), g + 3.1)));
+  for (int k = -1; k <= 1; k++){
+    float id = c + float(k);
+    vec2 r = alea2(vec2(id, g));
+    if (r.x > dens) continue;
+    float x0 = (id + .5 + (r.y - .5) * .7) * w, hh = ht * (.5 + .6 * alea(vec2(id, g + 1.7)));
+    float dx = abs(s - x0) / (w * .95);
+    float f = alea(vec2(id, g + 4.2)) < .5 ? max(0., 1. - dx * 1.45) : (dx < 1. ? .4 + .6 * sqrt(1. - dx * dx) : 0.);
+    h = max(h, hh * f);
+  }
+  return h;
+}
+// le relief d'un rang (bruit pris sur un cercle : pas de couture tout autour de l'horizon)
+float relief(vec4 r, vec2 cs, int i){
+  vec2 p = cs * (r.x / max(r.y * 5., .02)) + r.w * 7.13;
+  float h = i == 2 ? smoothstep(.2, .95, strie(p * .8, 5)) : .5 + .9 * fbmG(p, 4);
+  return r.y * max(h, 0.);
+}
+vec3 albSol(float m){
+  if (uSol > 2.5) return vec3(.13, .125, .118) * (.75 + .5 * m);                       // Lune : régolithe gris
+  if (uSol > 1.5) return mix(vec3(.2, .11, .06), vec3(.36, .21, .12), m);              // Mars : poussière ocre, roches
+  if (uSol > .5) return mix(vec3(.62, .66, .72), vec3(.86, .88, .92), m);              // neige
+  vec3 a = mix(vec3(.026, .048, .016), vec3(.08, .1, .032), smoothstep(.3, .8, m));    // prairie, champs plus secs
+  a *= 1. - .3 * uMouille;                                                            // le sol mouillé est plus sombre
+  return max(mix(vec3(luminance(a)), a, 1. + .45 * uMouille), 0.);                     // et plus saturé (moins de diffusion en surface)
+}
+vec3 albArbre(float m){ vec3 a = mix(vec3(.014, .026, .012), vec3(.03, .045, .018), m); return uSol > .5 ? mix(a, vec3(.7, .73, .78), .35 * step(.55, m)) : a; }
+vec3 albRoche(float m, float hr){
+  if (uSol > 1.5) return albSol(m);
+  vec3 a = mix(vec3(.06, .065, .06), vec3(.12, .115, .105), m);
+  float ne = uSol > .5 ? .5 : smoothstep(1.5, 1.7, hr + .25 * m);                      // neiges éternelles, au-dessus de 1,5 km
+  return mix(a, vec3(.8, .82, .86), ne);
+}
+// le paysage dans la direction d : 0 ciel, 1 sol ou relief (1 à 1,5 : flaques), 2 lac ; dist : distance (km)
+float paysage(vec3 d, out vec3 alb, out vec3 n, out float dist){
+  alb = vec3(0.); n = vec3(0., 0., 1.); dist = 0.;
+  if (uSol < -.5 || d.z > .11) return 0.;
+  vec2 cs = normalize(d.xy + vec2(1e-7, 0.));
+  float ph = atan(d.y, d.x) - uYaw; ph = mod(ph + PI, 2. * PI) - PI;
+  float te = d.z / max(length(d.xy), 1e-4);
+  if (d.z < 0.){
+    float tg = uOeil / -d.z;
+    if (tg < uRangs[0].x){
+      dist = tg;
+      vec2 p = d.xy * tg;
+      // la rive proche, et le lac au-delà
+      float rive = .012 + .0015 * bruitG(vec2(ph * 5., 3.1));
+      if (uLac > .5 && tg > rive) return 2.;
+      float lod = clamp(tg * 5., 0., 1.);
+      vec3 g = bruitGd(p * vec2(900., 2600.));
+      float m = .5 + .22 * mix(fbmG(p * vec2(800., 2400.), 3), 0., lod) + .4 * fbmG(p * 18., 3);
+      n = normalize(vec3(g.yz * .12 * (1. - lod), 1.));
+      alb = albSol(clamp(m, 0., 1.));
+      if (uLac > .5) alb *= .6 + .4 * smoothstep(.0, .006, rive - tg);   // la berge, plus sombre au bord de l'eau
+      float k = 1.;
+      if (uMouille > 0.) k += .5 * smoothstep(.22, .38, fbmG(p * 55. + 4., 3)) * uMouille * (1. - .6 * lod);
+      return k;
+    }
+  }
+  bool arb = uSol < 1.5;
+  for (int i = 0; i < 3; i++){
+    vec4 r = uRangs[i]; float D = r.x;
+    float val = i == 0 ? 1. : .3 + .7 * smoothstep(.05, .38, abs(ph));
+    float ht = relief(r, cs, i) * val, ha = (arb && r.z > 0.) ? arbres(ph * D, r.z, r.w) : 0.;
+    float hp = uOeil + D * te + D * D / uDiam;
+    if (hp < ht + ha){
+      dist = D;
+      float u = clamp((ht + ha - hp) / max(r.y * .5, r.z * 2.), 0., 1.);
+      float dl = .004, h1 = relief(r, normalize(cs + vec2(-cs.y, cs.x) * dl), i) * val;
+      float sl = clamp((h1 - ht) / (dl * D), -2., 2.);
+      vec3 vers = -vec3(cs, 0.), cote = vec3(-cs.y, cs.x, 0.);
+      n = normalize(vec3(0., 0., 1.) * (1.1 - .75 * u) + vers * (.25 + .75 * u) - cote * sl * .8);
+      float m = .5 + .5 * fbmG(vec2(ph * D / (r.y * 3. + .02), hp / (r.y + .005) * 2.5) + r.w, 3);
+      if (hp > ht){ alb = albArbre(m); n = normalize(n + vers * .3); }
+      else alb = i == 2 ? albRoche(m, hp) : albSol(m * .7 + .1);
+      return 1.;
+    }
+  }
+  return 0.;
+}
+`;
+  const GEO_FS = `
+layout(location = 0) out vec4 o0; layout(location = 1) out vec4 o1;
+void main(){
+  bool ok; vec3 d = viewDir(ok);
+  vec3 alb, n; float dist = 0., k = -1.;
+  if (ok) k = paysage(d, alb, n, dist);
+  o0 = vec4(alb, k); o1 = vec4(n, dist);
+}`;
+  // la lumière, à chaque image : le ciel calculé, le décor éclairé par le soleil transmis et par le ciel, la perspective aérienne
+  const LUM_GLSL = `
+uniform sampler2D uCiel, uG0, uG1, uG2;
+uniform vec3 uSoleil, uEs0, uEs1, uEc, uExt, uFondE;
+uniform float uOeil, uT, uExpo, uDiam;
+const float PI = 3.14159265;
+// le ciel calculé (copie exposée, filtrée par la carte), ramené aux unités du ciel
+vec4 cielA(vec2 uv){ vec4 a = texture(uCiel, uv); return vec4(a.rgb / uExpo, a.a); }
+vec2 projUv(vec3 v){
+  vec2 px;
+  if (uFish == 1){ float z = acos(clamp(v.z, -1., 1.)), ph = atan(v.y, v.x); px = uC + z / 1.5707963 * uRf * vec2(sin(ph), cos(ph)); }
+  else { float z = max(dot(v, uFw), 1e-3); px = uC + uF * vec2(dot(v, uRt), -dot(v, uUp)) / z; }
+  return vec2(px.x / uWH.x, 1. - px.y / uWH.y);
+}
+ivec2 pixDe(vec2 uv){ ivec2 sz = textureSize(uG0, 0); return clamp(ivec2(uv * vec2(sz)), ivec2(0), sz - 1); }
+vec3 cielDir(vec3 v){ return cielA(projUv(v)).rgb; }
+// le ciel juste au-dessus de l'horizon, dans la même direction : la couleur vers laquelle tend le lointain
+vec3 horizonDir(vec3 d){ return cielDir(normalize(vec3(normalize(d.xy + vec2(1e-6, 0.)), .03))); }
+// perspective aérienne : extinction de l'air (Rayleigh + Mie, par canal) et lumière diffusée en chemin
+vec3 voile(vec3 L, vec3 d, float D){ vec3 T = exp(-uExt * D); return L * T + horizonDir(d) * (1. - T); }
+// une surface d'albédo alb, de normale n, à la hauteur h (km) : soleil transmis (nul dans l'ombre de la Terre), ciel, rebond
+vec3 eclaire(vec3 alb, vec3 n, float h){
+  vec3 Es = mix(uEs0, uEs1, clamp(h / 1.2, 0., 1.));
+  return alb / PI * (Es * max(0., dot(n, uSoleil)) + uEc * (.55 + .45 * n.z) + (uEs0 * max(uSoleil.z, 0.) + uEc) * alb * .3);
+}
+vec3 decorEclaire(vec4 g0, vec4 g1, vec3 d){
+  float h = max(0., uOeil + g1.w * d.z / max(length(d.xy), 1e-3) + g1.w * g1.w / uDiam);
+  vec3 L = eclaire(g0.rgb, normalize(g1.xyz), h);
+  if (g0.a > 1.02 && g0.a < 1.6){ float fl = (g0.a - 1.) * 2.; L = mix(L, cielDir(vec3(d.xy, -d.z)) * fresnelDielectrique(clamp(-d.z, 0., 1.), 1.333), fl * .85); }
+  return voile(L, d, g1.w);
+}
+vec3 disque(vec3 d, vec3 c, float rs){ float r = acos(clamp(dot(d, uSoleil), -1., 1.)) / rs; return r < 1. ? c * (1. - .55 * (1. - sqrt(max(0., 1. - r * r)))) * (1. - smoothstep(.88, 1., r)) : vec3(0.); }
+`;
+  // dépose une passe plein écran dans la lumière ; alpha = ce qui reste visible derrière (les étoiles déjà posées)
+  function passeCiel(R, P) {
+    const gl = R.gl;
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.SRC_ALPHA);
+    R.K.run(P, R.cibles.lum);
+    gl.disable(gl.BLEND);
+  }
+
+  /* ═════════ scène 1 : le ciel, rendu ═════════ */
+  // nuages (stylisés) : une couche vers 7 km ; on garde leur densité, leur épaisseur et leur distance
+  const NU_CIEL = `
+uniform float uNuages; out vec4 o;
+void main(){
+  bool ok; vec3 d = viewDir(ok);
+  if (!ok || uNuages <= 0. || d.z < .004){ o = vec4(0.); return; }
+  float t = 7. / d.z;
+  vec2 p = d.xy * t / 9.;
+  vec2 q = p + .3 * vec2(fbmG(p * .9 + 3.1, 3), fbmG(p * .9 + 8.7, 3));
+  float f = fbmG(q * 1.5, 5) + .22 * fbmG(q * 7., 3), th = mix(.42, -.22, uNuages);
+  float a = smoothstep(th, th + .3, f) * exp(-t / 150.), ep = smoothstep(th, th + .5, f);
+  o = vec4(a, ep, t, 0.);
+}`;
+  const CIEL_FS = `
+uniform vec3 uEsc, uDisque; uniform float uRs;
+out vec4 o;
+vec4 nuage(vec4 g2, vec3 d){
+  if (g2.x <= 0.) return vec4(0.);
+  float av = 4. * PI * phaseHG(dot(d, uSoleil), .6);                    // vers l'avant : le liseré d'argent
+  vec3 Lc = (uEsc * (.35 + .45 * av * (1. - g2.y)) * (1. - .45 * g2.y) + uEc * .25) / PI;
+  vec3 Tr = exp(-uExt * g2.z * .35);
+  return vec4(Lc * Tr + cielDir(d) * (1. - Tr), g2.x);
+}
+void main(){
+  bool ok; vec3 d = viewDir(ok);
+  ivec2 px = ivec2(gl_FragCoord.xy);
+  vec4 g0 = texelFetch(uG0, px, 0);
+  if (!ok || g0.a < -.5){ o = vec4(uFondE, 0.); return; }
+  vec4 g1 = texelFetch(uG1, px, 0), A = cielA(vUv);
+  vec3 L; float a = 0.;
+  if (g0.a > 1.9){
+    // le lac : un miroir ridé (Fresnel) qui reflète le ciel, les nuages et le relief ; le soleil y trace un chemin de lumière
+    vec2 p = d.xy * g1.w;
+    float att = exp(-g1.w * 3.);
+    vec3 g = bruitGd(p * 700. + vec2(uT * .35, uT * .2)), g2 = bruitGd(p * 160. - vec2(uT * .12, 0.));
+    vec3 nw = normalize(vec3(g.yz * .018 * att + g2.yz * .011 * (.3 + .7 * att), 1.));
+    vec3 rr = reflect(d, nw); rr.z = max(rr.z, .001);
+    float F = fresnelDielectrique(clamp(dot(-d, nw), 0., 1.), 1.333);
+    ivec2 pr = pixDe(projUv(rr));
+    vec4 r0 = texelFetch(uG0, pr, 0);
+    vec3 refl;
+    if (r0.a > .5) refl = decorEclaire(r0, texelFetch(uG1, pr, 0), rr);
+    else { refl = cielDir(rr); vec4 nr = nuage(texelFetch(uG2, pr, 0), rr); refl = mix(refl, nr.rgb, nr.a); }
+    vec3 v = -d, hh = normalize(uSoleil + v);
+    float s2 = .006, ch = max(hh.z, .05), t2 = (1. - ch * ch) / (ch * ch);
+    float Db = exp(-t2 / s2) / (PI * s2 * ch * ch * ch * ch);
+    float glit = Db * fresnelDielectrique(clamp(dot(v, hh), 0., 1.), 1.333) / (4. * max(v.z, .03));
+    float sc = .5 + smoothstep(.05, .5, bruitG(p * 900. + vec2(0., uT * .7)));
+    L = refl * F + uEc * vec3(.004, .009, .011) * (1. - F) + min(uEs0 * glit * sc * .012, vec3(5. / uExpo));
+    L = voile(L, d, g1.w);
+  } else if (g0.a > .5) L = decorEclaire(g0, g1, d);
+  else if (A.a > .5) L = A.rgb;
+  else {
+    L = A.rgb + disque(d, uDisque, uRs);
+    vec4 n = nuage(texelFetch(uG2, px, 0), d);
+    L = mix(L, n.rgb, n.a);
+    a = 1. - n.a;
+  }
+  o = vec4(L + uFondE, a);
+}`;
   function ciel(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const sc = 0.34, gw = Math.max(64, Math.round(W * sc)), gh = Math.max(48, Math.round(H * sc));
-    const K = GLKit(gw, gh), gl = K.gl;
-    const PS = K.program(SKY_FS), PT = K.program(TONE_FS), A = K.target(gw, gh, 'f32', gl.NEAREST); // même taille que l'écran WebGL : pas besoin de filtrage (et le linéaire sur float32 n'est pas garanti)
-    const buf = new Float32Array(gw * gh * 4);
-    let C = null, dirty = true, exp = 1, horizon = [0.5, 0.6, 0.7], T = 0, dir = -1;
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const atmo = atmosphere(R, 0.25), dec = decor(R, NU_CIEL);
+    const PC = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + CIEL_FS));
+    const lueurs = R.lot({ forme: 'gauss' });
+    let C = null, dirty = true, cle = '', expo = 1, T = 0, dir = -1, info = null, tSonde = -1e9, cleSonde = '', force = true;
+    const cad = cadence();
     const stars = Array.from({ length: 260 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), rnd(1.6, 0.5)]; });
-    // collines : silhouette fixe
-    const hills = []; for (let x = 0; x <= W + 20; x += 16) hills.push([x, 0.012 * Math.sin(x * 0.006) + 0.008 * Math.sin(x * 0.019 + 2) + 0.004 * Math.sin(x * 0.05)]);
-    const trees = Array.from({ length: Math.round(W / 70) }, () => [rnd(W), rnd(1.2, 0.6)]);
     const drag = dragSun(env, 'el', -18, 60);
     const drones = [];
     if (au) drones.push(au.drone(110, 'sine', 0.012), au.drone(164.8, 'sine', 0.007));
@@ -257,65 +546,59 @@ void main(){ vec4 a = texture(uA, vUv); if (a.a > 1.5){ o = vec4(0., 0., 0., 1.)
       return camera(W, H, v, { yaw: keep.look === 'dos' ? Math.PI : 0, pitch: 24 * D2R, vfov: 80 });
     }
     function render() {
-      const P = PLANETS[keep.planet], s = sunVec(keep.el);
+      const P = PLANETS[keep.planet], s = sunVec(keep.el), terre = keep.planet === 'terre';
+      const alt = terre ? keep.alt : 0, hz = terre ? keep.haze : 1, paysage = alt < 1.5;
       C = cam();
-      const k = (a) => a.map((x) => x * (keep.planet === 'terre' ? 1 : 1));
-      const hz = keep.planet === 'terre' ? keep.haze : 1;
-      PS.use(); setCam(PS, C, W, H)
-        .f('uSun', s[0], s[1], s[2]).f('uRp', P.Rp).f('uRa', P.Ra).f('uHr', P.Hr).f('uHm', P.Hm).f('uAlt', keep.planet === 'terre' ? keep.alt : 0).f('uOz', keep.ozone ? P.oz : 0)
-        .f('uBR', ...k(P.bR)).f('uBMs', ...P.bMs.map((x) => x * hz)).f('uBMe', ...P.bMe.map((x) => x * hz)).f('uG', ...P.g);
-      K.run(PS, A);
-      // exposition automatique : on lit l'image (petite) et on vise une luminance moyenne, plus sombre la nuit
-      gl.bindFramebuffer(gl.FRAMEBUFFER, A.fb); gl.readPixels(0, 0, gw, gh, gl.RGBA, gl.FLOAT, buf);
-      let s1 = 0, n1 = 0;
-      for (let i = 0; i < gw * gh; i += 3) { const o = i * 4; if (buf[o + 3] > 0.5) continue; const L = 0.2126 * buf[o] + 0.7152 * buf[o + 1] + 0.0722 * buf[o + 2]; s1 += Math.log(1e-7 + L); n1++; }
-      const avg = n1 ? Math.exp(s1 / n1) : 1, target = keep.el > 0 ? 0.3 : 0.3 * Math.exp(keep.el / 5);
-      exp = clamp(target / Math.max(1e-7, avg), 0.05, keep.planet === 'lune' ? 1 : 5e4);
-      // la couleur juste au-dessus de l'horizon, pour teinter les collines
-      if (!C.fish) { const hp = C.proj([1, 0, 0.02]) || C.proj([-1, 0, 0.02]); if (hp) { const gx = clamp(Math.round(hp[0] * sc), 0, gw - 1), gy = clamp(Math.round((H - hp[1]) * sc), 0, gh - 1), o = (gy * gw + gx) * 4; horizon = [0, 1, 2].map((q) => Math.min(1, buf[o + q] * exp)); } }
+      const now = performance.now(), sonde = !keep.anim || now - tSonde > 250 || cleSonde !== keep.look + keep.planet;
+      if (sonde) { tSonde = now; cleSonde = keep.look + keep.planet; }
+      const r = atmo.calc(C, P, s, { haze: hz, alt, oz: keep.ozone ? P.oz : 0, cone: 55 * D2R, sonde });
+      // exposition automatique : on vise une luminance moyenne du ciel vu, plus sombre la nuit
+      const target = keep.el > 0 ? 0.24 : 0.24 * Math.exp(keep.el / 5);
+      expo = clamp(target / Math.max(1e-7, r.moy), 0.05, keep.planet === 'lune' ? 1 : 5e4);
+      atmo.exposer(expo);
+      info = {
+        P, s, Ec: r.E, ext: extinction(P, hz), Es0: eclat(sunColor(P, keep.el, alt)), Es1: eclat(sunColor(P, keep.el, alt + 1.2)),
+        Esc: terre && paysage ? eclat(sunColor(P, keep.el, alt + 7)) : [0, 0, 0],
+        disque: keep.el > -0.9 ? sunColor(P, Math.max(keep.el, 0.1), alt) : [0, 0, 0],
+      };
+      // le décor ne change qu'avec le cadrage, la planète, l'altitude ou les nuages
+      const k = [keep.look, keep.planet, paysage, terre && paysage ? keep.nuages : 0, W, H, (env.view || {}).x0, (env.view || {}).x1].join('|');
+      if (k !== cle) {
+        cle = k;
+        dec.calc(C, W, H, { oeil: 0.004, sol: paysage ? SOLS[keep.planet] : -1, lac: terre ? 1 : 0, yaw: keep.look === 'dos' ? Math.PI : 0, rangs: RANGS.ciel, diam: 2 * RAYON[keep.planet],
+          nu: (P2) => P2.f('uNuages', terre && paysage ? keep.nuages : 0) });
+      }
       dirty = false;
     }
     function airMass(el) { return el <= -1 ? null : 1 / (Math.sin(Math.max(0.01, el) * D2R) + 0.50572 * Math.pow(Math.max(0.01, el) + 6.07995, -1.6364)); }
 
     return {
+      R,
       frame(t, dt) {
         T += dt;
         if (keep.anim) { keep.el += dir * dt * 0.45; if (keep.el < -14) { keep.el = -14; dir = 1; } if (keep.el > 24) { keep.el = 24; dir = -1; } dirty = true; }
+        // 24 images par seconde quand le soleil marche ou que le lac ondule, 10 sinon (le grain) ; tout de suite après un réglage
+        if (!cad.ok(force || !info, keep.anim || keep.planet === 'terre' ? 42 : 100)) return;
+        force = false;
         if (dirty) render();
-        PT.use().t('uA', A).f('uExp', exp); K.run(PT, null); // le tampon WebGL est effacé après chaque image : on redessine
-        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-        ctx.imageSmoothingEnabled = true;
-        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-        ctx.drawImage(K.canvas, 0, 0, W, H);
-        const P = PLANETS[keep.planet], s = sunVec(keep.el);
-        // étoiles quand le ciel s'assombrit
+        const P = info.P;
+        R.regler({ expo }).debut(dt);
+        // étoiles quand le ciel s'assombrit (scintillement lent et léger)
         const dark = keep.planet === 'lune' ? 1 : clamp((-keep.el - 4) / 8, 0, 1);
+        lueurs.vider();
         if (dark > 0) {
-          ctx.fillStyle = '#fff';
-          for (const st of stars) { const p = C.proj(st); if (!p) continue; ctx.globalAlpha = dark * (0.5 + 0.5 * Math.sin(T * 2 + st[3] * 9)) * 0.8; ctx.fillRect(p[0], p[1], st[3], st[3]); }
-          ctx.globalAlpha = 1;
+          const tw = env.doux ? 0.1 : 0.22;
+          for (const st of stars) { const p = C.proj(st); if (!p) continue; const v = (2.4 * dark * st[3] * (1 + tw * Math.sin(T * 1.7 + st[3] * 41))) / expo; lueurs.point(p[0], p[1], 0.55 + 0.3 * st[3], v * 0.92, v * 0.96, v); }
         }
-        // le disque solaire (grossi trois fois), à la couleur de la lumière qui l'a traversée
-        const sp = C.proj(s);
-        if (sp && keep.el > -0.6) {
-          const tc = sunColor(P, keep.el, keep.planet === 'terre' ? keep.alt : 0), m = Math.max(tc[0], tc[1], tc[2], 1e-6);
-          const col = tc.map((v) => Math.round(255 * Math.pow(clamp((v / m) * 0.6 + 0.4 * Math.min(1, m * 3), 0, 1), 0.7)));
-          const r = Math.max(4, (0.8 * D2R * (C.fish ? C.rf / (Math.PI / 2) : C.f))), gr = ctx.createRadialGradient(sp[0], sp[1], 0, sp[0], sp[1], r * 6);
-          gr.addColorStop(0, `rgba(${col},1)`); gr.addColorStop(0.16, `rgba(${col},1)`); gr.addColorStop(0.22, `rgba(${col},.35)`); gr.addColorStop(1, `rgba(${col},0)`);
-          ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(sp[0] - r * 6, sp[1] - r * 6, r * 12, r * 12); ctx.globalCompositeOperation = 'source-over';
-        }
-        // le paysage
-        if (!C.fish) {
-          const hp = C.proj([C.F[0], C.F[1], 0]);
-          const hy = hp ? hp[1] : H * 0.8, lit = clamp(keep.el / 10 + 0.2, 0.05, 1);
-          const col = horizon.map((v, q) => Math.round(255 * clamp(v * 0.28 * lit + [0.03, 0.05, 0.03][q] * lit, 0, 1)));
-          ctx.fillStyle = `rgb(${col})`; ctx.beginPath(); ctx.moveTo(0, H);
-          for (const [x, y] of hills) ctx.lineTo(x, hy - y * H - 6);
-          ctx.lineTo(W, H); ctx.fill();
-          ctx.fillStyle = `rgb(${col.map((v) => Math.round(v * 0.7))})`;
-          for (const [x, k] of trees) { const y = hy - 6 - (hills[Math.min(hills.length - 1, Math.round(x / 16))][1] * H); ctx.beginPath(); ctx.moveTo(x - 7 * k, y + 2); ctx.lineTo(x, y - 30 * k); ctx.lineTo(x + 7 * k, y + 2); ctx.fill(); }
-          ctx.fillRect(0, hy + 10, W, H - hy);
-        } else {
+        lueurs.dessiner();
+        // le ciel, le soleil (disque grossi trois fois), les nuages et le paysage, éclairés par la lumière du moment
+        const rs = Math.max(4 / (C.fish ? C.rf / (Math.PI / 2) : C.f), 0.8 * D2R), dq = info.disque.map((v) => (30 * v) / expo);
+        PC.use(); setCam(PC, C, W, H);
+        setLum(PC, { s: info.s, Es0: info.Es0, Es1: info.Es1, Ec: info.Ec, ext: info.ext, oeil: 0.004, T, expo, diam: 2 * RAYON[keep.planet] }).t('uCiel', atmo.AE);
+        dec.lier(PC).f('uEsc', ...info.Esc).f('uDisque', ...dq).f('uRs', rs);
+        passeCiel(R, PC);
+        R.fin(dt);
+        if (C.fish) {
           ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(C.cx, C.cy, C.rf, 0, TAU); ctx.stroke();
           ctx.font = '500 10px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(236,240,250,.7)';
           ctx.fillText('ZÉNITH', C.cx, C.cy - 6); ctx.fillText('HORIZON CÔTÉ SOLEIL', C.cx, C.cy + C.rf + 16); ctx.fillText('HORIZON OPPOSÉ', C.cx, C.cy - C.rf - 8); ctx.textAlign = 'left';
@@ -334,12 +617,13 @@ void main(){ vec4 a = texture(uA, vUv); if (a.a > 1.5){ o = vec4(0., 0., 0., 1.)
         txtLine(ctx, x0, y, st, 'rgba(255,236,200,.95)'); y -= 20;
         if (keep.look === 'dos' && keep.planet === 'terre' && e < 1 && e > -7) txtLine(ctx, x0, y, 'AU-DESSUS DE L’HORIZON : L’OMBRE DE LA TERRE (BLEU SOMBRE), PUIS LA CEINTURE DE VÉNUS (ROSE)');
         if (keep.look === 'zenith' && keep.planet === 'terre' && e < 0 && e > -8) txtLine(ctx, x0, y, keep.ozone ? 'LE BLEU DU ZÉNITH AU CRÉPUSCULE : SURTOUT L’OZONE, QUI ABSORBE L’ORANGÉ' : 'SANS OZONE, LE ZÉNITH DU CRÉPUSCULE TOURNE AU GRIS');
+        cad.fait();
       },
       down(p) { drag.down(p); },
-      move(p) { if (drag.move(p)) dirty = true; },
-      dispose() { drones.forEach((d) => d.stop()); K.lose(); },
+      move(p) { if (drag.move(p)) { dirty = true; force = true; } },
+      dispose() { drones.forEach((d) => d.stop()); R.detruire(); },
       ui() {
-        const set = (f) => (v) => { f(v); dirty = true; };
+        const set = (f) => (v) => { f(v); dirty = true; force = true; };
         const L = [{ type: 'section', label: 'Le ciel' }];
         L.push({ type: 'slider', label: 'Hauteur du soleil', min: -18, max: 60, step: 0.1, value: keep.el, fmt: (v) => fr(v, 1) + '°', set: set((v) => { keep.el = v; keep.anim = false; }) });
         L.push({ type: 'toggle', label: 'Le soleil se couche et se lève', value: keep.anim, set: (v) => { keep.anim = v; } });
@@ -349,73 +633,85 @@ void main(){ vec4 a = texture(uA, vUv); if (a.a > 1.5){ o = vec4(0., 0., 0., 1.)
           L.push({ type: 'slider', label: 'Poussières et brume (Mie)', min: 0, max: 12, step: 0.1, value: keep.haze, fmt: (v) => (v < 0.3 ? 'air pur' : v < 2 ? 'normal' : v < 5 ? 'brumeux' : 'pollué ou volcanique') + ' (×' + fr(v, 1) + ')', set: set((v) => { keep.haze = v; }) });
           L.push({ type: 'slider', label: 'Altitude de l’observateur', min: 0, max: 40, step: 0.5, value: keep.alt, fmt: (v) => fr(v, 1) + ' km', set: set((v) => { keep.alt = v; }) });
           L.push({ type: 'toggle', label: 'Couche d’ozone', value: keep.ozone, set: set((v) => { keep.ozone = v; }) });
+          L.push({ type: 'slider', label: 'Nuages (stylisés)', min: 0, max: 1, step: 0.05, value: keep.nuages, fmt: (v) => (v < 0.05 ? 'aucun' : Math.round(v * 100) + ' %'), set: set((v) => { keep.nuages = v; }) });
         }
-        L.push({ type: 'note', text: keep.planet === 'mars' ? 'Mars (modèle approché) : presque pas d’air, mais une poussière fine en suspension. Le jour, elle donne au ciel sa couleur caramel ; au coucher, elle renvoie mieux le bleu vers l’avant : le soleil se couche dans une auréole bleue.' : keep.planet === 'lune' ? 'Sans atmosphère, rien ne diffuse la lumière : le ciel reste noir en plein jour, et les étoiles visibles à côté du soleil.' : 'Essayez : le soleil bas, regard vers lui, puis dos à lui (ombre de la Terre et ceinture de Vénus) ; tout le ciel juste après le coucher, avec et sans ozone ; beaucoup de poussières (ciel blanchi, couchant rouge sang après une éruption) ; 30 km d’altitude (le ciel noircit). Le disque solaire est dessiné trois fois plus gros que nature.' });
+        L.push({ type: 'note', text: keep.planet === 'mars' ? 'Mars (modèle approché) : presque pas d’air, mais une poussière fine en suspension. Le jour, elle donne au ciel sa couleur caramel ; au coucher, elle renvoie mieux le bleu vers l’avant : le soleil se couche dans une auréole bleue.' : keep.planet === 'lune' ? 'Sans atmosphère, rien ne diffuse la lumière : le ciel reste noir en plein jour, et les étoiles visibles à côté du soleil.' : 'Essayez : le soleil bas, regard vers lui, puis dos à lui (ombre de la Terre et ceinture de Vénus) ; tout le ciel juste après le coucher, avec et sans ozone ; beaucoup de poussières (ciel blanchi, couchant rouge sang après une éruption) ; 30 km d’altitude (le ciel noircit). Le disque solaire est dessiné trois fois plus gros que nature. Le paysage et les nuages sont stylisés, mais éclairés par la lumière calculée : soleil rougi, ombre de la Terre, sommets encore au soleil juste après le coucher.' });
         return L;
       },
     };
   }
 
   /* ═════════ scène 2 : l'arc-en-ciel ═════════ */
-  const BOW_FS = HEAD + camGLSL + `
-uniform sampler2D uLut; uniform vec3 uAnti; uniform float uT, uLight; out vec4 o;
+  // le décor de l'averse : structure du nuage d'orage et densité de la pluie (fixes pour un cadrage)
+  const NU_ARC = `
+out vec4 o;
 void main(){
   bool ok; vec3 d = viewDir(ok);
-  float el = asin(clamp(d.z, -1., 1.));
-  // ciel d'orage derrière la pluie, plus clair vers le haut à droite
-  float az = atan(d.y, -d.x);
-  vec3 sky = mix(vec3(.05, .055, .075), vec3(.12, .13, .17), smoothstep(-.1, .9, el)) * (0.85 + 0.3 * fbm(vec2(az * 2.5, el * 5.) + uT * .01));
+  float el = asin(clamp(d.z, -1., 1.)), az = atan(d.y, -d.x);
+  float f = fbmG(vec2(az * 2.6, el * 7.), 5), g = fbmG(vec2(az * 9., el * 22.), 3);
+  float pluie = .55 + .45 * smoothstep(.25, .75, .5 + .5 * fbmG(vec2(az * 4., el * 3.) * 1.3 + 3., 4));
+  o = vec4(f, g, pluie, 0.);
+}`;
+  const ARC_FS = `
+uniform sampler2D uLut; uniform vec3 uAnti; uniform float uLight, uPluieD;
+out vec4 o;
+void main(){
+  bool ok; vec3 d = viewDir(ok);
+  ivec2 px = ivec2(gl_FragCoord.xy);
+  vec4 g0 = texelFetch(uG0, px, 0), g1 = texelFetch(uG1, px, 0), g2 = texelFetch(uG2, px, 0);
+  // l'arc : le profil d'Airy calculé plus haut (gouttes réelles, disque solaire), éclairé par la lumière du soleil du moment
   float th = degrees(acos(clamp(dot(d, uAnti), -1., 1.)));
-  vec3 bow = th < 70. ? texture(uLut, vec2(th / 70., .5)).rgb : vec3(0.);
-  // le rideau de pluie : plus dense par endroits
-  float rain = .55 + .45 * smoothstep(.25, .75, fbm(vec2(az * 4., el * 3.) * 1.3 + 3.));
-  vec3 c = sky + bow * rain * uLight * .75;
-  float streak = hash12(floor(vec2(vUv.x * 900. + vUv.y * 180., vUv.y * 40. - uT * 30.)));
-  c += vec3(.03) * step(.985, streak);
-  o = vec4(pow(1. - exp(-c * 1.25), vec3(1. / 2.2)), 1.);
+  vec3 bow = th < 70. ? texture(uLut, vec2(th / 70., .5)).rgb * (1. - smoothstep(60., 70., th)) : vec3(0.);
+  vec3 arcL = bow * g2.z * uLight * uEs0 * .045;
+  vec3 L;
+  if (g0.a > .5){
+    L = decorEclaire(g0, g1, d);
+    if (g1.w < 1.){
+      // l'herbe mouillée brille autour de l'ombre de la tête (point antisolaire) : les gouttes de rosée renvoient la lumière vers le soleil
+      L *= 1. + 1.1 * exp(-pow(th / 8., 2.)) + .35 * exp(-pow(th / 22., 2.));
+      vec2 q = d.xy * g1.w * 9000.;
+      float rr = alea(floor(q)), scint = step(.9965, rr) * (1. - smoothstep(0., .3, g1.w)) * (.4 + .6 * exp(-pow(th / 25., 2.)));
+      L += uEs0 * scint * .02;                                                     // quelques gouttes qui scintillent (fixes : aucun clignotement)
+    } else {
+      // au loin, le relief se perd dans la grisaille de l'averse, pas dans un horizon de ciel clair
+      vec3 hor = horizonDir(d), sombre = mix(hor, vec3(luminance(hor)) * vec3(.72, .84, 1.1), .6) * .2;
+      L = mix(L, sombre, (1. - exp(-g1.w / 10.)) * .8);
+    }
+  }
+  else {
+    float el = asin(clamp(d.z, -1., 1.));
+    vec3 hor = horizonDir(d);
+    // le nuage d'averse derrière la pluie : gris bleuté, plus clair au ras de l'horizon (stylisé)
+    // le nuage d'averse, sombre et tourmenté : c'est lui qui fait ressortir l'arc
+    vec3 orage = mix(hor, vec3(luminance(hor)) * vec3(.72, .84, 1.1), .6) * (.045 + .05 * smoothstep(-.4, .5, g2.x) + .02 * g2.y + .13 * exp(-max(el, 0.) * 16.));
+    float clair = smoothstep(.8, 1.15, el + .3 * g2.x);
+    L = mix(orage, cielA(vUv).rgb, clair * .5) + arcL;
+    float stk = alea(floor(vec2(vUv.x * 900. + vUv.y * 180., vUv.y * 40.)));   // la pluie en traînées fixes, comme sur une photo
+    L += hor * .04 * step(.985, stk);
+  }
+  o = vec4(L + uFondE, 0.);
 }`;
 
   function arc(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
-    const sc = 0.5, gw = Math.round(W * sc), gh = Math.round(H * sc);
-    let K = null, PB = null, LUT = null, lutA = -1;
-    let T = 0, dirty = true;
+    const R = FKR.cabine(env, { halo: 0.07, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const atmo = atmosphere(R, 0.25), dec = decor(R, NU_ARC);
+    const PB = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + ARC_FS));
+    let LUT = null, lutA = -1, lutT = 0;
+    let T = 0, cle = '', cleD = '', expo = 1, info = null, C = null;
+    const cad = cadence();
     const drag = dragSun(env, 'rbEl', 0, 50);
     const drones = [];
     if (au) drones.push(au.drone(82.4, 'sine', 0.01));
-    let lastRain = 0;
-    function ensureGL() {
-      if (K) return;
-      K = GLKit(gw, gh); PB = K.program(BOW_FS);
-    }
-    let lutT = 0;
+    let lastRain = 0, vuePrec = '';
     function lut() {
-      if (lutA === keep.drop && LUT) return;
-      if (LUT && performance.now() - lutT < 150) return; // pendant qu'on glisse le curseur : au plus six fois par seconde
+      if (lutA === keep.drop && LUT) return false;
+      if (LUT && performance.now() - lutT < 150) return false; // pendant qu'on glisse le curseur : au plus six fois par seconde
       lutT = performance.now();
       const data = bowProfile(keep.drop);
-      if (LUT) K.gl.deleteTexture(LUT);
-      LUT = K.texture(NT, 1, 'f16', K.gl.LINEAR, data); lutA = keep.drop;
-    }
-    // paysage éclairé par le soleil dans le dos
-    const land = layer(W, H);
-    let landFor = -1;
-    function paintLand(hy) {
-      const g = land.g; g.clearRect(0, 0, W, H);
-      const lit = clamp(keep.rbEl / 20 + 0.4, 0.4, 1);
-      const col = (r, gg, b, k) => `rgb(${Math.round(r * k)},${Math.round(gg * k)},${Math.round(b * k)})`;
-      const layers = [[0.0, 0.022, 0.004, [70, 110, 80], 0.7], [0.02, 0.016, 0.009, [92, 140, 70], 0.85], [0.05, 0.01, 0.013, [120, 168, 70], 1]];
-      for (const [dy, a, f, c, k] of layers) {
-        g.fillStyle = col(c[0], c[1], c[2], k * lit); g.beginPath(); g.moveTo(0, H);
-        for (let x = 0; x <= W; x += 10) g.lineTo(x, hy + dy * H - a * H * (0.5 + 0.5 * Math.sin(x * f + dy * 40)) - 4);
-        g.lineTo(W, H); g.fill();
-      }
-      for (let i = 0; i < W / 40; i++) {
-        const x = rnd(W), y = hy + rnd(0.12, 0.03) * H, s = rnd(1.3, 0.6);
-        g.fillStyle = col(50, 86, 44, lit); g.beginPath(); g.arc(x, y - 14 * s, 10 * s, 0, TAU); g.fill();
-        g.fillStyle = col(64, 44, 30, lit); g.fillRect(x - 1.5 * s, y - 6 * s, 3 * s, 8 * s);
-      }
-      landFor = keep.rbEl;
+      if (LUT) R.gl.deleteTexture(LUT);
+      LUT = R.K.texture(NT, 1, 'f16', R.gl.LINEAR, data); lutA = keep.drop;
+      return true;
     }
 
     /* la goutte : rayons tracés un par un */
@@ -499,17 +795,33 @@ void main(){
     }
 
     function skyFrame(dt) {
-      ensureGL(); lut();
+      const nouv = lut();
       const v = env.view || { x0: 0, x1: W };
-      const C = camera(W, H, v, { yaw: Math.PI, pitch: 20 * D2R, vfov: 76 });
+      const k = [keep.rbEl, W, H, v.x0, v.x1].join('|');
+      // la scène est fixe (la pluie est posée comme sur une photo à pose longue) : on ne la redessine que pour le grain, 10 fois par seconde
+      if (!cad.ok(nouv || k !== cle || keep.view !== vuePrec, 100)) return;
+      vuePrec = keep.view;
+      if (k !== cle) {
+        cle = k;
+        C = camera(W, H, v, { yaw: Math.PI, pitch: 20 * D2R, vfov: 76 });
+        const P = PLANETS.terre, s = sunVec(keep.rbEl);
+        const r = atmo.calc(C, P, s, { haze: 1, alt: 0, oz: P.oz, cone: 50 * D2R });
+        // le nuage d'averse assombrit la vue : on expose un peu plus que pour un ciel clair
+        expo = clamp(0.8 / Math.max(1e-7, r.moy), 0.05, 5e4); atmo.exposer(expo);
+        info = { s, Ec: r.E, ext: extinction(P, 1), Es0: eclat(sunColor(P, keep.rbEl, 0)), Es1: eclat(sunColor(P, keep.rbEl, 1.2)) };
+        // balance des blancs de l'appareil : elle neutralise à moitié la teinte du soleil bas (l'œil s'y adapte aussi)
+        const Ts = sunColor(P, Math.max(keep.rbEl, 1), 0), Ys = 0.2126 * Ts[0] + 0.7152 * Ts[1] + 0.0722 * Ts[2];
+        R.regler({ teinte: Ts.map((x) => Math.pow(Ys / Math.max(x, 1e-3), 0.45)) });
+        const kd = [W, H, v.x0, v.x1].join('|');
+        if (kd !== cleD) { cleD = kd; dec.calc(C, W, H, { oeil: 0.004, sol: 0, lac: 0, mouille: 0.85, yaw: Math.PI, rangs: RANGS.arc }); }
+      }
       const e = keep.rbEl * D2R, anti = [-Math.cos(e), 0, -Math.sin(e)];
-      PB.use(); setCam(PB, C, W, H).t('uLut', LUT).f('uAnti', anti[0], anti[1], anti[2]).f('uT', T).f('uLight', clamp(1.1 - keep.rbEl / 60, 0.3, 1));
-      K.run(PB, null);
-      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(K.canvas, 0, 0, W, H);
-      const hp = C.proj([-1, 0, 0]), hy = hp ? hp[1] : H * 0.8;
-      if (landFor !== keep.rbEl) paintLand(hy);
-      ctx.drawImage(land.c, 0, 0);
+      R.regler({ expo }).debut(dt);
+      PB.use(); setCam(PB, C, W, H);
+      setLum(PB, { s: info.s, Es0: info.Es0, Es1: info.Es1, Ec: info.Ec, ext: info.ext, oeil: 0.004, T, expo }).t('uCiel', atmo.AE);
+      dec.lier(PB).t('uLut', LUT).f('uAnti', anti[0], anti[1], anti[2]).f('uLight', clamp(1.1 - keep.rbEl / 60, 0.3, 1)).f('uPluieD', 2);
+      passeCiel(R, PB);
+      R.fin(dt);
       // repères angulaires autour du point antisolaire (sous l'horizon)
       const x0 = v.x0 + 16;
       ctx.font = '500 11px "JetBrains Mono", monospace';
@@ -518,17 +830,19 @@ void main(){
       txtLine(ctx, x0, y, `SOLEIL DANS VOTRE DOS À ${fr(keep.rbEl, 1)}° · GOUTTES DE ${fr(keep.drop * 2, keep.drop < 0.05 ? 2 : 1)} MM DE DIAMÈTRE`, 'rgba(255,236,200,.95)'); y -= 20;
       txtLine(ctx, x0, y, top1 > 0 ? `HAUT DE L’ARC À ${fr(top1, 0)}° AU-DESSUS DE L’HORIZON · ARC SECONDAIRE À ${fr(top2, 0)}°` : `SOLEIL TROP HAUT : L’ARC PRINCIPAL EST SOUS L’HORIZON${top2 > 0 ? ' (LE SECONDAIRE DÉPASSE ENCORE)' : ''}`);
       if (snd() && T - lastRain > 0.5) { lastRain = T; au.noise(0.7, 0.01, rnd(4000, 2500), 0.5, 'bandpass'); }
+      cad.fait();
     }
     const snd = () => au && au.on;
 
     return {
+      R,
       frame(t, dt) {
         T += dt;
-        if (keep.view === 'goutte') dropFrame(Math.min(dt, 0.1)); else skyFrame(dt);
+        if (keep.view === 'goutte') { vuePrec = 'goutte'; dropFrame(Math.min(dt, 0.1)); } else skyFrame(dt);
       },
       down(p) { if (keep.view !== 'goutte') drag.down(p); },
       move(p) { if (keep.view !== 'goutte') drag.move(p); },
-      dispose() { drones.forEach((d) => d.stop()); if (K) K.lose(); },
+      dispose() { drones.forEach((d) => d.stop()); R.detruire(); },
       ui() {
         const L = [{ type: 'section', label: 'L’arc-en-ciel' }];
         L.push({ type: 'choice', label: 'Vue', value: keep.view, options: [{ id: 'ciel', label: 'Dans le ciel' }, { id: 'goutte', label: 'Dans une goutte' }], set: (v) => { keep.view = v; } });
@@ -547,11 +861,52 @@ void main(){
   }
 
   /* ═════════ scène 3 : les halos ═════════ */
+  // le voile de cirrostratus (stylisé) : des fibres à peine visibles, là où flottent les cristaux
+  const NU_HALO = `
+out vec4 o;
+void main(){
+  bool ok; vec3 d = viewDir(ok);
+  if (!ok || d.z < .01){ o = vec4(0.); return; }
+  float t = 9. / d.z; vec2 p = d.xy * t / 12.;
+  vec2 r = vec2(p.x * .8 + p.y * .6, -p.x * .6 + p.y * .8);
+  o = vec4(strie(vec2(r.x * .35, r.y * 2.), 5), 0., t, 0.);
+}`;
+  const HALO_FS = `
+uniform sampler2D uHalo; uniform vec3 uDisque; uniform float uRs, uFlou;
+out vec4 o;
+void main(){
+  bool ok; vec3 d = viewDir(ok);
+  ivec2 px = ivec2(gl_FragCoord.xy);
+  vec4 g0 = texelFetch(uG0, px, 0);
+  if (!ok || g0.a < -.5){ o = vec4(uFondE, 0.); return; }
+  vec3 L;
+  if (g0.a > .5) L = decorEclaire(g0, texelFetch(uG1, px, 0), d);
+  else {
+    float c = texelFetch(uG2, px, 0).x;
+    L = cielA(vUv).rgb;
+    L = mix(L, uEc / PI * 1.1, .14 * c * smoothstep(0., .15, d.z));
+    // la lumière des halos : les rayons tracés à travers les cristaux, éclairés par le soleil transmis
+    vec2 uh = vec2(vUv.x, 1. - vUv.y), tx = uFlou / vec2(textureSize(uHalo, 0));
+    vec3 h = texture(uHalo, uh).rgb, h1 = texture(uHalo, uh + tx).rgb, h2 = texture(uHalo, uh - tx).rgb, h3 = texture(uHalo, uh + vec2(tx.x, -tx.y)).rgb, h4 = texture(uHalo, uh - vec2(tx.x, -tx.y)).rgb;
+    L += (h * h * 2. + h1 * h1 + h2 * h2 + h3 * h3 + h4 * h4) / 6. * 64. * uEs0 * (.75 + .4 * c);
+    L += disque(d, uDisque, uRs);
+  }
+  o = vec4(L + uFondE, 0.);
+}`;
   function halos(env) {
     const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
     const q = 0.5, GW = Math.round(W * q), GH = Math.round(H * q);
-    const acc = new Float32Array(GW * GH * 3), img = ctx.createImageData(GW, GH), cv = layer(GW, GH);
-    let nT = 0, C = null, s = null, key = '';
+    const acc = new Float32Array(GW * GH * 3), octets = new Uint8Array(GW * GH * 4);
+    let nT = 0, C = null, s = null, key = '', cleC = '', expo = 1, info = null, nf = 0, neuf = true;
+    const cad = cadence();
+    const R = FKR.cabine(env, { halo: 0.08, fond: [0, 0, 0], plafond: 1, echelle: ECHELLE });
+    const atmo = atmosphere(R, 0.25), dec = decor(R, NU_HALO);
+    const PH = R.K.program(FKR.fs(['bruit', 'couleur', 'lumiere'], camGLSL + LUM_GLSL + HALO_FS));
+    const gl = R.gl, texH = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texH);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GW, GH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    const lueurs = R.lot({ forme: 'gauss' });
     const drag = dragSun(env, 'hEl', 0, 60);
     const drones = [];
     if (au) drones.push(au.drone(146.8, 'sine', 0.008), au.drone(220, 'sine', 0.004));
@@ -627,29 +982,17 @@ void main(){
       C = keep.proj === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: clamp(keep.hEl + 10, 25, 55) * D2R, vfov: 100 });
       s = sunVec(keep.hEl);
       acc.fill(0); nT = 0;
+      const k = [keep.hEl, keep.proj, W, H, v.x0, v.x1].join('|');
+      if (k !== cleC) {
+        cleC = k;
+        // un ciel laiteux de cirrostratus : un peu plus de diffusion de Mie qu'un ciel clair
+        const P = PLANETS.terre, r = atmo.calc(C, P, s, { haze: 2.2, alt: 0, oz: P.oz, cone: 55 * D2R });
+        expo = clamp(0.24 / Math.max(1e-7, r.moy), 0.05, 5e4); atmo.exposer(expo);
+        info = { Ec: r.E, ext: extinction(P, 2.2), Es0: eclat(sunColor(P, keep.hEl, 0)), Es1: eclat(sunColor(P, keep.hEl, 1.2)) };
+        dec.calc(C, W, H, { oeil: 0.004, sol: SOLS.neige, lac: 0, yaw: 0, rangs: RANGS.halos });
+      }
     }
     const sig = () => [keep.hEl, keep.proj, keep.mix.plaques, keep.mix.colonnes, keep.mix.desordre, (env.view || {}).x0, (env.view || {}).x1].join('|');
-    // ciel : fond bleu, sol enneigé
-    const bgL = layer(W, H); let bgKey = '';
-    function paintBg() {
-      const g = bgL.g;
-      g.clearRect(0, 0, W, H);
-      if (C.fish) {
-        g.fillStyle = '#05070d'; g.fillRect(0, 0, W, H);
-        const gr = g.createRadialGradient(C.cx, C.cy, 0, C.cx, C.cy, C.rf); gr.addColorStop(0, '#1d4f9a'); gr.addColorStop(0.75, '#4f86c8'); gr.addColorStop(1, '#a9c6e6');
-        g.fillStyle = gr; g.beginPath(); g.arc(C.cx, C.cy, C.rf, 0, TAU); g.fill();
-      } else {
-        const hp = C.proj([1, 0, 0]), hy = hp ? hp[1] : H;
-        const gr = g.createLinearGradient(0, 0, 0, hy); gr.addColorStop(0, '#163f86'); gr.addColorStop(0.6, '#3f78c0'); gr.addColorStop(1, '#a8c4e4');
-        g.fillStyle = gr; g.fillRect(0, 0, W, hy);
-        const sg = g.createLinearGradient(0, hy, 0, H); sg.addColorStop(0, '#d8e2ee'); sg.addColorStop(1, '#8e9fb4');
-        g.fillStyle = sg; g.fillRect(0, hy, W, H - hy);
-        g.fillStyle = 'rgba(60,80,100,.55)'; g.beginPath(); g.moveTo(0, hy + 2);
-        for (let x = 0; x <= W; x += 14) g.lineTo(x, hy - 4 - 10 * Math.abs(Math.sin(x * 0.013)) - 6 * Math.abs(Math.sin(x * 0.041)));
-        g.lineTo(W, hy + 2); g.fill();
-      }
-      bgKey = key;
-    }
     const sparkles = Array.from({ length: 140 }, () => ({ x: rnd(1), y: rnd(1), p: rnd(TAU), f: rnd(3, 0.6) }));
     function guide(a, label) {
       const e1 = norm(cross(s, [0, 0, 1])), e2 = cross(e1, s);
@@ -664,46 +1007,47 @@ void main(){
     }
     let T = 0;
     return {
+      R,
       frame(t, dt) {
         T += dt;
-        const k2 = sig(); if (k2 !== key) { key = k2; setup(); }
+        const k2 = sig(); if (k2 !== key) { key = k2; setup(); neuf = true; }
         // des rayons, encore et encore : l'image se précise
         const mix = [keep.mix.plaques, keep.mix.colonnes, keep.mix.desordre], ms = mix[0] + mix[1] + mix[2];
         if (ms > 0) {
           const t0 = performance.now();
-          while (performance.now() - t0 < 14) {
+          while (performance.now() - t0 < (nT < 1.5e6 ? 22 : 14)) {
             for (let r = 0; r < 400; r++) {
               let u = Math.random() * ms, type = 0; while (type < 2 && u > mix[type]) { u -= mix[type]; type++; }
               trace(type, rint(BANDS.length)); nT++;
             }
           }
         }
-        if (bgKey !== key) paintBg();
-        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-        ctx.drawImage(bgL.c, 0, 0);
-        // l'image des halos
-        const d = img.data, gain = (GW * GH) / Math.max(1, nT) * 0.5;
-        for (let i = 0, j = 0; i < GW * GH; i++, j += 3) {
-          const o = i * 4;
-          d[o] = 255 * (1 - Math.exp(-acc[j] * gain)); d[o + 1] = 255 * (1 - Math.exp(-acc[j + 1] * gain)); d[o + 2] = 255 * (1 - Math.exp(-acc[j + 2] * gain)); d[o + 3] = 255;
+        if (!cad.ok(neuf, 83)) return;
+        neuf = false;
+        // l'image des halos devient de la lumière : radiance = soleil × (part des rayons par angle solide) × épaisseur du voile
+        {
+          const om = C.fish ? (1 / q) / (C.rf / (Math.PI / 2)) : (1 / q) / C.f, kk = (8 / 3) * 0.2 / (Math.max(1, nT) * om * om) / 64;
+          for (let i = 0, j = 0; i < GW * GH; i++, j += 3) {
+            const o = i * 4;
+            octets[o] = 255 * Math.sqrt(Math.min(1, acc[j] * kk)); octets[o + 1] = 255 * Math.sqrt(Math.min(1, acc[j + 1] * kk)); octets[o + 2] = 255 * Math.sqrt(Math.min(1, acc[j + 2] * kk)); octets[o + 3] = 255;
+          }
+          gl.bindTexture(gl.TEXTURE_2D, texH); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, GW, GH, gl.RGBA, gl.UNSIGNED_BYTE, octets);
         }
-        cv.g.putImageData(img, 0, 0);
-        ctx.globalCompositeOperation = 'screen'; ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(cv.c, 0, 0, W, H);
-        // le soleil, éblouissant
-        const sp = C.proj(s);
-        if (sp) {
-          const gr = ctx.createRadialGradient(sp[0], sp[1], 0, sp[0], sp[1], 60);
-          gr.addColorStop(0, 'rgba(255,255,250,1)'); gr.addColorStop(0.1, 'rgba(255,255,245,1)'); gr.addColorStop(0.25, 'rgba(255,250,235,.3)'); gr.addColorStop(1, 'rgba(255,250,235,0)');
-          ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(sp[0] - 60, sp[1] - 60, 120, 120);
-        }
-        // poussière de diamant : les cristaux tout près scintillent
+        const rs = Math.max(4 / (C.fish ? C.rf / (Math.PI / 2) : C.f), 0.8 * D2R), dq = sunColor(PLANETS.terre, Math.max(keep.hEl, 0.1), 0).map((x) => (30 * x) / expo);
+        R.regler({ expo }).debut(dt);
+        PH.use(); setCam(PH, C, W, H);
+        setLum(PH, { s, Es0: info.Es0, Es1: info.Es1, Ec: info.Ec, ext: info.ext, oeil: 0.004, T, expo }).t('uCiel', atmo.AE);
+        dec.lier(PH).t('uHalo', texH).f('uDisque', ...dq).f('uRs', rs).f('uFlou', 1.6 * clamp(1 - nT / 4e6, 0, 1));
+        passeCiel(R, PH);
+        // poussière de diamant : les cristaux tout près scintillent (doucement)
+        lueurs.vider();
         if (!C.fish) {
-          ctx.fillStyle = '#fff';
-          for (const sk of sparkles) { const a = Math.max(0, Math.sin(T * sk.f + sk.p)); if (a < 0.85) continue; ctx.globalAlpha = (a - 0.85) * 6; const x = (env.view ? env.view.x0 : 0) + sk.x * ((env.view ? env.view.x1 - env.view.x0 : W)), y = sk.y * H; ctx.fillRect(x - 1, y, 3, 1); ctx.fillRect(x, y - 1, 1, 3); }
-          ctx.globalAlpha = 1;
+          const v = env.view || { x0: 0, x1: W };
+          for (const sk of sparkles) { const a = Math.max(0, Math.sin(T * sk.f + sk.p)); if (a < 0.85) continue; const x = v.x0 + sk.x * (v.x1 - v.x0), y = sk.y * H, e = ((a - 0.85) / 0.15) * (env.doux ? 1.5 : 3) / expo; lueurs.point(x, y, 0.8, e, e, e); }
         }
-        ctx.globalCompositeOperation = 'source-over';
+        lueurs.dessiner();
+        R.fin(dt);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
         if (keep.guides) {
           ctx.save(); ctx.setLineDash([3, 6]); ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1; ctx.font = '500 10px "JetBrains Mono", monospace'; ctx.fillStyle = 'rgba(255,255,255,.75)';
           guide(22 * D2R, '22°'); guide(46 * D2R, '46°');
@@ -714,10 +1058,11 @@ void main(){
         let y = H - 18;
         txtLine(ctx, x0, y, `${(nT / 1e6).toFixed(1).replace('.', ',')} MILLION${nT >= 2e6 ? 'S' : ''} DE RAYONS · SOLEIL À ${fr(keep.hEl, 1)}°`, 'rgba(255,236,200,.95)'); y -= 20;
         if (keep.mix.plaques > 0.05) txtLine(ctx, x0, y, keep.hEl < 32.2 ? 'PLAQUETTES : PARHÉLIES DE PART ET D’AUTRE DU SOLEIL, ARC CIRCUMZÉNITHAL AU-DESSUS (SOLEIL SOUS 32°)' : 'SOLEIL AU-DESSUS DE 32° : L’ARC CIRCUMZÉNITHAL A DISPARU');
+        cad.fait();
       },
       down(p) { drag.down(p); },
       move(p) { drag.move(p); },
-      dispose() { drones.forEach((d) => d.stop()); },
+      dispose() { drones.forEach((d) => d.stop()); R.detruire(); },
       ui() {
         const L = [{ type: 'section', label: 'Les halos' }];
         L.push({ type: 'slider', label: 'Hauteur du soleil', min: 0, max: 60, step: 0.5, value: keep.hEl, fmt: (v) => fr(v, 1) + '°', set: (v) => { keep.hEl = v; } });

@@ -1,6 +1,8 @@
 /* Fascination — Les Lucioles · dialogues de lumière dans la nuit d'été */
 (function boot() {
   if (!window.FK) return setTimeout(boot, 12);
+  // gardés d'une construction à l'autre (le mode zen ou une rotation reconstruisent la machine) : rien ne se réinitialise sans demande
+  const keep = { scene: 'nuit', cfg: null };
   const { TAU, clamp, rnd, rint, layer, scale } = window.FK;
   const gauss = () => (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 1.22;
   const css = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
@@ -11,13 +13,41 @@
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     return s.c;
   }
+  // Couleurs vraies : chaque espèce émet une bande d'environ 50 nm autour de son pic (λmax), convertie en couleur par les
+  // fonctions CIE 1931. Toutes sont jaune-vert, à quelques nanomètres près : les espèces se reconnaissent à leur rythme,
+  // pas à leur couleur (c'est ce qu'imitent les femelles Photuris). Les « fausses couleurs », à la demande, aident à les repérer.
+  // Pics retenus (à confirmer) : Photinus vers 562 nm (Lall et al., 1980), Photuris vers 552, Lampyris vers 552, Pteroptyx vers 565.
+  const LMAX = { carolinus: 562, pyralis: 563, photuris: 552, pteroptyx: 565, lampyris: 552 };
+  function bandeLin(pic, fwhm) {
+    if (window.FKR && window.FKR.couleur && window.FKR.couleur.bande) return window.FKR.couleur.bande(pic, fwhm);
+    const g = (x, m, s1, s2) => { const t = (x - m) / (x < m ? s1 : s2); return Math.exp(-0.5 * t * t); };
+    let X = 0, Y = 0, Z = 0;
+    for (let l = 380; l <= 780; l += 2) {
+      const e = Math.exp(-0.5 * Math.pow((l - pic) / (fwhm / 2.3548), 2));
+      X += e * (1.056 * g(l, 599.8, 37.9, 31.0) + 0.362 * g(l, 442.0, 16.0, 26.7) - 0.065 * g(l, 501.1, 20.4, 26.2));
+      Y += e * (0.821 * g(l, 568.8, 46.9, 40.5) + 0.286 * g(l, 530.9, 16.3, 31.1));
+      Z += e * (1.217 * g(l, 437.0, 11.8, 36.0) + 0.681 * g(l, 459.0, 26.0, 13.8));
+    }
+    const c = [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.204 * Y + 1.057 * Z].map((v) => Math.max(0, v));
+    const m = Math.max(c[0], c[1], c[2]) || 1;
+    return c.map((v) => v / m);
+  }
+  const versSRGB = (v) => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055));
   const SPC = {
-    carolinus: { nom: 'Photinus carolinus', fr: 'luciole synchrone', col: [190, 255, 100], rise: 0.05, dec: 0.13 },
-    pyralis: { nom: 'Photinus pyralis', fr: 'luciole « grande ourse »', col: [255, 204, 76], rise: 0.14, dec: 0.3 },
-    photuris: { nom: 'Photuris versicolor', fr: 'luciole femme fatale', col: [110, 255, 196], rise: 0.05, dec: 0.12 },
-    pteroptyx: { nom: 'Pteroptyx malaccae', fr: 'luciole des mangroves', col: [224, 255, 140], rise: 0.03, dec: 0.08 },
-    lampyris: { nom: 'Lampyris noctiluca', fr: 'ver luisant', col: [96, 255, 150], rise: 1, dec: 1 },
+    carolinus: { nom: 'Photinus carolinus', fr: 'luciole synchrone', faux: [190, 255, 100], rise: 0.05, dec: 0.13 },
+    pyralis: { nom: 'Photinus pyralis', fr: 'luciole « grande ourse »', faux: [255, 204, 76], rise: 0.14, dec: 0.3 },
+    photuris: { nom: 'Photuris versicolor', fr: 'luciole femme fatale', faux: [110, 255, 196], rise: 0.05, dec: 0.12 },
+    pteroptyx: { nom: 'Pteroptyx malaccae', fr: 'luciole des mangroves', faux: [224, 255, 140], rise: 0.03, dec: 0.08 },
+    lampyris: { nom: 'Lampyris noctiluca', fr: 'ver luisant', faux: [96, 255, 150], rise: 1, dec: 1 },
   };
+  for (const k in SPC) {
+    const sp = SPC[k];
+    sp.lin = bandeLin(LMAX[k], 50);
+    sp.vrai = sp.lin.map(versSRGB);
+    // la couleur affichée : la vraie, sauf si l'on a demandé les fausses couleurs
+    Object.defineProperty(sp, 'col', { get() { return keep.cfg && keep.cfg.fausses ? sp.faux : sp.vrai; } });
+  }
+  const cssHex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
   const envF = (sp, a) => { const s = SPC[sp]; return a < s.rise ? a / s.rise : Math.exp(-(a - s.rise) / s.dec); };
 
   window.FASC.push({
@@ -26,11 +56,11 @@
     hint: 'OBSERVER : touchez une luciole pour l’identifier · SIGNAL : répondez à un mâle · TORCHE : maintenez pour éclairer · SOUFFLE : glissez · PERTURBER : brisez la synchronie · LÂCHER : ajoutez l’espèce choisie.',
     intro: 'Une nuit d’été où se croisent cinq lucioles du monde entier. Chaque flash est un mot : certaines espèces finissent par clignoter toutes ensemble, d’autres se font la cour par questions-réponses, et une prédatrice imite les femelles pour attirer les mâles… et les dévorer.',
     legend: [
-      { color: '#beff64', name: 'Photinus carolinus', role: 'synchrone · Great Smoky Mountains', desc: 'Salves de 5 à 8 flashs, puis l’obscurité. Chaque mâle avance un peu son horloge quand il voit un voisin s’allumer : peu à peu, des vagues de lumière balaient la vallée, puis tout le monde clignote ensemble.' },
-      { color: '#ffcc4c', name: 'Photinus pyralis', role: 'dialogue · « grande ourse »', desc: 'Le mâle plonge puis remonte en s’allumant, et trace un J. La femelle, posée dans l’herbe, répond environ deux secondes plus tard. À chaque réponse, il se rapproche.' },
-      { color: '#6effc4', name: 'Photuris versicolor', role: 'femme fatale', desc: 'La femelle imite la réponse des femelles Photinus. Le mâle trompé s’approche… et se fait dévorer.' },
-      { color: '#e0ff8c', name: 'Pteroptyx malaccae', role: 'synchrone · mangroves d’Asie', desc: 'Des milliers de mâles se posent sur un même arbre et clignotent à l’unisson, presque deux fois par seconde : l’arbre entier s’illumine comme un phare.' },
-      { color: '#60ff96', name: 'Lampyris noctiluca', role: 'ver luisant · Europe', desc: 'La femelle, sans ailes, grimpe sur une herbe et brille en continu pour attirer les mâles. Elle s’éteint si on la dérange.' },
+      { color: cssHex(SPC.carolinus.vrai), name: 'Photinus carolinus', role: 'synchrone · Great Smoky Mountains', desc: 'Salves de 5 à 8 flashs, puis l’obscurité. Chaque mâle avance un peu son horloge quand il voit un voisin s’allumer : peu à peu, des vagues de lumière balaient la vallée, puis tout le monde clignote ensemble.' },
+      { color: cssHex(SPC.pyralis.vrai), name: 'Photinus pyralis', role: 'dialogue · « grande ourse »', desc: 'Le mâle plonge puis remonte en s’allumant, et trace un J. La femelle, posée dans l’herbe, répond environ deux secondes plus tard. À chaque réponse, il se rapproche.' },
+      { color: cssHex(SPC.photuris.vrai), name: 'Photuris versicolor', role: 'femme fatale', desc: 'La femelle imite la réponse des femelles Photinus. Le mâle trompé s’approche… et se fait dévorer.' },
+      { color: cssHex(SPC.pteroptyx.vrai), name: 'Pteroptyx malaccae', role: 'synchrone · mangroves d’Asie', desc: 'Des milliers de mâles se posent sur un même arbre et clignotent à l’unisson, presque deux fois par seconde : l’arbre entier s’illumine comme un phare.' },
+      { color: cssHex(SPC.lampyris.vrai), name: 'Lampyris noctiluca', role: 'ver luisant · Europe', desc: 'La femelle, sans ailes, grimpe sur une herbe et brille en continu pour attirer les mâles. Elle s’éteint si on la dérange.' },
     ],
     about: [
       'La lumière des lucioles est une lumière froide : une réaction chimique (luciférine et luciférase) convertit presque toute son énergie en lumière, sans chaleur.',
@@ -40,7 +70,7 @@
     ],
     tools: [
       { id: 'observer', label: 'observer', desc: 'Touchez une luciole, même éteinte, pour l’identifier et suivre ce qu’elle fait.' },
-      { id: 'signal', label: 'signal', desc: 'Touchez pour émettre un bref flash. Répondez environ 2 secondes après le J ambré d’un mâle Photinus pyralis : il viendra vers vous. Les synchrones proches s’allument aussi.' },
+      { id: 'signal', label: 'signal', desc: 'Touchez pour émettre un bref flash. Répondez environ 2 secondes après le J lumineux d’un mâle Photinus pyralis : il viendra vers vous. Les synchrones proches s’allument aussi.' },
       { id: 'torche', label: 'torche', desc: 'Maintenez pour éclairer : les lucioles se taisent dans la lumière et s’en écartent, comme sous un lampadaire.' },
       { id: 'souffle', label: 'souffle', desc: 'Glissez pour souffler : l’air pousse les lucioles et couche les herbes.' },
       { id: 'perturber', label: 'perturber', desc: 'Touchez pour dérégler les horloges autour de votre doigt, puis regardez la synchronie se reconstruire.' },
@@ -51,22 +81,24 @@
       let quiet = true;
       const snd = () => !quiet && au && au.on;
       const kS = clamp(Math.min(W, H) / 800, 0.7, 1.4), area = clamp((W * H) / 1.2e6, 0.35, 1.3);
-      const cfg = { moon: 0.2, poll: 0, eps: 0.1, K: 0.9, trail: 0.5, dialog: true, sel: 'carolinus' };
+      const cfg = keep.cfg || (keep.cfg = { moon: 0.2, poll: 0, eps: 0.1, K: 0.9, trail: 0.5, dialog: true, sel: 'carolinus', fausses: false });
       const timers = [];
       const later = (ms, fn) => timers.push(setTimeout(fn, ms));
       const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0 }; };
       const hor = H * 0.6, v0 = view();
       const moon = { x: v0.x0 + v0.w * 0.8, y: H * 0.14, r: 17 * kS };
       const SPR = {};
-      for (const k in SPC) SPR[k] = glow(SPC[k].col);
+      for (const k in SPC) { const v = glow(SPC[k].vrai), fz = glow(SPC[k].faux); Object.defineProperty(SPR, k, { get: () => (cfg.fausses ? fz : v) }); }
       const sprCore = glow([255, 255, 236]), sprSig = glow([255, 238, 205]), sprMoon = glow([190, 210, 255]), sprTorch = glow([255, 228, 176]);
 
       /* décor */
       const stars = Array.from({ length: Math.round(260 * area) + 80 }, () => ({ x: rnd(W), y: Math.pow(Math.random(), 1.3) * hor * 0.92, r: Math.pow(Math.random(), 3) * 1.5 + 0.4, ph: rnd(TAU), sp: rnd(3, 0.5) }));
-      const farL = layer(W, H);
+      // farL : le fond peint (repli 2D) ; layM : la carte des plans pour le rendu WebGL
+      // (rouge : crête lointaine, vert : crête proche, bleu : prairie ; le noir reste au ciel)
+      const farL = layer(W, H), layM = layer(W, H);
       {
-        const g = farL.g;
-        const ridge = (base, amp, nT, tH, col, seed) => {
+        const g = farL.g, gm = layM.g;
+        const ridge = (base, amp, nT, tH, col, seed, mc) => {
           const n = Math.ceil(W / 3) + 2, hg = new Float32Array(n);
           for (let i = 0; i < n; i++) { const x = i * 3; hg[i] = amp * (0.5 + 0.5 * Math.sin(x * 0.0031 + seed)) + amp * 0.35 * Math.sin(x * 0.011 + seed * 2); }
           for (let k = 0; k < nT; k++) {
@@ -78,15 +110,18 @@
               if (p > hg[i]) hg[i] = p;
             }
           }
-          g.fillStyle = col; g.beginPath(); g.moveTo(0, H);
-          for (let i = 0; i < n; i++) g.lineTo(i * 3, base - hg[i]);
-          g.lineTo(W, H); g.closePath(); g.fill();
+          for (const [gg, cc] of [[g, col], [gm, mc]]) {
+            gg.fillStyle = cc; gg.beginPath(); gg.moveTo(0, H);
+            for (let i = 0; i < n; i++) gg.lineTo(i * 3, base - hg[i]);
+            gg.lineTo(W, H); gg.closePath(); gg.fill();
+          }
         };
-        ridge(hor - H * 0.03, H * 0.05, Math.round(W / 14), H * 0.09, '#0b1222', 1.3);
+        ridge(hor - H * 0.03, H * 0.05, Math.round(W / 14), H * 0.09, '#0b1222', 1.3, '#ff0000');
         const mist = g.createLinearGradient(0, hor - H * 0.12, 0, hor + H * 0.02);
         mist.addColorStop(0, 'rgba(120,140,190,0)'); mist.addColorStop(0.7, 'rgba(120,140,190,.09)'); mist.addColorStop(1, 'rgba(120,140,190,0)');
         g.fillStyle = mist; g.fillRect(0, hor - H * 0.12, W, H * 0.14);
-        ridge(hor, H * 0.025, Math.round(W / 10), H * 0.12, '#060a14', 4.1);
+        ridge(hor, H * 0.025, Math.round(W / 10), H * 0.12, '#060a14', 4.1, '#00ff00');
+        gm.fillStyle = '#0000ff'; gm.fillRect(0, hor, W, H - hor);
         const gr = g.createLinearGradient(0, hor, 0, H);
         gr.addColorStop(0, '#060913'); gr.addColorStop(1, '#020305');
         g.fillStyle = gr; g.fillRect(0, hor, W, H - hor);
@@ -129,7 +164,6 @@
           for (let j = 0; j < 4; j++) { const xx = x + rnd(r, -r), yy = y + rnd(r * 0.3, -r * 0.4), rr = r * rnd(0.8, 0.4); g.moveTo(xx + rr, yy); g.arc(xx, yy, rr, 0, TAU); }
         }
         g.fill();
-        g.fillRect(0, hor + H * 0.035, W, 2);
         g.strokeStyle = '#03050a'; g.lineWidth = 1;
         g.beginPath();
         for (let k = 0; k < W * 1.4; k++) {
@@ -388,7 +422,7 @@
       function drawLabel() {
         const f = label.f, a = Math.min(1, label.t, (6 - label.t) * 2.5);
         if (a <= 0.01 || f.dead) return;
-        const sp = SPC[f.sp], side = f.x > W * 0.65 ? -1 : 1, lx = f.x + side * 46, ly = f.y - 38;
+        const v0 = env.view || {}, sp = SPC[f.sp], side = f.x > W * 0.65 ? -1 : 1, lx = f.x + side * 46, ly = f.y - 38 < (v0.y0 || 0) + 24 ? f.y + 46 : f.y - 38;
         ctx.save();
         ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = css(sp.col, (a * 0.7).toFixed(3)); ctx.lineWidth = 1;
@@ -412,6 +446,7 @@
         tg.save(); tg.setTransform(1, 0, 0, 1, 0, 0); tg.clearRect(0, 0, TL.w, TL.h); tg.restore();
       }
       function populate(kind) {
+        keep.scene = kind;
         clearAll();
         const v = view(), rx = () => rnd(v.x1 - 20, v.x0 + 20), ry = (b) => H * rnd(BAND[b][1], BAND[b][0]);
         if (kind === 'nuit' || kind === 'vallee') { const n = Math.round((kind === 'vallee' ? 640 : 220) * area); for (let k = 0; k < n; k++) mk('carolinus', 'm', rx(), ry('carolinus')); }
@@ -438,12 +473,436 @@
       }
       function desync() { for (const f of F) { f.th = Math.random(); f.burst = 0; } }
 
-      populate('nuit');
+      populate(keep.scene);
       grass(0);
       let syncC = 0, rPt = 0, statT = 0, cricT = 1, frogT = 6, lastC = 0, lastP = 0;
       quiet = false;
       const drones = [];
       if (au) drones.push(au.drone(65.4, 'sine', 0.012), au.drone(98, 'sine', 0.005));
+
+      /* ───────── rendu WebGL2 : la nuit en lumière linéaire, développée par la cabine ─────────
+         Les lucioles sont de petites sources très lumineuses (HDR) : leur halo naît de la cabine, comme celui du Feu.
+         Leur lumière, sommée dans un champ d'éclairement à 1/8 de la résolution, éclaire l'herbe, l'arbre, le sol
+         et la brume. Le ciel suit la lune et la pollution lumineuse : les étoiles faibles et la Voie lactée
+         s'effacent quand le ciel s'éclaircit. */
+      const LIN = {};
+      for (const k in SPC) { const fz = SPC[k].faux.map((c) => Math.pow(c / 255, 2.2)); Object.defineProperty(LIN, k, { get: () => (cfg.fausses ? fz : SPC[k].lin) }); }
+      let gfx = null;
+      try { gfx = makeGfx(); } catch (e) { console.warn('Les Lucioles : repli en 2D', e); gfx = null; }
+
+      function makeGfx() {
+        const FG = window.FKGL;
+        if (!FG || !FG.cabine) throw new Error('FKGL absent');
+        const { GLKit, HEAD } = FG;
+        const mobile = /Mobi|Android|iPad|iPhone/i.test(navigator.userAgent) || Math.min(W, H) < 520;
+        const cs = Math.min(env.dpr || 1, mobile ? 1.25 : 1.5);
+        const cw = Math.max(2, Math.round(W * cs)), ch = Math.max(2, Math.round(H * cs));
+        const K = GLKit(cw, ch), gl = K.gl;
+        const cab = FG.cabine(K);
+        const lightT = K.target(Math.max(8, cw >> 3), Math.max(8, ch >> 3), 'h', gl.LINEAR);
+        const trailT = K.target(Math.max(2, cw >> 1), Math.max(2, ch >> 1), 'h', gl.LINEAR);
+        const tex = (c) => {
+          const t = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, t);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          return t;
+        };
+        const layTex = tex(layM.c), midTex = tex(midL.c);
+        // bruits fixes calculés une seule fois : nuages et poussière de la Voie lactée, taches de la prairie, cime des forêts
+        const noiseT = K.target(cw, ch, 'h', gl.LINEAR);
+        K.run(K.program(HEAD + `
+uniform vec2 uRes; uniform float uHor; out vec4 o;
+void main(){
+  vec2 p = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  vec2 q = p - vec2(uRes.x * .62, uHor * .3), r = vec2(.8776 * q.x + .4794 * q.y, -.4794 * q.x + .8776 * q.y);
+  o = vec4(fbm(r * .006 + 3.1), smoothstep(.42, .62, fbm(r * vec2(.004, .014) + 11.7)), fbm(p * vec2(.004, .012)), .8 + .4 * vnoise(p * .09));
+}`).use().f('uRes', W, H).f('uHor', hor), noiseT);
+        const warpT = K.target(cw, ch, 'h', gl.LINEAR);
+        K.run(K.program(HEAD + `
+uniform vec2 uRes; out vec4 o;
+void main(){ vec2 p = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y); o = vec4(vnoise(p * .32), vnoise(p * .32 + 9.1), 0., 1.); }`).use().f('uRes', W, H), warpT);
+
+        const pBG = K.program(HEAD + `
+uniform sampler2D uLay, uLight, uNz; uniform vec2 uRes; uniform float uT, uMoon, uPoll, uHor; uniform vec3 uMP;
+out vec4 o;
+vec3 skyCol(float y){
+  float h = clamp(y / uHor, 0., 1.);
+  vec3 zen = mix(vec3(.0012, .0022, .0075), vec3(.008, .018, .05), uMoon);
+  vec3 hzn = mix(vec3(.0045, .0075, .018), vec3(.024, .04, .075), uMoon);
+  vec3 c = mix(zen, hzn, h * h);
+  c = mix(c, c * .6 + vec3(.05, .032, .02) * (.4 + .6 * h * h), uPoll);            // voile lumineux des villes
+  c += vec3(.2, .075, .02) * uPoll * uPoll * exp(-(uHor - y) / (uRes.y * .16));    // dôme orangé sur l'horizon
+  return c;
+}
+void main(){
+  vec2 p = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y), tc = p / uRes;
+  vec4 L4 = texture(uLay, tc);
+  vec3 w = L4.rgb * L4.a;                       // crête lointaine, crête proche, prairie
+  float ws = clamp(1. - w.r - w.g - w.b, 0., 1.);
+  vec3 sky = skyCol(p.y);
+  vec4 nz = texture(uNz, vUv);
+  // étoiles : la lune et les villes effacent d'abord les plus faibles (magnitude limite)
+  float lim = clamp(1. - .7 * uMoon - .9 * uPoll, 0., 1.);
+  vec2 cell = floor(p / 3.5), f = p - cell * 3.5;
+  float h1 = hash12(cell), h2 = hash12(cell + 17.3), h3 = hash12(cell + 41.9);
+  float m = pow(h3, 7.), thr = .9 * (1. - lim) + .004;
+  float st = h1 < .045 ? smoothstep(thr, thr * 1.6 + .01, m) : 0.;
+  vec2 sp = .6 + vec2(h2, fract(h2 * 7.13)) * 2.3;
+  float tw = .7 + .3 * sin(uT * (1.3 + 27. * h1) + h2 * 40.);
+  float ext = smoothstep(uHor, uHor * .7, p.y);   // extinction près de l'horizon
+  sky += mix(vec3(1., .78, .55), vec3(.7, .82, 1.), fract(h2 * 3.7)) * (m * 2.4 + .035) * st * tw * exp(-dot(f - sp, f - sp) * 2.5) * ext;
+  // la Voie lactée : nuages d'étoiles et bandes de poussière, seulement sous un ciel noir
+  vec2 q = p - vec2(uRes.x * .62, uHor * .3), r = vec2(.8776 * q.x + .4794 * q.y, -.4794 * q.x + .8776 * q.y);
+  float band = exp(-r.y * r.y / (uRes.y * uRes.y * .012));
+  float neb = nz.r, dust = nz.g;
+  sky += mix(vec3(.55, .62, .9), vec3(.9, .8, .62), band) * .022 * band * (.35 + neb) * (1. - .75 * dust) * lim * lim * ext;
+  // la lune (presque sans assombrissement au bord) et son auréole, diffusée vers l'avant par les aérosols
+  float dm = length(p - uMP.xy), R = uMP.z, mI = .35 + .65 * uMoon;
+  float mar = dm < R + 1. ? vnoise((p - uMP.xy) / R * 2.1 + 5.3) * .6 + vnoise((p - uMP.xy) / R * 5.3 + 1.7) * .4 : 0.;
+  sky = mix(sky, vec3(1., .96, .88) * (1. - .28 * smoothstep(.45, .7, mar)) * 4.5 * mI, smoothstep(R + .8, R - .8, dm));
+  sky += vec3(.7, .78, 1.) * mI * (.05 * exp(-max(dm - R, 0.) / (R * 1.2)) + .01 * exp(-max(dm - R, 0.) / (R * 6.))) * smoothstep(R - 1., R + 1., dm);
+  // les plans du paysage, la brume entre les crêtes et au ras de la prairie
+  vec3 Lf = texture(uLight, vUv).rgb;
+  vec3 amb = vec3(.006, .01, .02) * uMoon + vec3(.004, .003, .002) * uPoll;
+  float tx = nz.a;
+  vec3 col = sky * ws + mix(skyCol(uHor), vec3(.002, .003, .007), .55) * tx * w.r;
+  float mb = smoothstep(uHor - uRes.y * .13, uHor - uRes.y * .04, p.y) * smoothstep(uHor + uRes.y * .02, uHor - uRes.y * .02, p.y);
+  float mist = mb > 0. ? mb * (.45 + .55 * fbm(vec2(p.x * .0035 - uT * .006, p.y * .02))) : 0.;
+  col += mist * (vec3(.01, .014, .026) + vec3(.03, .04, .07) * uMoon + vec3(.05, .03, .015) * uPoll) * (1. - w.g - w.b);
+  col += (vec3(.0016, .0026, .0055) * tx + amb * .4) * w.g;
+  float gy = clamp((p.y - uHor) / (uRes.y - uHor), 0., 1.);
+  vec3 grnd = vec3(.0024, .0036, .0042) * (.75 + .5 * nz.b) + amb * .9;
+  grnd = mix(grnd + vec3(.003, .005, .01) * (.5 + uMoon), grnd, smoothstep(0., .35, gy));   // la prairie s'éclaircit au loin, dans la brume
+  col += (grnd + vec3(.02, .035, .018) * Lf) * w.b;
+  float gb = smoothstep(uHor, uHor + uRes.y * .05, p.y) * (1. - .6 * smoothstep(uHor + uRes.y * .1, uRes.y, p.y));
+  float gm = gb > 0. ? gb * (.35 + .65 * fbm(vec2(p.x * .006 + uT * .01, p.y * .015 - uT * .004))) : 0.;
+  col += gm * (vec3(.006, .009, .016) * (.4 + uMoon) + Lf / (1. + .8 * Lf) * .25);   // la brume sature quand toute la vallée s'allume
+  o = vec4(col, 1.);
+}`);
+
+        const pTree = K.program(HEAD + `
+uniform sampler2D uMid, uLight, uWarp; uniform vec2 uRes; uniform vec3 uMP; uniform float uMoon;
+out vec4 o;
+void main(){
+  vec2 p = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  // bord feuillu : on déforme la silhouette peinte par un bruit fin
+  // (le maximum avec la silhouette d'origine garde intacts le tronc, les branches et les tiges fines)
+  vec2 tc = p / uRes;
+  float a = max(texture(uMid, tc).a, texture(uMid, (p + (texture(uWarp, vUv).rg - .5) * 5.) / uRes).a);
+  if (a < .004) discard;
+  vec2 e = 1.6 / uRes;
+  vec2 n = -vec2(texture(uMid, tc + vec2(e.x, 0.)).a - texture(uMid, tc - vec2(e.x, 0.)).a, texture(uMid, tc + vec2(0., e.y)).a - texture(uMid, tc - vec2(0., e.y)).a);
+  float el = length(n); n /= max(el, 1e-4);
+  float rim = max(dot(n, normalize(uMP.xy - p)), 0.) * smoothstep(0., .6, el);
+  vec3 Lf = texture(uLight, vUv).rgb;
+  vec3 moonL = vec3(.03, .045, .08) * uMoon;
+  vec3 col = vec3(.012, .02, .012) * (moonL + Lf * 2.2) + moonL * rim * .6 + Lf * (rim * .25 + .015);
+  o = vec4(col * a, a);
+}`);
+
+        const pAdd = K.program(HEAD + `
+uniform sampler2D uT; uniform float uK; out vec4 o;
+void main(){ o = vec4(texture(uT, vUv).rgb * uK, 0.); }`);
+        const pFade = K.program(HEAD + `
+uniform float uK; out vec4 o;
+void main(){ o = vec4(0., 0., 0., uK); }`);
+
+        const VS_SPR = `#version 300 es
+precision highp float;
+layout(location = 0) in vec4 aA; layout(location = 1) in vec4 aC; layout(location = 2) in vec2 aQ;
+uniform vec2 uRes;
+out vec2 vQ; out vec3 vCol; flat out int vK;
+void main(){
+  vec2 pos = aA.xy + aQ * aA.z;
+  vQ = aQ; vCol = aC.rgb * aA.w; vK = int(aC.a + .5);
+  gl_Position = vec4(pos.x / uRes.x * 2. - 1., 1. - pos.y / uRes.y * 2., 0., 1.);
+}`;
+        // 0 : luciole (tache gaussienne) · 1 : luciole floue, hors de la mise au point · 2 : lumière portée · 3 : lueur douce
+        const pSpr = K.program(`#version 300 es
+precision highp float;
+in vec2 vQ; in vec3 vCol; flat in int vK; out vec4 o;
+void main(){
+  float r2 = dot(vQ, vQ); if (r2 >= 1.) discard;
+  float I;
+  if (vK == 0) I = exp(-r2 * 7.);
+  else if (vK == 1){ float r = sqrt(r2); I = smoothstep(1., .5, r) * (.8 + .2 * smoothstep(.3, .8, r)); }
+  else if (vK == 2) I = (1. - r2) * (1. - r2) / (1. + r2 * 40.);
+  else I = (1. - r2) * (1. - r2) * exp(-r2 * 2.5);
+  o = vec4(vCol * I, 0.);
+}`, VS_SPR);
+        const pSeg = K.program(`#version 300 es
+precision highp float;
+in float vA; in vec3 vCol; out vec4 o;
+void main(){ o = vec4(vCol * (1. - vA * vA), 0.); }`, `#version 300 es
+precision highp float;
+layout(location = 0) in vec4 aS; layout(location = 1) in vec4 aC; layout(location = 2) in vec2 aQ;
+uniform vec2 uRes;
+out float vA; out vec3 vCol;
+void main(){
+  vec2 a = aS.xy, b = aS.zw, d = b - a; float L = length(d);
+  vec2 t = L > 1e-3 ? d / L : vec2(1., 0.), n = vec2(-t.y, t.x);
+  float w = aC.a;
+  vec2 pos = mix(a - t * w * .5, b + t * w * .5, aQ.x * .5 + .5) + n * aQ.y * w;
+  vA = aQ.y; vCol = aC.rgb;
+  gl_Position = vec4(pos.x / uRes.x * 2. - 1., 1. - pos.y / uRes.y * 2., 0., 1.);
+}`);
+        const NSEG = 7;
+        const pGrass = K.program(`#version 300 es
+precision highp float;
+in vec2 vP; in float vS, vW, vT, vSh; uniform sampler2D uLight; uniform vec2 uRes; uniform float uMoon; out vec4 o;
+void main(){
+  float cov = clamp(vW - abs(vS) + .5, 0., 1.);
+  if (cov <= 0.) discard;
+  vec3 Lf = texture(uLight, vec2(vP.x / uRes.x, 1. - vP.y / uRes.y)).rgb;
+  vec3 moonL = vec3(.02, .03, .05) * uMoon;
+  float edge = clamp(abs(vS) / max(vW, .5), 0., 1.);
+  vec3 alb = mix(vec3(.01, .016, .01), vec3(.028, .045, .022), vSh);
+  vec3 col = alb * (moonL * (.3 + .7 * vT) + Lf * (1.2 + 1.6 * vT));
+  col += Lf * vec3(.35, .5, .2) * .1 * vT;                   // la lumière traverse la lame (translucidité)
+  col += vec3(.03, .045, .08) * uMoon * smoothstep(.55, 1., edge) * vT * .5;
+  col += vec3(.0012, .0018, .0035) * vT * vT;                 // le haut des herbes reçoit le ciel
+  o = vec4(col * cov, cov);
+}`, `#version 300 es
+precision highp float;
+layout(location = 0) in vec4 aB; layout(location = 1) in vec4 aT; layout(location = 2) in vec2 aV;
+uniform vec2 uRes; uniform float uN;
+out vec2 vP; out float vS, vW, vT, vSh;
+void main(){
+  float t = aV.x / uN, u = 1. - t;
+  vec2 B = vec2(aB.x, uRes.y + 2.), C = aB.zw, T = aT.xy;
+  vec2 P = u * u * B + 2. * u * t * C + t * t * T;
+  vec2 d = 2. * u * (C - B) + 2. * t * (T - C);
+  vec2 n = normalize(vec2(-d.y, d.x) + 1e-6);
+  float hw = aB.y * pow(u, .9) + .001, ex = hw + .9;
+  vec2 pos = P + n * aV.y * ex;
+  vP = pos; vS = aV.y * ex; vW = hw; vT = t; vSh = aT.z;
+  gl_Position = vec4(pos.x / uRes.x * 2. - 1., 1. - pos.y / uRes.y * 2., 0., 1.);
+}`);
+
+        // tampons : coins du quad, sommets d'une lame, et un tampon d'instances par lot
+        const sbuf = (data) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); return b; };
+        const qBuf = sbuf(new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]));
+        const bv = []; for (let i = 0; i <= NSEG; i++) bv.push(i, -1, i, 1);
+        const gBuf = sbuf(new Float32Array(bv));
+        const MAXI = 4096;
+        function batch(vbuf) {
+          const data = new Float32Array(MAXI * 8), buf = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, data.byteLength, gl.DYNAMIC_DRAW);
+          const vao = gl.createVertexArray();
+          gl.bindVertexArray(vao);
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+          for (let l = 0; l < 2; l++) { gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 32, l * 16); gl.vertexAttribDivisor(l, 1); }
+          gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
+          gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(2, 0);
+          gl.bindVertexArray(null);
+          const B = { data, n: 0, buf, vao,
+            push(a, b, c, d, e, f, g, h) { if (B.n >= MAXI) return; const o = B.n++ * 8, D = B.data; D[o] = a; D[o + 1] = b; D[o + 2] = c; D[o + 3] = d; D[o + 4] = e; D[o + 5] = f; D[o + 6] = g; D[o + 7] = h; },
+            upload() { gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, B.data, 0, B.n * 8); } };
+          return B;
+        }
+        const bFar = batch(qBuf), bNear = batch(qBuf), bTop = batch(qBuf), bLight = batch(qBuf), bSeg = batch(qBuf), bGrass = batch(gBuf);
+        function draw(P, B, target, verts) {
+          if (!B.n) return;
+          B.upload();
+          P.use().f('uRes', W, H);
+          if (P === pGrass) P.f('uN', NSEG).t('uLight', lightT).f('uMoon', cfg.moon);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb); gl.viewport(0, 0, target.w, target.h);
+          gl.bindVertexArray(B.vao);
+          gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, verts, B.n);
+          gl.bindVertexArray(null);
+        }
+
+        const G = { lost: false };
+        K.canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); G.lost = true; });
+        let trailOn = false, soft = 0;
+        // une luciole : son cœur (net ou flou selon la distance) et sa lumière portée
+        function fly(B, f, b, k) {
+          const z = f.z, c = LIN[f.sp], r = (2.2 + 2.2 * b) * Math.sqrt(z) * kS * (k || 1), I = b * 16 * (0.35 + 0.65 * z);
+          if (z > 0.95 && f.st !== 'perche') {
+            const R = 3 + (z - 0.95) * 140 * kS;
+            B.push(f.x, f.y, R, I * Math.min(1, (r / R) * (r / R)) * 1.6, c[0], c[1], c[2], 1);
+          } else B.push(f.x, f.y, r, I, c[0], c[1], c[2], 0);
+          // la lueur de la lanterne dans l'air humide, puis la lumière portée sur ce qui l'entoure
+          B.push(f.x, f.y, (4 + 11 * b) * z * kS, b * 0.12 * (1 - 0.6 * soft), c[0], c[1], c[2], 3);
+          bLight.push(f.x, f.y, 110 * kS * (0.6 + 0.4 * z), b * (f.sp === 'lampyris' ? 0.22 : 0.3) * (1 - 0.82 * soft), c[0], c[1], c[2], 2);
+        }
+        G.draw = function (dt, nP) {
+          bFar.n = bNear.n = bTop.n = bLight.n = bSeg.n = bGrass.n = 0;
+          // mode doux (photosensibilité) : quand des centaines de lucioles s'allument ensemble, l'éclairage d'ensemble
+          // ne doit pas faire clignoter tout l'écran ; on le réduit fortement et l'on garde des points nets
+          soft = env.doux ? 1 : 0;
+          const trail = cfg.trail > 0.01;
+          for (const f of F) {
+            const b = bright(f);
+            if (trail && f.st !== 'perche' && b > 0.08) {
+              const c = LIN[f.sp], k = b * 1.6;
+              bSeg.push(f.lx, f.ly, f.x + 0.01, f.y, c[0] * k, c[1] * k, c[2] * k, (0.6 + 1.1 * f.z) * kS);
+            }
+            if (b <= 0.02) continue;
+            if (f.blade >= 0) fly(bTop, f, b, f.sp === 'lampyris' ? 0.7 : 1);
+            else if (f.sp === 'pteroptyx' || (f.st !== 'perche' && f.z >= 0.6)) fly(bNear, f, b);
+            else fly(bFar, f, b);
+          }
+          for (const f of F) { f.lx = f.x; f.ly = f.y; }
+          for (const s of sigs) {
+            const b = s.a < 0.1 ? s.a / 0.1 : Math.exp(-(s.a - 0.1) / 0.28);
+            bTop.push(s.x, s.y, 5 * kS, b * 40, 1, 0.86, 0.66, 0);
+            bTop.push(s.x, s.y, (14 + 70 * b) * kS, b * 0.5, 1, 0.86, 0.66, 3);
+            bLight.push(s.x, s.y, 200 * kS, b * 0.6, 1, 0.86, 0.66, 2);
+          }
+          if (torch.on) {
+            bTop.push(torch.x, torch.y, 7 * kS, 30, 1, 0.9, 0.72, 0);
+            bTop.push(torch.x, torch.y, torch.r * 1.6, 0.35, 1, 0.9, 0.72, 3);
+            bLight.push(torch.x, torch.y, torch.r * 2.2, 0.9, 1, 0.9, 0.72, 2);
+          }
+          for (const b of blades) bGrass.push(b.x, b.w, b.cx, b.cy, b.tx, b.ty, (b.ph / TAU) * 0.8 + 0.2, 0);
+
+          gl.enable(gl.BLEND);
+          // 1. champ d'éclairement des lucioles (1/8 de la résolution)
+          K.clear(lightT);
+          gl.blendFunc(gl.ONE, gl.ONE);
+          draw(pSpr, bLight, lightT, 4);
+          // 2. pose longue : la traînée s'efface, puis les nouveaux segments s'y ajoutent
+          if (trail) {
+            gl.blendFunc(gl.ZERO, gl.SRC_ALPHA);
+            pFade.use().f('uK', Math.exp(-dt * (0.18 + (1 - cfg.trail) * 6)));
+            K.run(pFade, trailT);
+            gl.blendFunc(gl.ONE, gl.ONE);
+            draw(pSeg, bSeg, trailT, 4);
+            trailOn = true;
+          } else if (trailOn) { K.clear(trailT); trailOn = false; }
+          // 3. le fond : ciel, lune, crêtes, brume, prairie
+          gl.disable(gl.BLEND);
+          pBG.use().t('uLay', layTex).t('uLight', lightT).t('uNz', noiseT).f('uRes', W, H).f('uT', VT).f('uMoon', cfg.moon).f('uPoll', cfg.poll).f('uHor', hor).f('uMP', moon.x, moon.y, moon.r);
+          K.run(pBG, cab.scene);
+          gl.enable(gl.BLEND);
+          // 4. lucioles lointaines, derrière l'arbre
+          gl.blendFunc(gl.ONE, gl.ONE);
+          draw(pSpr, bFar, cab.scene, 4);
+          // 5. l'arbre et les buissons, éclairés par la lune et par les lucioles
+          gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+          pTree.use().t('uMid', midTex).t('uLight', lightT).t('uWarp', warpT).f('uRes', W, H).f('uMP', moon.x, moon.y, moon.r).f('uMoon', cfg.moon);
+          K.run(pTree, cab.scene);
+          // 6. lucioles proches et Pteroptyx de l'arbre, puis les traînées
+          gl.blendFunc(gl.ONE, gl.ONE);
+          draw(pSpr, bNear, cab.scene, 4);
+          if (trail) { pAdd.use().t('uT', trailT).f('uK', 1); K.run(pAdd, cab.scene); }
+          // 7. les herbes du premier plan
+          gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+          draw(pGrass, bGrass, cab.scene, 2 * (NSEG + 1));
+          // 8. les femelles perchées au bout des herbes, le signal et la torche
+          gl.blendFunc(gl.ONE, gl.ONE);
+          draw(pSpr, bTop, cab.scene, 4);
+          gl.disable(gl.BLEND);
+          // 9. développement : halo, courbe filmique, vignettage, grain de pellicule de nuit
+          cab.finish({ expo: 1.8, bloom: soft ? 0.55 : 1.0, thr: 0.8, knee: 0.6, radius: 0.8, vig: 0.45, grain: 0.045, grainBlack: 0.5, sat: 1.05 });
+          ctx.save();
+          ctx.globalCompositeOperation = 'copy';
+          ctx.drawImage(K.canvas, 0, 0, W, H);
+          ctx.restore();
+        };
+        G.lose = () => K.lose();
+        return G;
+      }
+
+      /* rendu 2D (repli sans WebGL2) */
+      function draw2D(dt, nP) {
+        /* ciel */
+        const top = mix([3, 5, 14], [16, 26, 56], cfg.moon), hz = mix(mix([12, 16, 38], [38, 50, 88], cfg.moon), [130, 74, 34], cfg.poll * 0.8);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        const sg = ctx.createLinearGradient(0, 0, 0, hor);
+        sg.addColorStop(0, css(top, 1)); sg.addColorStop(0.65, css(mix(top, hz, 0.5), 1)); sg.addColorStop(1, css(hz, 1));
+        ctx.fillStyle = sg; ctx.fillRect(0, 0, W, hor + 4);
+        const sa = Math.max(0, 1 - cfg.moon * 0.65 - cfg.poll * 0.85);
+        if (sa > 0.02) {
+          ctx.fillStyle = '#e8eeff';
+          for (const s of stars) { ctx.globalAlpha = sa * (0.5 + 0.5 * Math.sin(VT * s.sp + s.ph)) * Math.min(1, s.r); ctx.fillRect(s.x, s.y, s.r, s.r); }
+        }
+        ctx.globalCompositeOperation = 'lighter';
+        if (cfg.moon > 0.02) {
+          const m = cfg.moon, gs = 300 * kS;
+          ctx.globalAlpha = m * 0.45; ctx.drawImage(sprMoon, moon.x - gs / 2, moon.y - gs / 2, gs, gs);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 0.35 + 0.65 * m; ctx.fillStyle = '#eef2ff';
+          ctx.beginPath(); ctx.arc(moon.x, moon.y, moon.r, 0, TAU); ctx.fill();
+          ctx.fillStyle = 'rgba(150,160,190,.35)';
+          ctx.beginPath(); ctx.arc(moon.x - moon.r * 0.3, moon.y - moon.r * 0.2, moon.r * 0.28, 0, TAU); ctx.arc(moon.x + moon.r * 0.35, moon.y + moon.r * 0.25, moon.r * 0.2, 0, TAU); ctx.fill();
+          ctx.globalCompositeOperation = 'lighter';
+        }
+        if (cfg.poll > 0.01) {
+          const pg = ctx.createLinearGradient(0, hor - H * 0.35, 0, hor);
+          pg.addColorStop(0, 'rgba(255,150,60,0)'); pg.addColorStop(1, `rgba(255,150,60,${(cfg.poll * 0.35).toFixed(3)})`);
+          ctx.globalAlpha = 1; ctx.fillStyle = pg; ctx.fillRect(0, hor - H * 0.35, W, H * 0.35);
+        }
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        ctx.drawImage(farL.c, 0, 0, W, H);
+
+        /* traînées (pose longue) */
+        if (cfg.trail > 0.01) {
+          tg.globalCompositeOperation = 'destination-out'; tg.globalAlpha = 1;
+          tg.fillStyle = `rgba(0,0,0,${clamp(dt * (0.18 + (1 - cfg.trail) * 6), 0, 1).toFixed(3)})`; tg.fillRect(0, 0, W, H);
+          tg.globalCompositeOperation = 'lighter';
+          for (const f of F) {
+            if (f.st === 'perche') continue;
+            const b = bright(f);
+            if (b > 0.08) {
+              tg.strokeStyle = css(SPC[f.sp].col, (b * 0.75).toFixed(3)); tg.lineWidth = (1 + 2.2 * f.z) * kS;
+              tg.beginPath(); tg.moveTo(f.lx, f.ly); tg.lineTo(f.x + 0.01, f.y); tg.stroke();
+            }
+          }
+        }
+        for (const f of F) { f.lx = f.x; f.ly = f.y; }
+
+        ctx.globalCompositeOperation = 'lighter';
+        for (const f of F) if (f.st !== 'perche' && f.z < 0.6) { const b = bright(f); if (b > 0.02) drawGlow(f, b); }
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        ctx.drawImage(midL.c, 0, 0, W, H);
+        ctx.globalCompositeOperation = 'lighter';
+        if (nP) {
+          let sb = 0;
+          for (const f of F) if (f.sp === 'pteroptyx') sb += bright(f);
+          const fr = sb / nP;
+          if (fr > 0.02) { const s = H * 0.75; ctx.globalAlpha = Math.min(1, fr * 0.5 * Math.min(1, nP / 150)) * (env.doux ? 0.25 : 1); ctx.drawImage(SPR.pteroptyx, tree.cx - s / 2, tree.cy - s / 2, s, s); }
+        }
+        for (const f of F) if (f.sp === 'pteroptyx' || (f.st !== 'perche' && f.z >= 0.6)) { const b = bright(f); if (b > 0.02) drawGlow(f, b); }
+        ctx.globalAlpha = 1;
+        if (cfg.trail > 0.01) ctx.drawImage(TL.c, 0, 0, W, H);
+
+        /* herbes */
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        ctx.fillStyle = '#010205';
+        ctx.beginPath();
+        for (const b of blades) {
+          ctx.moveTo(b.x - b.w, H + 2);
+          ctx.quadraticCurveTo(b.cx - b.w * 0.4, b.cy, b.tx, b.ty);
+          ctx.quadraticCurveTo(b.cx + b.w * 0.4, b.cy, b.x + b.w, H + 2);
+        }
+        ctx.fill();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const f of F) if (f.blade >= 0) { const b = bright(f); if (b > 0.02) drawGlow(f, b, f.sp === 'lampyris' ? 0.7 : 1); }
+        for (const f of F) {
+          const b = bright(f);
+          if (b < 0.15 || f.z < 0.6 || f.y < hor) continue;
+          const s = 190 * f.z * kS;
+          ctx.globalAlpha = b * 0.09 * (env.doux ? 0.25 : 1); ctx.drawImage(SPR[f.sp], f.x - s / 2, f.y - s / 2, s, s);
+        }
+        for (let i = sigs.length - 1; i >= 0; i--) {
+          const s = sigs[i];
+          s.a += dt;
+          const b = s.a < 0.1 ? s.a / 0.1 : Math.exp(-(s.a - 0.1) / 0.28);
+          if (s.a > 2) { sigs.splice(i, 1); continue; }
+          const z = (14 + 70 * b) * kS;
+          ctx.globalAlpha = Math.min(1, b); ctx.drawImage(sprSig, s.x - z / 2, s.y - z / 2, z, z);
+          ctx.drawImage(sprCore, s.x - 4, s.y - 4, 8, 8);
+        }
+        if (torch.on) {
+          const s = torch.r * 3.2;
+          ctx.globalAlpha = 0.5; ctx.drawImage(sprTorch, torch.x - s / 2, torch.y - s / 2, s, s);
+          ctx.globalAlpha = 0.9; ctx.drawImage(sprCore, torch.x - 10, torch.y - 10, 20, 20);
+        }
+      }
 
       return {
         frame(tt, dt) {
@@ -475,99 +934,8 @@
           }
           if (label) { label.t -= dt; if (label.t <= 0) label = null; }
 
-          /* ciel */
-          const top = mix([3, 5, 14], [16, 26, 56], cfg.moon), hz = mix(mix([12, 16, 38], [38, 50, 88], cfg.moon), [130, 74, 34], cfg.poll * 0.8);
-          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-          const sg = ctx.createLinearGradient(0, 0, 0, hor);
-          sg.addColorStop(0, css(top, 1)); sg.addColorStop(0.65, css(mix(top, hz, 0.5), 1)); sg.addColorStop(1, css(hz, 1));
-          ctx.fillStyle = sg; ctx.fillRect(0, 0, W, hor + 4);
-          const sa = Math.max(0, 1 - cfg.moon * 0.65 - cfg.poll * 0.85);
-          if (sa > 0.02) {
-            ctx.fillStyle = '#e8eeff';
-            for (const s of stars) { ctx.globalAlpha = sa * (0.5 + 0.5 * Math.sin(VT * s.sp + s.ph)) * Math.min(1, s.r); ctx.fillRect(s.x, s.y, s.r, s.r); }
-          }
-          ctx.globalCompositeOperation = 'lighter';
-          if (cfg.moon > 0.02) {
-            const m = cfg.moon, gs = 300 * kS;
-            ctx.globalAlpha = m * 0.45; ctx.drawImage(sprMoon, moon.x - gs / 2, moon.y - gs / 2, gs, gs);
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.globalAlpha = 0.35 + 0.65 * m; ctx.fillStyle = '#eef2ff';
-            ctx.beginPath(); ctx.arc(moon.x, moon.y, moon.r, 0, TAU); ctx.fill();
-            ctx.fillStyle = 'rgba(150,160,190,.35)';
-            ctx.beginPath(); ctx.arc(moon.x - moon.r * 0.3, moon.y - moon.r * 0.2, moon.r * 0.28, 0, TAU); ctx.arc(moon.x + moon.r * 0.35, moon.y + moon.r * 0.25, moon.r * 0.2, 0, TAU); ctx.fill();
-            ctx.globalCompositeOperation = 'lighter';
-          }
-          if (cfg.poll > 0.01) {
-            const pg = ctx.createLinearGradient(0, hor - H * 0.35, 0, hor);
-            pg.addColorStop(0, 'rgba(255,150,60,0)'); pg.addColorStop(1, `rgba(255,150,60,${(cfg.poll * 0.35).toFixed(3)})`);
-            ctx.globalAlpha = 1; ctx.fillStyle = pg; ctx.fillRect(0, hor - H * 0.35, W, H * 0.35);
-          }
-          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-          ctx.drawImage(farL.c, 0, 0, W, H);
+          if (gfx && !gfx.lost) gfx.draw(dt, nP); else draw2D(dt, nP);
 
-          /* traînées (pose longue) */
-          if (cfg.trail > 0.01) {
-            tg.globalCompositeOperation = 'destination-out'; tg.globalAlpha = 1;
-            tg.fillStyle = `rgba(0,0,0,${clamp(dt * (0.18 + (1 - cfg.trail) * 6), 0, 1).toFixed(3)})`; tg.fillRect(0, 0, W, H);
-            tg.globalCompositeOperation = 'lighter';
-            for (const f of F) {
-              if (f.st === 'perche') continue;
-              const b = bright(f);
-              if (b > 0.08) {
-                tg.strokeStyle = css(SPC[f.sp].col, (b * 0.75).toFixed(3)); tg.lineWidth = (1 + 2.2 * f.z) * kS;
-                tg.beginPath(); tg.moveTo(f.lx, f.ly); tg.lineTo(f.x + 0.01, f.y); tg.stroke();
-              }
-            }
-          }
-          for (const f of F) { f.lx = f.x; f.ly = f.y; }
-
-          ctx.globalCompositeOperation = 'lighter';
-          for (const f of F) if (f.st !== 'perche' && f.z < 0.6) { const b = bright(f); if (b > 0.02) drawGlow(f, b); }
-          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-          ctx.drawImage(midL.c, 0, 0, W, H);
-          ctx.globalCompositeOperation = 'lighter';
-          if (nP) {
-            let sb = 0;
-            for (const f of F) if (f.sp === 'pteroptyx') sb += bright(f);
-            const fr = sb / nP;
-            if (fr > 0.02) { const s = H * 0.75; ctx.globalAlpha = Math.min(1, fr * 0.5 * Math.min(1, nP / 150)); ctx.drawImage(SPR.pteroptyx, tree.cx - s / 2, tree.cy - s / 2, s, s); }
-          }
-          for (const f of F) if (f.sp === 'pteroptyx' || (f.st !== 'perche' && f.z >= 0.6)) { const b = bright(f); if (b > 0.02) drawGlow(f, b); }
-          ctx.globalAlpha = 1;
-          if (cfg.trail > 0.01) ctx.drawImage(TL.c, 0, 0, W, H);
-
-          /* herbes */
-          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-          ctx.fillStyle = '#010205';
-          ctx.beginPath();
-          for (const b of blades) {
-            ctx.moveTo(b.x - b.w, H + 2);
-            ctx.quadraticCurveTo(b.cx - b.w * 0.4, b.cy, b.tx, b.ty);
-            ctx.quadraticCurveTo(b.cx + b.w * 0.4, b.cy, b.x + b.w, H + 2);
-          }
-          ctx.fill();
-          ctx.globalCompositeOperation = 'lighter';
-          for (const f of F) if (f.blade >= 0) { const b = bright(f); if (b > 0.02) drawGlow(f, b, f.sp === 'lampyris' ? 0.7 : 1); }
-          for (const f of F) {
-            const b = bright(f);
-            if (b < 0.15 || f.z < 0.6 || f.y < hor) continue;
-            const s = 190 * f.z * kS;
-            ctx.globalAlpha = b * 0.09; ctx.drawImage(SPR[f.sp], f.x - s / 2, f.y - s / 2, s, s);
-          }
-          for (let i = sigs.length - 1; i >= 0; i--) {
-            const s = sigs[i];
-            s.a += dt;
-            const b = s.a < 0.1 ? s.a / 0.1 : Math.exp(-(s.a - 0.1) / 0.28);
-            if (s.a > 2) { sigs.splice(i, 1); continue; }
-            const z = (14 + 70 * b) * kS;
-            ctx.globalAlpha = Math.min(1, b); ctx.drawImage(sprSig, s.x - z / 2, s.y - z / 2, z, z);
-            ctx.drawImage(sprCore, s.x - 4, s.y - 4, 8, 8);
-          }
-          if (torch.on) {
-            const s = torch.r * 3.2;
-            ctx.globalAlpha = 0.5; ctx.drawImage(sprTorch, torch.x - s / 2, torch.y - s / 2, s, s);
-            ctx.globalAlpha = 0.9; ctx.drawImage(sprCore, torch.x - 10, torch.y - 10, 20, 20);
-          }
           ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
           if (cfg.dialog) {
             ctx.setLineDash([2, 5]); ctx.lineWidth = 1;
@@ -613,7 +981,7 @@
           }
         },
         up() { torch.on = false; this._mode = null; },
-        dispose() { drones.forEach((d) => d.stop()); timers.forEach(clearTimeout); },
+        dispose() { drones.forEach((d) => d.stop()); timers.forEach(clearTimeout); if (gfx) gfx.lose(); },
         livePaused: true,
         clear: clearAll,
         ui() {
@@ -638,6 +1006,8 @@
           L.push({ type: 'section', label: 'Affichage' });
           L.push({ type: 'slider', label: 'Pose longue', min: 0, max: 1, step: 0.02, value: cfg.trail, fmt: (v) => (v < 0.01 ? 'désactivée' : Math.round(v * 100) + ' %'), set: (v) => { cfg.trail = v; } });
           L.push({ type: 'toggle', label: 'Montrer les dialogues', value: cfg.dialog, set: (v) => { cfg.dialog = v; } });
+          L.push({ type: 'toggle', label: 'Couleurs pour reconnaître les espèces', value: !!cfg.fausses, set: (v) => { cfg.fausses = v; } });
+          if (cfg.fausses) L.push({ type: 'note', text: 'Fausses couleurs : en vrai, toutes ces lucioles brillent d’un jaune-vert presque identique (de 552 à 565 nm). Elles se reconnaissent à leur rythme.' });
           return L;
         },
       };

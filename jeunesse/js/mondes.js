@@ -6,7 +6,7 @@
   const FJ = (window.FJ = window.FJ || {});
   FJ.QUESTIONS = [
     // le vivant s'organise
-    { id: 'insectes', q: 'Comment les insectes se parlent-ils ?', icone: 'insecte', chapitres: [['lucioles', 'nuit'], ['lucioles', 'vallee'], ['fourmis', 'decouverte'], ['lucioles', 'mangrove'], ['fourmis', 'pont'], ['lucioles', 'dialogues'], ['fourmis', 'societes']] },
+    { id: 'insectes', q: 'Comment les insectes se parlent-ils ?', icone: 'insecte', chapitres: [['lucioles', 'nuit'], ['abeilles', 'fretillante'], ['fourmis', 'decouverte'], ['lucioles', 'vallee'], ['abeilles', 'ronde'], ['fourmis', 'pont'], ['lucioles', 'mangrove'], ['abeilles', 'journee'], ['lucioles', 'dialogues'], ['fourmis', 'societes']] },
     { id: 'nuee', q: 'Qui commande une nuée de milliers d’oiseaux ?', machines: ['boids'] },
     { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['mycelium', 'ronds'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
     { id: 'abysses', q: 'Pourquoi tant d’animaux des profondeurs brillent-ils ?', machines: ['meduses'] },
@@ -47,7 +47,9 @@
   // une question sans liste explicite : toutes les scènes de ses machines (les fiches sont chargées après ce fichier)
   FJ.chapitresDe = (q) => {
     if (!q) return [];
-    if (q.chapitres) return q.chapitres.filter(([m, s]) => FJ.META[m] && (!s || !FJ.META[m].scenes || FJ.META[m].scenes[s]));
+    // un chapitre n'existe que si sa machine et sa fiche sont chargées (une machine en cours de rendu peut manquer)
+    const charge = (m) => FJ.META[m] && (!window.FASC || window.FASC.some((d) => d.id === m));
+    if (q.chapitres) return q.chapitres.filter(([m, s]) => charge(m) && (!s || !FJ.META[m].scenes || FJ.META[m].scenes[s]));
     const out = [];
     for (const m of q.machines || []) {
       const sc = (FJ.META[m] && FJ.META[m].scenes) || {};

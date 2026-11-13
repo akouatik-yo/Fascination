@@ -79,9 +79,9 @@ const sac = await T(() => {
   const s = window.FJ.Sac(ids, st); const seq = [];
   for (let i = 0; i < 64; i++) { const id = s.suivant(); seq.push(id); s.vu(id); }
   let rep = 0; for (let i = 0; i < seq.length; i++) if (seq.slice(Math.max(0, i - 6), i).includes(seq[i])) rep++;
-  return { rep, distincts: new Set(seq).size };
+  return { rep, distincts: new Set(seq).size, attendu: new Set(ids).size };
 });
-verif('le sac : aucune répétition dans les 6 dernières, toutes les machines passent', sac.rep === 0 && sac.distincts === 32, sac);
+verif('le sac : aucune répétition dans les 6 dernières, toutes les machines passent', sac.rep === 0 && sac.distincts === sac.attendu, sac);   // toutes les machines des questions (32 au départ, plus les nouvelles)
 
 // 5. contextes WebGL
 const n = await T(async () => {

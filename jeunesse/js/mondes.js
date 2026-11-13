@@ -12,7 +12,7 @@
     { id: 'abysses', q: 'Pourquoi tant d’animaux des profondeurs brillent-ils ?', machines: ['meduses'] },
     { id: 'vie', q: 'Comment des règles simples font-elles naître des formes qui bougent ?', machines: ['vie'] },
     // la Terre et le ciel
-    { id: 'lave', q: 'Pourquoi la cire monte-t-elle, puis redescend-elle ?', machines: ['lave'] },
+    { id: 'lave', q: 'Que se passe-t-il quand on chauffe par en dessous ?', icone: 'flamme', chapitres: [['lave', 'lampe'], ['lave', 'volcan'], ['lave', 'benard'], ['lave', 'coupe'], ['lave', 'pointchaud'], ['lave', 'soleil']] },
     { id: 'ciel', q: 'Pourquoi le ciel est-il bleu, et le couchant rouge ?', machines: ['ciel'] },
     { id: 'foudre', q: 'Pourquoi un éclair fait-il des zigzags ?', machines: ['foudre'] },
     { id: 'eau', q: 'Pourquoi des filets de lumière dansent-ils au fond de l’eau ?', machines: ['eau'] },

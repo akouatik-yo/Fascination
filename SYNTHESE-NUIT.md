@@ -8,11 +8,11 @@
   - certaines machines écrivent encore à l'écran des légendes techniques (en petites capitales monospace), même pour les 5 ans ;
   - en rendu logiciel, le Feu démarre en braises. À vérifier sur ta tablette.
 
-**Machines refaites et intégrées** : les **Lucioles** (vraies couleurs, mode doux), le **Cristal** (flocon transparent) et le **Ciel** (ajouté vers 13 h 30, vitesse stable). Les autres attendent :
-- les **Bulles** sont intégrées depuis 13 h 40 (coût constant, au niveau de l'original) ;
-- l'**Eau** est intégrée depuis 13 h 50 (eau peu profonde expliquée, vue de dessus éclairée d'en haut) ;
-- la **Lampe à lave avec les volcans** attend deux corrections ;
-- la **Danse des abeilles** attend ses mesures.
+**Machines refaites et intégrées** (toutes relues en science et mesurées sans déclin) :
+- **Lucioles** et **Cristal** ;
+- **Ciel**, **Bulles** et **Eau** (vers 13 h 30-13 h 50) ;
+- **la Lampe à lave avec les volcans et la Terre en coupe** (question « Que se passe-t-il quand on chauffe par en dessous ? ») ;
+- **la Danse des abeilles** (dans « Comment les insectes se parlent-ils ? »), vers 14 h.
 
 
 Session Fascinations, chef de projet et garant de la science. **Rien n'est sur `main` depuis la fusion de 0 h 40.** Tout est sur `jeunesse`, et l'application unique sur `app-unique` (voir `POUR-YOANN.md`). Le travail s'est arrêté de 1 h 46 à 5 h 10 (limite d'usage).

@@ -422,7 +422,9 @@ void main(){
     function render() {
       if (R.perdu) { if (R.gl.isContextLost()) return; try { construire(); } catch (e) { return; } }
       const sx = R.sx, cw = R.cw, ch = R.ch;
-      const bare = env.decor === false, ink = bare && env.theme === 'light', v = view();
+      // sans décor, le fond reste sombre même en thème clair : un film qui ne renvoie que quelques % de la lumière
+      // serait invisible sur un fond crème (c'est vrai aussi d'une vraie bulle devant un mur blanc)
+      const bare = env.decor === false, ink = false, v = view();
       const fen = FEN[cfg.scene], fc = fen.c, nf = Math.hypot(fc[0], fc[1], fc[2]);
       R.debut(lastDt);
       const commun = (Pg) => Pg.t('uFilm', lutT).t('uMarbre', marT).f('uT', T).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uScint', env.doux ? 0.5 : 1)

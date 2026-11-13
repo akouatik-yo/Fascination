@@ -14,7 +14,7 @@
   const { TAU, clamp, rnd } = window.FK;
   const FKR = window.FKR;
   const fr = (x, d = 1) => x.toFixed(d).replace('.', ',');
-  const MAXB = 12;
+  const MAXB = 12, MAXV = 8; // MAXV : bulles à l'écran au plus (plafond de coût)
   const LUTN = 2048; // table du film : un texel par nanomètre de chemin optique e·cos θt, de 0 à 2 048 nm
 
   // ── la table des couleurs du film (filmMince de FKR), calculée une fois ──
@@ -48,7 +48,7 @@ void main(){
   const COMMUN = `
 uniform sampler2D uFilm, uMarbre;
 uniform float uT, uDecor, uInk, uScint;
-uniform vec3 uFenC; uniform vec4 uFenT; uniform vec3 uLampe, uSalleB, uSalleH; uniform float uCentre;
+uniform vec3 uFenC, uFenX, uFenY; uniform vec4 uFenT; uniform vec3 uLampe, uSalleB, uSalleH; uniform float uCentre;
 const float NF = 1.33;
 // réflectance d'un film d'épaisseur e (nm), vu sous une incidence de cosinus ci : les couleurs d'interférence (filmMince,
 // au chemin optique e·cos θt) × le Fresnel exact d'une face, borné comme la formule d'Airy (miroir en incidence rasante)
@@ -68,7 +68,7 @@ vec3 piece(vec3 d, float kf){
   if (uDecor < .5) return vec3(uInk > .5 ? 9. : 14.);   // sans décor : une lumière blanche uniforme, seul le phénomène reste
   bool croisee = uFenT.z > .5;
   vec3 c = mix(uSalleB, uSalleH, smoothstep(croisee ? -.7 : -.8, .9, d.y)) * mix(1., uCentre, smoothstep(.3, .9, d.z));
-  vec3 ax = normalize(cross(vec3(0., 1., 0.), uFenC)), ay = cross(uFenC, ax);
+  vec3 ax = uFenX, ay = uFenY;
   float k = dot(d, uFenC);
   if (k > .05){
     vec2 w = vec2(dot(d, ax), dot(d, ay)) / k, u = abs(w) / uFenT.xy;
@@ -84,11 +84,13 @@ vec3 piece(vec3 d, float kf){
       c += kf * uFenT.w * f * (.8 + .25 * w.y / uFenT.y) * vec3(.98, .99, 1.);
       c += uFenT.w * .25 / (1. + bord * bord * 1.4);       // le mur et le plafond, éclairés par la fenêtre
       // un coin de soleil dans la fenêtre : un éclat très lumineux, assez large pour baver dans le halo
-      c += kf * uScint * uFenT.w * 4. * pow(max(dot(d, normalize(uFenC + .4 * uFenT.x * ax + .5 * uFenT.y * ay)), 0.), 260.);
+      if (uScint > 0.) c += kf * uScint * uFenT.w * 4. * pow(max(dot(d, normalize(uFenC + .4 * uFenT.x * ax + .5 * uFenT.y * ay)), 0.), 260.);
     }
   }
-  c += uLampe * pow(max(dot(d, normalize(vec3(.94, .2, -.26))), 0.), 22.);
-  c += uLampe * .06 * pow(max(dot(d, normalize(vec3(-.9, .1, -.35))), 0.), 6.) * vec3(.6, .75, 1.);
+  if (uLampe.r > 0.){
+    c += uLampe * pow(max(dot(d, normalize(vec3(.94, .2, -.26))), 0.), 22.);
+    c += uLampe * .06 * pow(max(dot(d, normalize(vec3(-.9, .1, -.35))), 0.), 6.) * vec3(.6, .75, 1.);
+  }
   return c;
 }
 // le fond vu directement : bleu nuit lumineux, plus clair en haut, une lueur douce au centre (uv : 0..1, y en haut)
@@ -105,25 +107,11 @@ float tourb(vec3 n, float rot, float graine){
 
   // bulles en vue de face : sphères analytiques, deux faces (reflet droit devant, renversé derrière), film, Fresnel
   const FS_BUB = FKR.fs(['couleur', 'bruit', 'lumiere'], COMMUN + `
-uniform vec2 uRes; uniform int uN; uniform vec4 uB[${MAXB}]; uniform vec4 uB2[${MAXB}]; uniform vec4 uB3[${MAXB}];
+uniform vec2 uRes; uniform sampler2D uFond; uniform int uN; uniform vec4 uB[${MAXB}]; uniform vec4 uB2[${MAXB}]; uniform vec4 uB3[${MAXB}];
 out vec4 o;
-// le fond : la pièce sombre derrière les bulles, et quelques lueurs lointaines, floues (profondeur de champ)
-vec3 fond(vec2 uv){
-  if (uDecor < .5) return vec3(0.);
-  float a = uRes.x / uRes.y;
-  vec3 c = nuit(uv);
-  for (int i = 0; i < 6; i++){
-    float fi = float(i);
-    vec2 p = vec2(fract(sin(fi * 12.9 + 3.) * 437.) * a, .25 + .6 * fract(sin(fi * 7.3 + 1.) * 91.));
-    float r = .05 + .07 * fract(sin(fi * 3.1) * 51.), dd = length(vec2(uv.x * a, uv.y) - p);
-    vec3 tc = mod(fi, 3.) < 1. ? vec3(1., .62, .3) : (mod(fi, 3.) < 2. ? vec3(.45, .6, 1.) : vec3(.8, .85, .7));
-    c += tc * .02 * smoothstep(r, r * .82, dd) * (.7 + .3 * smoothstep(r * .5, r, dd));
-  }
-  return c;
-}
 void main(){
   vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
-  vec3 col = fond(vUv);
+  vec3 col = texture(uFond, vUv).rgb * uDecor;   // le fond est statique : calculé une fois (FS_FOND)
   vec3 v = vec3(0., 0., -1.);
   for (int i = 0; i < ${MAXB}; i++){
     if (i >= uN) break;
@@ -158,9 +146,56 @@ void main(){
   o = vec4(col, 1.);
 }`);
 
-  // film vertical dans un cadre de fil d'acier : épaisseur en coin qui s'amincit, tourbillons, film noir en haut
-  const FS_FRAME = FKR.fs(['couleur', 'bruit', 'lumiere', 'formes'], COMMUN + `
-uniform vec2 uRes; uniform vec4 uBox; uniform float uAge, uSwirl, uFil; uniform int uNV; uniform vec4 uV[8];
+  // le fond des bulles, statique : calculé une seule fois dans une texture (il coûtait autant que les bulles, à chaque image)
+  const FS_FOND = FKR.fs(['couleur', 'bruit', 'lumiere'], COMMUN + `
+uniform vec2 uRes; out vec4 o;
+// le fond : la pièce sombre derrière les bulles, et quelques lueurs lointaines, floues (profondeur de champ)
+vec3 fond(vec2 uv){
+  if (uDecor < .5) return vec3(0.);
+  float a = uRes.x / uRes.y;
+  vec3 c = nuit(uv);
+  for (int i = 0; i < 6; i++){
+    float fi = float(i);
+    vec2 p = vec2(fract(sin(fi * 12.9 + 3.) * 437.) * a, .25 + .6 * fract(sin(fi * 7.3 + 1.) * 91.));
+    float r = .05 + .07 * fract(sin(fi * 3.1) * 51.), dd = length(vec2(uv.x * a, uv.y) - p);
+    vec3 tc = mod(fi, 3.) < 1. ? vec3(1., .62, .3) : (mod(fi, 3.) < 2. ? vec3(.45, .6, 1.) : vec3(.8, .85, .7));
+    c += tc * .02 * smoothstep(r, r * .82, dd) * (.7 + .3 * smoothstep(r * .5, r, dd));
+  }
+  return c;
+}
+void main(){ o = vec4(fond(vUv), 1.); }`);
+
+  // film vertical dans un cadre : épaisseur en coin qui s'amincit, tourbillons, film noir en haut. Calculé en
+  // demi-résolution (plafond de coût : le film est lisse) ; la passe suivante pose le fond, le bord exact et le fil, nets
+  const FS_FILM = FKR.fs(['couleur', 'bruit', 'lumiere'], COMMUN + `
+uniform vec2 uRes; uniform vec4 uBox; uniform float uAge, uSwirl; uniform int uNV; uniform vec4 uV[8];
+out vec4 o;
+void main(){
+  vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
+  vec2 p = (px - uBox.xy) / uBox.zw;                    // 0..1 dans le cadre (y vers le bas)
+  vec2 q = abs(p - .5) - .5;
+  if (max(q.x, q.y) * uBox.z > 3.){ o = vec4(0., 0., 0., 1.); return; }   // hors du cadre (avec une marge pour le filtrage)
+  // déformation par des tourbillons qui dérivent (Marangoni, convection de l'air)
+  vec2 w = p;
+  for (int k = 0; k < 3; k++){ float s = float(k); w += uSwirl * .045 * texture(uMarbre, w * (.5 + .3 * s) + vec2(uT * .004 * (1. + s), s * .37 - uT * .003)).gb * (1. + s); }
+  // régénération marginale : le long des bords verticaux, des lames plus minces remontent en panaches
+  float mr = exp(-min(p.x, 1. - p.x) / .05) * uSwirl;
+  w.y += mr * .06 * texture(uMarbre, vec2(p.x * 2.1, p.y * .7 + uT * .012)).r;
+  for (int i = 0; i < 8; i++){ if (i >= uNV) break; vec4 v = uV[i]; vec2 d = w - v.xy; float r2 = dot(d, d); float a = v.z * exp(-r2 / .012); w = v.xy + mat2(cos(a), -sin(a), sin(a), cos(a)) * d; }
+  // épaisseur : quelques nm en haut, plus d'un micron en bas ; tout s'amincit avec le temps
+  float d = 1150. * pow(clamp(w.y, 0., 1.), 1.15) / (1. + uAge * .08) + 30. * texture(uMarbre, w * 2.3 + uT * .003).a;
+  d = max(0., d - 22. * smoothstep(.0, 1., uAge / 25.));
+  // bord de Plateau : le liquide se rassemble le long du fil (ménisque), surtout en bas où il s'écoule
+  float dist = max(-max(q.x * uBox.z, q.y * uBox.w), 0.) / uBox.z;
+  d += 2400. * exp(-dist / .007) + 2400. * exp(-(1. - p.y) * uBox.w / uBox.z / .02);
+  // ce que le film reflète : une grande fenêtre en face de lui (derrière l'observateur), un peu plus haut
+  vec3 rd = normalize(vec3((p.x - .5) * .42, -(p.y - .5) * .42 * uBox.w / uBox.z, 1.));
+  vec3 Rf = reflFilm(d, .99);
+  o = vec4(Rf * piece(rd, 1.), 1. - luminance(Rf));
+}`);
+  // le fond, le film (lu en demi-résolution, bord exact) et le cadre de fil d'acier avec son manche, en pleine résolution
+  const FS_FRAME = FKR.fs(['couleur', 'bruit', 'lumiere'], COMMUN + `
+uniform vec2 uRes; uniform vec4 uBox; uniform float uFil; uniform sampler2D uDemi;
 out vec4 o;
 float sdB(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.)) + min(max(d.x, d.y), 0.); }
 // un fil de métal (cylindre) : s = position en travers (−1 à 1), g = direction en travers (px, y vers le bas)
@@ -174,28 +209,12 @@ vec3 fil(float s, vec2 g){
 void main(){
   vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
   vec2 ctr = uBox.xy + .5 * uBox.zw, hb = .5 * uBox.zw;
-  vec2 p = (px - uBox.xy) / uBox.zw;                    // 0..1 dans le cadre (y vers le bas)
   vec3 col = nuit(vUv);
   float sd = sdB(px - ctr, hb);
   if (sd < 1.){
     float cov = smoothstep(1., -1., sd);
-    // déformation par des tourbillons qui dérivent (Marangoni, convection de l'air)
-    vec2 w = p;
-    for (int k = 0; k < 3; k++){ float s = float(k); w += uSwirl * .045 * texture(uMarbre, w * (.5 + .3 * s) + vec2(uT * .004 * (1. + s), s * .37 - uT * .003)).gb * (1. + s); }
-    // régénération marginale : le long des bords verticaux, des lames plus minces remontent en panaches
-    float mr = exp(-min(p.x, 1. - p.x) / .05) * uSwirl;
-    w.y += mr * .06 * texture(uMarbre, vec2(p.x * 2.1, p.y * .7 + uT * .012)).r;
-    for (int i = 0; i < 8; i++){ if (i >= uNV) break; vec4 v = uV[i]; vec2 d = w - v.xy; float r2 = dot(d, d); float a = v.z * exp(-r2 / .012); w = v.xy + mat2(cos(a), -sin(a), sin(a), cos(a)) * d; }
-    // épaisseur : quelques nm en haut, plus d'un micron en bas ; tout s'amincit avec le temps
-    float d = 1150. * pow(clamp(w.y, 0., 1.), 1.15) / (1. + uAge * .08) + 30. * texture(uMarbre, w * 2.3 + uT * .003).a;
-    d = max(0., d - 22. * smoothstep(.0, 1., uAge / 25.));
-    // bord de Plateau : le liquide se rassemble le long du fil (ménisque), surtout en bas où il s'écoule
-    float dist = max(-sd, 0.) / uBox.z;
-    d += 2400. * exp(-dist / .007) + 2400. * exp(-(1. - p.y) * uBox.w / uBox.z / .02);
-    // ce que le film reflète : une grande fenêtre en face de lui (derrière l'observateur), un peu plus haut
-    vec3 rd = normalize(vec3((p.x - .5) * .42, -(p.y - .5) * .42 * uBox.w / uBox.z, 1.));
-    vec3 Rf = reflFilm(d, .99);
-    col = col * mix(1., 1. - luminance(Rf), cov) + Rf * piece(rd, 1.) * cov;
+    vec4 f = texture(uDemi, vUv);                       // le film, calculé en demi-résolution
+    col = col * mix(1., f.a, cov) + f.rgb * cov;
   }
   if (uDecor > .5){
     // le cadre et son manche, en fil d'acier
@@ -242,12 +261,12 @@ void main(){
   for (int s = 0; s < 2; s++){
     float zz = s == 0 ? uH : -uH;
     float t = max(c0 - .05, 0.), dmin = 1e9, tmin = 0.;
-    for (int i = 0; i < 120; i++){
+    for (int i = 0; i < 90; i++){
       vec3 p = ro + rd * t; float dd = length(vec2(length(p.xy) - 1., p.z - zz)) - .03;
       if (dd < dmin){ dmin = dd; tmin = t; }
-      bool fin = t > c1 + .05 || i == 119;
+      bool fin = t > c1 + .05 || i == 89;
       if (fin && dmin < .004){ t = tmin; p = ro + rd * t; dd = 0.; }   // rayon rasant : on garde le point le plus proche du tube
-      if (dd < .0012){
+      if (dd < .002){
         if (t < tAnn){
           tAnn = t;
           vec3 n = normalize(p - vec3(normalize(p.xy), zz));
@@ -257,7 +276,7 @@ void main(){
         }
         break;
       }
-      t += max(dd, .0025); if (t > c1 + .05 && dmin >= .004) break;
+      t += max(dd, .004); if (t > c1 + .05 && dmin >= .004) break;
     }
   }
   if (tAnn < 1e8) col = cAnn;
@@ -267,11 +286,11 @@ void main(){
   if (uBroke < .5 && tB > tA){
     // on avance le long du rayon et on repère les changements de signe de F (au plus deux surfaces visibles)
     float t = tA, prev = F(ro + rd * t); int hits = 0;
-    for (int i = 0; i < 160; i++){
+    for (int i = 0; i < 100; i++){
       if (t > tB) break;
       float tn = t + .035; vec3 p = ro + rd * tn; float f = F(p);
       if (sign(f) != sign(prev)){
-        float a = t, b = tn; for (int k = 0; k < 10; k++){ float m = .5 * (a + b); if (sign(F(ro + rd * m)) == sign(prev)) a = m; else b = m; }
+        float a = t, b = tn; for (int k = 0; k < 8; k++){ float m = .5 * (a + b); if (sign(F(ro + rd * m)) == sign(prev)) a = m; else b = m; }
         float th = .5 * (a + b);
         if (th > tB) break;                                   // derrière un anneau (ou hors du volume) : caché
         vec3 h = ro + rd * th;
@@ -341,9 +360,9 @@ void main(){
     let T = 0, label = null, lastDt = 1 / 60;
 
     /* ───────── la cabine FKR : lumière HDR, halo, AgX, grain ───────── */
-    let R, P, lutT, marT, gouttes;
+    let R, P, lutT, marT, fondT, demiT, gouttes;
     function construire() {
-      R = FKR.cabine(env, { halo: 0.06, rayon: 0.7 });
+      R = FKR.cabine(env, { halo: 0.06, rayon: 0.7, echelle: 0.75 }); // plafond de coût : le film est lisse, 0,75 suffit
       const K = R.K, gl = R.gl;
       P = { lut: K.program(FS_LUT), marbre: K.program(FS_MARBRE), bub: K.program(FS_BUB), frame: K.program(FS_FRAME), cat: K.program(FS_CAT) };
       lutT = K.target(LUTN, 1);
@@ -352,6 +371,10 @@ void main(){
       P.marbre.use().f('uP', 4); K.run(P.marbre, marT);
       gl.bindTexture(gl.TEXTURE_2D, marT.tex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      fondT = K.target(R.cw, R.ch);
+      demiT = K.target(Math.ceil(R.cw / 2), Math.ceil(R.ch / 2));
+      P.film = K.program(FS_FILM);
+      P.fond = K.program(FS_FOND); P.fond.use().f('uRes', R.cw, R.ch).f('uDecor', 1); K.run(P.fond, fondT);
       gouttes = R.lot({ forme: 'gauss' });
     }
     construire();
@@ -360,7 +383,7 @@ void main(){
     /* ───────── les bulles ───────── */
     let B = [], drops = [];
     function addBubble(x, y, r) {
-      if (B.length >= MAXB) return;
+      if (B.length >= MAXV) return;
       const m = Math.min(view().w, H);
       B.push({ x, y, r: r || m * rnd(0.16, 0.06), vx: rnd(10, -10), vy: rnd(-5, -20), d0: rnd(850, 520), age: 0, life: rnd(26, 12) * cfg.life, ph: rnd(TAU), seed: rnd(50), pop: 0, px: 0, py: 0, grow: 0 });
     }
@@ -444,16 +467,17 @@ void main(){
       // sans décor, le fond reste sombre même en thème clair : un film qui ne renvoie que quelques % de la lumière
       // serait invisible sur un fond crème (c'est vrai aussi d'une vraie bulle devant un mur blanc)
       const bare = env.decor === false, ink = false, v = view();
-      const fen = FEN[cfg.scene], fc = fen.c, nf = Math.hypot(fc[0], fc[1], fc[2]);
+      const fen = FEN[cfg.scene], fc = fen.c, nf = Math.hypot(fc[0], fc[1], fc[2]), cx = fc[0] / nf, cy = fc[1] / nf, cz = fc[2] / nf;
+      const na = Math.hypot(cz, cx), ax = [cz / na, 0, -cx / na];   // axes du plan de la fenêtre : ax = (0, 1, 0) × c, ay = c × ax
       const sa = SALLE[cfg.scene];
       R.regler({ halo: HALO[cfg.scene] });
       R.debut(lastDt);
-      const commun = (Pg) => Pg.f('uSalleB', sa[0][0], sa[0][1], sa[0][2]).f('uSalleH', sa[1][0], sa[1][1], sa[1][2]).f('uCentre', sa[2]).t('uFilm', lutT).t('uMarbre', marT).f('uT', T).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uScint', env.doux ? 0.5 : 1)
-        .f('uFenC', fc[0] / nf, fc[1] / nf, fc[2] / nf).f('uFenT', fen.t[0], fen.t[1], fen.t[2], fen.t[3]).f('uLampe', LAMPE[0], LAMPE[1], LAMPE[2]);
+      const commun = (Pg) => Pg.f('uSalleB', sa[0][0], sa[0][1], sa[0][2]).f('uSalleH', sa[1][0], sa[1][1], sa[1][2]).f('uCentre', sa[2]).t('uFilm', lutT).t('uMarbre', marT).f('uT', T).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uScint', cfg.scene === 'cadre' ? 0 : env.doux ? 0.5 : 1)
+        .f('uFenC', cx, cy, cz).f('uFenX', ax[0], ax[1], ax[2]).f('uFenY', cy * ax[2] - cz * ax[1], cz * ax[0] - cx * ax[2], cx * ax[1] - cy * ax[0]).f('uFenT', fen.t[0], fen.t[1], fen.t[2], fen.t[3]).f('uLampe', ...(cfg.scene === 'cadre' ? [0, 0, 0] : LAMPE));
       if (cfg.scene === 'bulles') {
         const A = new Float32Array(MAXB * 4), A2 = new Float32Array(MAXB * 4), A3 = new Float32Array(MAXB * 4);
         B.forEach((b, i) => { A.set([b.x * sx, b.y * sx, b.r * sx, thick(b)], i * 4); A2.set([b.ph, b.age, b.pop, b.seed], i * 4); A3.set([b.px, b.py, 0, 0], i * 4); });
-        commun(P.bub.use()).f('uRes', cw, ch).i('uN', B.length).v4('uB', A).v4('uB2', A2).v4('uB3', A3);
+        commun(P.bub.use()).t('uFond', fondT).f('uRes', cw, ch).i('uN', B.length).v4('uB', A).v4('uB2', A2).v4('uB3', A3);
         R.passe(P.bub);
         // les gouttelettes du bord qui se rétracte : de petites perles qui renvoient la fenêtre, en traînées
         gouttes.vider();
@@ -462,8 +486,11 @@ void main(){
       } else if (cfg.scene === 'cadre') {
         const bx = cadreBox();
         const VV = new Float32Array(32); vort.slice(0, 8).forEach((q, i) => VV.set([q.x, q.y, q.s, 0], i * 4));
-        commun(P.frame.use()).f('uRes', cw, ch).f('uBox', bx.x * sx, bx.y * sx, bx.w * sx, bx.h * sx).f('uAge', filmAge).f('uSwirl', cfg.swirl).f('uFil', 3 * sx)
+        const sh = demiT.w / W;   // px css → px de la demi-résolution
+        commun(P.film.use()).f('uRes', demiT.w, demiT.h).f('uBox', bx.x * sh, bx.y * sh, bx.w * sh, bx.h * sh).f('uAge', filmAge).f('uSwirl', cfg.swirl)
           .i('uNV', Math.min(8, vort.length)).v4('uV', VV);
+        R.passe(P.film, demiT);
+        commun(P.frame.use()).t('uDemi', demiT).f('uRes', cw, ch).f('uBox', bx.x * sx, bx.y * sx, bx.w * sx, bx.h * sx).f('uFil', 3 * sx);
         R.passe(P.frame);
       } else {
         const y0 = (env.view && env.view.y0) || 0, Hd = H - y0;

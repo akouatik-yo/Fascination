@@ -258,6 +258,9 @@ void main(){
     };
   }
   const E0 = 20;
+  const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  // un champ d'étoiles (partagé par le ciel et les aurores) : beaucoup de faibles, quelques brillantes
+  const champEtoiles = () => Array.from({ length: 520 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), Math.pow(Math.random(), 3) * 1.4 + 0.25]; });
   const ECHELLE = 0.6;   // fraction de la résolution de travail (tablette, et logiciel sans carte graphique) ; les textes restent nets (2D)
   const FOND = window.FKR ? window.FKR.couleur.deCss(window.FKR.FONDS.defaut) : [0.0015, 0.0018, 0.003];
   function atmosphere(R, sc) {
@@ -539,7 +542,7 @@ void main(){
     const lueurs = R.lot({ forme: 'gauss' });
     let C = null, dirty = true, cle = '', expo = 1, T = 0, dir = -1, info = null, tSonde = -1e9, cleSonde = '', force = true;
     const cad = cadence();
-    const stars = Array.from({ length: 260 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), rnd(1.6, 0.5)]; });
+    const stars = champEtoiles();
     const drag = dragSun(env, 'el', -18, 60);
     const drones = [];
     if (au) drones.push(au.drone(110, 'sine', 0.012), au.drone(164.8, 'sine', 0.007));
@@ -588,12 +591,17 @@ void main(){
         if (dirty) render();
         const P = info.P;
         R.regler({ expo }).debut(dt);
-        // étoiles quand le ciel s'assombrit (scintillement lent et léger)
-        const dark = keep.planet === 'lune' ? 1 : clamp((-keep.el - 4) / 8, 0, 1);
+        // étoiles quand le ciel s'assombrit : les plus brillantes dès le crépuscule nautique (−6°), toutes à −18° (nuit astronomique) ;
+        // sur la Lune, toutes, en plein jour. Scintillement lent et léger.
+        const lim = keep.planet === 'lune' ? 0.2 : 1.5 - 1.3 * clamp((-keep.el - 6) / 12, 0, 1);
         lueurs.vider();
-        if (dark > 0) {
+        if (keep.planet === 'lune' || keep.el < -5) {
           const tw = env.doux ? 0.1 : 0.22;
-          for (const st of stars) { const p = C.proj(st); if (!p) continue; const v = (2.4 * dark * st[3] * (1 + tw * Math.sin(T * 1.7 + st[3] * 41))) / expo; lueurs.point(p[0], p[1], 0.55 + 0.3 * st[3], v * 0.92, v * 0.96, v); }
+          for (const st of stars) {
+            const w = smoothstep(lim - 0.05, lim + 0.15, st[3]); if (w <= 0) continue;
+            const p = C.proj(st); if (!p) continue;
+            const v = (1.8 * w * st[3] * (1 + tw * Math.sin(T * 1.7 + st[3] * 41))) / expo; lueurs.point(p[0], p[1], 0.5 + 0.25 * st[3], v * 0.92, v * 0.96, v);
+          }
         }
         lueurs.dessiner();
         // le ciel, le soleil (disque grossi trois fois), les nuages et le paysage, éclairés par la lumière du moment
@@ -1172,7 +1180,7 @@ void main(){
     // les raies (FKR) : oxygène vert et rouge, azote bleu-violet ; la palette d'altitude pour la légende
     const cv = FKR.couleur.melange('aurore_verte').rgb, cr = FKR.couleur.melange('aurore_rouge').rgb, cb = FKR.couleur.melange('aurore_bleue').rgb;
     const pal = FKR.palette.aurore(), palCss = [0, 0.2, 0.35, 0.5, 0.7, 0.85, 1].map((t) => [t, FKR.couleur.css(pal(t))]);
-    const stars = Array.from({ length: 520 }, () => { const z = Math.acos(Math.random()), a = rnd(TAU); return [Math.sin(z) * Math.cos(a), Math.sin(z) * Math.sin(a), Math.cos(z), Math.pow(Math.random(), 3) * 1.4 + 0.25]; });
+    const stars = champEtoiles();
     let C = null, cle = '', T = 0, y0 = 0, f0 = 0, force = true;
     const drones = [];
     if (au) drones.push(au.drone(73.4, 'sine', 0.008));

@@ -221,7 +221,7 @@ vec3 ciel(vec3 r){
   vec3 c = mix(uCielH, uCielZ, sqrt(r.z));
   vec2 nn = texture(uNuages, r.xy / (r.z + .1) * .14 + uDerive).rg;
   float s = mix(.6, .3, uCouvert), dens = smoothstep(s, s + .14, nn.r) * smoothstep(0., .1, r.z);
-  vec3 cn = mix(uSunCol * (1.05 + .5 * uSoleil), vec3(.55, .58, .62), uCouvert) * (.78 + .3 * nn.g);
+  vec3 cn = mix(uSunCol * (.85 + .35 * uSoleil), vec3(.55, .58, .62), uCouvert) * (.78 + .3 * nn.g);
   c = mix(c, cn, dens);
   float cs = max(dot(r, uL), 0.);
   return c + uSunCol * uSoleil * (1. - dens * .85) * (pow(cs, 3000.) * 80. + pow(cs, 30.) * .4);
@@ -410,7 +410,7 @@ void main(){
   }
   // couche de fausse couleur, désactivable : l'amplitude moyenne des oscillations (échelle magma)
   // le tirage AgX pâlit les tons moyens : on rend d'avance à la lumière du jour sa couleur (saturation en linéaire, peu coûteuse)
-  if (uMode < .5) col = max(mix(vec3(luminance(col)), col, 1.28), 0.);
+  if (uMode < .5) col = max(mix(vec3(luminance(col)), col, 1.38), 0.);
   if (uMean > .5){ float m = clamp(sqrt(W4.b) * 2.2, 0., 1.); col = mix(col, texture(uLut, vec2(m, .5)).rgb * 1.5, .78); }
   o = vec4(col, 1.);
 }`);
@@ -423,8 +423,9 @@ void main(){
     }
   }
   function paintPond(g, W, H) {
+    // le fond de la mare (sa couleur est stylisée) : une vase olive tapissée d'un film d'algues vertes
     const gr = g.createRadialGradient(W * 0.5, H * 0.5, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.7);
-    gr.addColorStop(0, '#6a5c3c'); gr.addColorStop(0.6, '#7d6c45'); gr.addColorStop(1, '#94815a');
+    gr.addColorStop(0, '#56603a'); gr.addColorStop(0.6, '#646a40'); gr.addColorStop(1, '#7a7a4e');
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
     grain(g, 0, 0, W, H, W * H / 25, 0.18, false);
     grain(g, 0, 0, W, H, W * H / 40, 0.15, true);
@@ -549,7 +550,7 @@ void main(){
   })();
   const SUNCOL = COUL.corpsNoir(5600);                       // la lumière directe du soleil, haut dans le ciel
   const BLEU = COUL.rayleigh();                              // le bleu du ciel : diffusion Rayleigh (∝ λ⁻⁴)
-  const HORIZON = BLEU.map((v, i) => (v * 0.45 + SUNCOL[i] * 0.55) * 1.5);  // vers l'horizon, le ciel pâlit et s'éclaircit
+  const HORIZON = BLEU.map((v, i) => (v * 0.5 + SUNCOL[i] * 0.5) * 1.2);    // vers l'horizon, le ciel pâlit et s'éclaircit
   const LAMPE = COUL.corpsNoir(5000);                        // la lampe de la cuve à ondes : un blanc chaud
   const VERT = [0.04, 0.09, 0.022];                          // une feuille de nénuphar : vert chlorophylle mat (albédo)
   const mixv = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
@@ -684,7 +685,7 @@ void main(){
     }
     mkCab();
     // décalage du fond vu à travers une eau plane, par unité de profondeur (l'œil est debout au bord, en bas de l'écran)
-    const oeil = () => { const v = view(); return [v.cx, H * 1.2, H * 0.36]; };
+    const oeil = () => { const v = view(); return [v.cx, H * 1.2, H * 0.5]; };
     function decalage(x, y) {
       const E = oeil(); let vx = E[0] - x, vy = E[1] - y; const vz = E[2], l = Math.hypot(vx, vy, vz);
       vx /= l; vy /= l;

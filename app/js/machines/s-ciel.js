@@ -138,6 +138,8 @@
     const y0 = o.fish ? view.y0 || 0 : 0, cx = (view.x0 + view.x1) / 2, cy = (y0 + H) / 2, vw = view.x1 - view.x0;
     const C = { cx, cy, fish: !!o.fish, yaw: o.yaw || 0, pitch: o.pitch || 0 };
     C.f = (H / 2) / Math.tan((o.vfov || 90) * D2R / 2);
+    // écran étroit : la focale suit aussi la largeur, pour garder un champ horizontal minimal (l'arc entier à 390 px de large)
+    if (o.hfov) C.f = Math.min(C.f, (vw / 2) / Math.tan(o.hfov * D2R / 2));
     C.rf = Math.min(vw, H - y0) * 0.46;
     const cp = Math.cos(C.pitch), sp = Math.sin(C.pitch), cyw = Math.cos(C.yaw), syw = Math.sin(C.yaw);
     C.F = [cp * cyw, cp * syw, sp]; C.R = [syw, -cyw, 0]; C.U = [-cyw * sp, -syw * sp, cp];
@@ -546,7 +548,7 @@ void main(){
       const v = env.view || { x0: 0, x1: W };
       if (keep.look === 'zenith') return camera(W, H, v, { fish: true });
       // horizon vers les deux tiers bas : surtout du ciel
-      return camera(W, H, v, { yaw: keep.look === 'dos' ? Math.PI : 0, pitch: 24 * D2R, vfov: 80 });
+      return camera(W, H, v, { yaw: keep.look === 'dos' ? Math.PI : 0, pitch: 24 * D2R, vfov: 80, hfov: 70 });
     }
     function render() {
       const P = PLANETS[keep.planet], s = sunVec(keep.el), terre = keep.planet === 'terre';
@@ -806,7 +808,7 @@ void main(){
       vuePrec = keep.view;
       if (k !== cle) {
         cle = k;
-        C = camera(W, H, v, { yaw: Math.PI, pitch: 20 * D2R, vfov: 76 });
+        C = camera(W, H, v, { yaw: Math.PI, pitch: 20 * D2R, vfov: 76, hfov: 96 });
         const P = PLANETS.terre, s = sunVec(keep.rbEl);
         const r = atmo.calc(C, P, s, { haze: 1, alt: 0, oz: P.oz, cone: 50 * D2R });
         // le nuage d'averse assombrit la vue : on expose un peu plus que pour un ciel clair
@@ -982,7 +984,7 @@ void main(){
     }
     function setup() {
       const v = env.view || { x0: 0, x1: W };
-      C = keep.proj === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: clamp(keep.hEl + 10, 25, 55) * D2R, vfov: 100 });
+      C = keep.proj === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: clamp(keep.hEl + 10, 25, 55) * D2R, vfov: 100, hfov: 80 });
       s = sunVec(keep.hEl);
       acc.fill(0); nT = 0;
       const k = [keep.hEl, keep.proj, W, H, v.x0, v.x1].join('|');
@@ -1187,7 +1189,7 @@ void main(){
         force = false;
         if (k !== cle) {
           cle = k;
-          C = keep.auRegard === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: 22 * D2R, vfov: 80 });
+          C = keep.auRegard === 'zenith' ? camera(W, H, v, { fish: true }) : camera(W, H, v, { yaw: 0, pitch: 22 * D2R, vfov: 80, hfov: 70 });
           dec.calc(C, W, H, { oeil: 0.004, sol: lac ? SOLS.terre : SOLS.neige, lac: lac ? 1 : 0, yaw: 0, rangs: lac ? RANGS.ciel : RANGS.halos, diam: 2 * RAYON.terre });
         }
         const oeil = keep.auVision === 'oeil' ? 1 : 0, a = keep.auForce, I = (0.12 + 0.6 * a) * 0.45;

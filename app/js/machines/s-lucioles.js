@@ -1,6 +1,8 @@
 /* Fascination — Les Lucioles · dialogues de lumière dans la nuit d'été */
 (function boot() {
   if (!window.FK) return setTimeout(boot, 12);
+  // gardés d'une construction à l'autre (le mode zen ou une rotation reconstruisent la machine) : rien ne se réinitialise sans demande
+  const keep = { scene: 'nuit', cfg: null };
   const { TAU, clamp, rnd, rint, layer, scale } = window.FK;
   const gauss = () => (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 1.22;
   const css = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
@@ -11,16 +13,42 @@
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     return s.c;
   }
+  // Couleurs vraies : chaque espèce émet une bande d'environ 50 nm autour de son pic (λmax), convertie en couleur par les
+  // fonctions CIE 1931. Toutes sont jaune-vert, à quelques nanomètres près : les espèces se reconnaissent à leur rythme,
+  // pas à leur couleur (c'est ce qu'imitent les femelles Photuris). Les « fausses couleurs », à la demande, aident à les repérer.
+  // Pics retenus (à confirmer) : Photinus vers 562 nm (Lall et al., 1980), Photuris vers 552, Lampyris vers 552, Pteroptyx vers 565.
+  const LMAX = { carolinus: 562, pyralis: 563, photuris: 552, pteroptyx: 565, lampyris: 552 };
+  function bandeLin(pic, fwhm) {
+    if (window.FKR && window.FKR.couleur && window.FKR.couleur.bande) return window.FKR.couleur.bande(pic, fwhm);
+    const g = (x, m, s1, s2) => { const t = (x - m) / (x < m ? s1 : s2); return Math.exp(-0.5 * t * t); };
+    let X = 0, Y = 0, Z = 0;
+    for (let l = 380; l <= 780; l += 2) {
+      const e = Math.exp(-0.5 * Math.pow((l - pic) / (fwhm / 2.3548), 2));
+      X += e * (1.056 * g(l, 599.8, 37.9, 31.0) + 0.362 * g(l, 442.0, 16.0, 26.7) - 0.065 * g(l, 501.1, 20.4, 26.2));
+      Y += e * (0.821 * g(l, 568.8, 46.9, 40.5) + 0.286 * g(l, 530.9, 16.3, 31.1));
+      Z += e * (1.217 * g(l, 437.0, 11.8, 36.0) + 0.681 * g(l, 459.0, 26.0, 13.8));
+    }
+    const c = [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.204 * Y + 1.057 * Z].map((v) => Math.max(0, v));
+    const m = Math.max(c[0], c[1], c[2]) || 1;
+    return c.map((v) => v / m);
+  }
+  const versSRGB = (v) => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055));
   const SPC = {
-    carolinus: { nom: 'Photinus carolinus', fr: 'luciole synchrone', col: [190, 255, 100], rise: 0.05, dec: 0.13 },
-    pyralis: { nom: 'Photinus pyralis', fr: 'luciole « grande ourse »', col: [255, 204, 76], rise: 0.14, dec: 0.3 },
-    photuris: { nom: 'Photuris versicolor', fr: 'luciole femme fatale', col: [110, 255, 196], rise: 0.05, dec: 0.12 },
-    pteroptyx: { nom: 'Pteroptyx malaccae', fr: 'luciole des mangroves', col: [224, 255, 140], rise: 0.03, dec: 0.08 },
-    lampyris: { nom: 'Lampyris noctiluca', fr: 'ver luisant', col: [96, 255, 150], rise: 1, dec: 1 },
+    carolinus: { nom: 'Photinus carolinus', fr: 'luciole synchrone', faux: [190, 255, 100], rise: 0.05, dec: 0.13 },
+    pyralis: { nom: 'Photinus pyralis', fr: 'luciole « grande ourse »', faux: [255, 204, 76], rise: 0.14, dec: 0.3 },
+    photuris: { nom: 'Photuris versicolor', fr: 'luciole femme fatale', faux: [110, 255, 196], rise: 0.05, dec: 0.12 },
+    pteroptyx: { nom: 'Pteroptyx malaccae', fr: 'luciole des mangroves', faux: [224, 255, 140], rise: 0.03, dec: 0.08 },
+    lampyris: { nom: 'Lampyris noctiluca', fr: 'ver luisant', faux: [96, 255, 150], rise: 1, dec: 1 },
   };
+  for (const k in SPC) {
+    const sp = SPC[k];
+    sp.lin = bandeLin(LMAX[k], 50);
+    sp.vrai = sp.lin.map(versSRGB);
+    // la couleur affichée : la vraie, sauf si l'on a demandé les fausses couleurs
+    Object.defineProperty(sp, 'col', { get() { return keep.cfg && keep.cfg.fausses ? sp.faux : sp.vrai; } });
+  }
+  const cssHex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
   const envF = (sp, a) => { const s = SPC[sp]; return a < s.rise ? a / s.rise : Math.exp(-(a - s.rise) / s.dec); };
-  // gardés d'une construction à l'autre (le mode zen ou une rotation reconstruisent la machine) : rien ne se réinitialise sans demande
-  const keep = { scene: 'nuit', cfg: null };
 
   window.FASC.push({
     id: 'lucioles', name: 'Les Lucioles', cat: 'Vivant', glyph: '✳',
@@ -28,11 +56,11 @@
     hint: 'OBSERVER : touchez une luciole pour l’identifier · SIGNAL : répondez à un mâle · TORCHE : maintenez pour éclairer · SOUFFLE : glissez · PERTURBER : brisez la synchronie · LÂCHER : ajoutez l’espèce choisie.',
     intro: 'Une nuit d’été où se croisent cinq lucioles du monde entier. Chaque flash est un mot : certaines espèces finissent par clignoter toutes ensemble, d’autres se font la cour par questions-réponses, et une prédatrice imite les femelles pour attirer les mâles… et les dévorer.',
     legend: [
-      { color: '#beff64', name: 'Photinus carolinus', role: 'synchrone · Great Smoky Mountains', desc: 'Salves de 5 à 8 flashs, puis l’obscurité. Chaque mâle avance un peu son horloge quand il voit un voisin s’allumer : peu à peu, des vagues de lumière balaient la vallée, puis tout le monde clignote ensemble.' },
-      { color: '#ffcc4c', name: 'Photinus pyralis', role: 'dialogue · « grande ourse »', desc: 'Le mâle plonge puis remonte en s’allumant, et trace un J. La femelle, posée dans l’herbe, répond environ deux secondes plus tard. À chaque réponse, il se rapproche.' },
-      { color: '#6effc4', name: 'Photuris versicolor', role: 'femme fatale', desc: 'La femelle imite la réponse des femelles Photinus. Le mâle trompé s’approche… et se fait dévorer.' },
-      { color: '#e0ff8c', name: 'Pteroptyx malaccae', role: 'synchrone · mangroves d’Asie', desc: 'Des milliers de mâles se posent sur un même arbre et clignotent à l’unisson, presque deux fois par seconde : l’arbre entier s’illumine comme un phare.' },
-      { color: '#60ff96', name: 'Lampyris noctiluca', role: 'ver luisant · Europe', desc: 'La femelle, sans ailes, grimpe sur une herbe et brille en continu pour attirer les mâles. Elle s’éteint si on la dérange.' },
+      { color: cssHex(SPC.carolinus.vrai), name: 'Photinus carolinus', role: 'synchrone · Great Smoky Mountains', desc: 'Salves de 5 à 8 flashs, puis l’obscurité. Chaque mâle avance un peu son horloge quand il voit un voisin s’allumer : peu à peu, des vagues de lumière balaient la vallée, puis tout le monde clignote ensemble.' },
+      { color: cssHex(SPC.pyralis.vrai), name: 'Photinus pyralis', role: 'dialogue · « grande ourse »', desc: 'Le mâle plonge puis remonte en s’allumant, et trace un J. La femelle, posée dans l’herbe, répond environ deux secondes plus tard. À chaque réponse, il se rapproche.' },
+      { color: cssHex(SPC.photuris.vrai), name: 'Photuris versicolor', role: 'femme fatale', desc: 'La femelle imite la réponse des femelles Photinus. Le mâle trompé s’approche… et se fait dévorer.' },
+      { color: cssHex(SPC.pteroptyx.vrai), name: 'Pteroptyx malaccae', role: 'synchrone · mangroves d’Asie', desc: 'Des milliers de mâles se posent sur un même arbre et clignotent à l’unisson, presque deux fois par seconde : l’arbre entier s’illumine comme un phare.' },
+      { color: cssHex(SPC.lampyris.vrai), name: 'Lampyris noctiluca', role: 'ver luisant · Europe', desc: 'La femelle, sans ailes, grimpe sur une herbe et brille en continu pour attirer les mâles. Elle s’éteint si on la dérange.' },
     ],
     about: [
       'La lumière des lucioles est une lumière froide : une réaction chimique (luciférine et luciférase) convertit presque toute son énergie en lumière, sans chaleur.',
@@ -42,7 +70,7 @@
     ],
     tools: [
       { id: 'observer', label: 'observer', desc: 'Touchez une luciole, même éteinte, pour l’identifier et suivre ce qu’elle fait.' },
-      { id: 'signal', label: 'signal', desc: 'Touchez pour émettre un bref flash. Répondez environ 2 secondes après le J ambré d’un mâle Photinus pyralis : il viendra vers vous. Les synchrones proches s’allument aussi.' },
+      { id: 'signal', label: 'signal', desc: 'Touchez pour émettre un bref flash. Répondez environ 2 secondes après le J lumineux d’un mâle Photinus pyralis : il viendra vers vous. Les synchrones proches s’allument aussi.' },
       { id: 'torche', label: 'torche', desc: 'Maintenez pour éclairer : les lucioles se taisent dans la lumière et s’en écartent, comme sous un lampadaire.' },
       { id: 'souffle', label: 'souffle', desc: 'Glissez pour souffler : l’air pousse les lucioles et couche les herbes.' },
       { id: 'perturber', label: 'perturber', desc: 'Touchez pour dérégler les horloges autour de votre doigt, puis regardez la synchronie se reconstruire.' },
@@ -53,14 +81,14 @@
       let quiet = true;
       const snd = () => !quiet && au && au.on;
       const kS = clamp(Math.min(W, H) / 800, 0.7, 1.4), area = clamp((W * H) / 1.2e6, 0.35, 1.3);
-      const cfg = keep.cfg || (keep.cfg = { moon: 0.2, poll: 0, eps: 0.1, K: 0.9, trail: 0.5, dialog: true, sel: 'carolinus' });
+      const cfg = keep.cfg || (keep.cfg = { moon: 0.2, poll: 0, eps: 0.1, K: 0.9, trail: 0.5, dialog: true, sel: 'carolinus', fausses: false });
       const timers = [];
       const later = (ms, fn) => timers.push(setTimeout(fn, ms));
       const view = () => { const v = env.view || { x0: 0, x1: W }; return { x0: v.x0, x1: v.x1, w: v.x1 - v.x0 }; };
       const hor = H * 0.6, v0 = view();
       const moon = { x: v0.x0 + v0.w * 0.8, y: H * 0.14, r: 17 * kS };
       const SPR = {};
-      for (const k in SPC) SPR[k] = glow(SPC[k].col);
+      for (const k in SPC) { const v = glow(SPC[k].vrai), fz = glow(SPC[k].faux); Object.defineProperty(SPR, k, { get: () => (cfg.fausses ? fz : v) }); }
       const sprCore = glow([255, 255, 236]), sprSig = glow([255, 238, 205]), sprMoon = glow([190, 210, 255]), sprTorch = glow([255, 228, 176]);
 
       /* décor */
@@ -136,7 +164,6 @@
           for (let j = 0; j < 4; j++) { const xx = x + rnd(r, -r), yy = y + rnd(r * 0.3, -r * 0.4), rr = r * rnd(0.8, 0.4); g.moveTo(xx + rr, yy); g.arc(xx, yy, rr, 0, TAU); }
         }
         g.fill();
-        g.fillRect(0, hor + H * 0.035, W, 2);
         g.strokeStyle = '#03050a'; g.lineWidth = 1;
         g.beginPath();
         for (let k = 0; k < W * 1.4; k++) {
@@ -395,7 +422,7 @@
       function drawLabel() {
         const f = label.f, a = Math.min(1, label.t, (6 - label.t) * 2.5);
         if (a <= 0.01 || f.dead) return;
-        const sp = SPC[f.sp], side = f.x > W * 0.65 ? -1 : 1, lx = f.x + side * 46, ly = f.y - 38;
+        const v0 = env.view || {}, sp = SPC[f.sp], side = f.x > W * 0.65 ? -1 : 1, lx = f.x + side * 46, ly = f.y - 38 < (v0.y0 || 0) + 24 ? f.y + 46 : f.y - 38;
         ctx.save();
         ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = css(sp.col, (a * 0.7).toFixed(3)); ctx.lineWidth = 1;
@@ -459,7 +486,7 @@
          et la brume. Le ciel suit la lune et la pollution lumineuse : les étoiles faibles et la Voie lactée
          s'effacent quand le ciel s'éclaircit. */
       const LIN = {};
-      for (const k in SPC) LIN[k] = SPC[k].col.map((c) => Math.pow(c / 255, 2.2));
+      for (const k in SPC) { const fz = SPC[k].faux.map((c) => Math.pow(c / 255, 2.2)); Object.defineProperty(LIN, k, { get: () => (cfg.fausses ? fz : SPC[k].lin) }); }
       let gfx = null;
       try { gfx = makeGfx(); } catch (e) { console.warn('Les Lucioles : repli en 2D', e); gfx = null; }
 
@@ -689,7 +716,7 @@ void main(){
 
         const G = { lost: false };
         K.canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); G.lost = true; });
-        let trailOn = false;
+        let trailOn = false, soft = 0;
         // une luciole : son cœur (net ou flou selon la distance) et sa lumière portée
         function fly(B, f, b, k) {
           const z = f.z, c = LIN[f.sp], r = (2.2 + 2.2 * b) * Math.sqrt(z) * kS * (k || 1), I = b * 16 * (0.35 + 0.65 * z);
@@ -698,11 +725,14 @@ void main(){
             B.push(f.x, f.y, R, I * Math.min(1, (r / R) * (r / R)) * 1.6, c[0], c[1], c[2], 1);
           } else B.push(f.x, f.y, r, I, c[0], c[1], c[2], 0);
           // la lueur de la lanterne dans l'air humide, puis la lumière portée sur ce qui l'entoure
-          B.push(f.x, f.y, (4 + 11 * b) * z * kS, b * 0.12, c[0], c[1], c[2], 3);
-          bLight.push(f.x, f.y, 110 * kS * (0.6 + 0.4 * z), b * (f.sp === 'lampyris' ? 0.22 : 0.3), c[0], c[1], c[2], 2);
+          B.push(f.x, f.y, (4 + 11 * b) * z * kS, b * 0.12 * (1 - 0.6 * soft), c[0], c[1], c[2], 3);
+          bLight.push(f.x, f.y, 110 * kS * (0.6 + 0.4 * z), b * (f.sp === 'lampyris' ? 0.22 : 0.3) * (1 - 0.82 * soft), c[0], c[1], c[2], 2);
         }
         G.draw = function (dt, nP) {
           bFar.n = bNear.n = bTop.n = bLight.n = bSeg.n = bGrass.n = 0;
+          // mode doux (photosensibilité) : quand des centaines de lucioles s'allument ensemble, l'éclairage d'ensemble
+          // ne doit pas faire clignoter tout l'écran ; on le réduit fortement et l'on garde des points nets
+          soft = env.doux ? 1 : 0;
           const trail = cfg.trail > 0.01;
           for (const f of F) {
             const b = bright(f);
@@ -767,7 +797,7 @@ void main(){
           draw(pSpr, bTop, cab.scene, 4);
           gl.disable(gl.BLEND);
           // 9. développement : halo, courbe filmique, vignettage, grain de pellicule de nuit
-          cab.finish({ expo: 1.8, bloom: 1.0, thr: 0.8, knee: 0.6, radius: 0.8, vig: 0.45, grain: 0.045, grainBlack: 0.5, sat: 1.05 });
+          cab.finish({ expo: 1.8, bloom: soft ? 0.55 : 1.0, thr: 0.8, knee: 0.6, radius: 0.8, vig: 0.45, grain: 0.045, grainBlack: 0.5, sat: 1.05 });
           ctx.save();
           ctx.globalCompositeOperation = 'copy';
           ctx.drawImage(K.canvas, 0, 0, W, H);
@@ -834,7 +864,7 @@ void main(){
           let sb = 0;
           for (const f of F) if (f.sp === 'pteroptyx') sb += bright(f);
           const fr = sb / nP;
-          if (fr > 0.02) { const s = H * 0.75; ctx.globalAlpha = Math.min(1, fr * 0.5 * Math.min(1, nP / 150)); ctx.drawImage(SPR.pteroptyx, tree.cx - s / 2, tree.cy - s / 2, s, s); }
+          if (fr > 0.02) { const s = H * 0.75; ctx.globalAlpha = Math.min(1, fr * 0.5 * Math.min(1, nP / 150)) * (env.doux ? 0.25 : 1); ctx.drawImage(SPR.pteroptyx, tree.cx - s / 2, tree.cy - s / 2, s, s); }
         }
         for (const f of F) if (f.sp === 'pteroptyx' || (f.st !== 'perche' && f.z >= 0.6)) { const b = bright(f); if (b > 0.02) drawGlow(f, b); }
         ctx.globalAlpha = 1;
@@ -856,7 +886,7 @@ void main(){
           const b = bright(f);
           if (b < 0.15 || f.z < 0.6 || f.y < hor) continue;
           const s = 190 * f.z * kS;
-          ctx.globalAlpha = b * 0.09; ctx.drawImage(SPR[f.sp], f.x - s / 2, f.y - s / 2, s, s);
+          ctx.globalAlpha = b * 0.09 * (env.doux ? 0.25 : 1); ctx.drawImage(SPR[f.sp], f.x - s / 2, f.y - s / 2, s, s);
         }
         for (let i = sigs.length - 1; i >= 0; i--) {
           const s = sigs[i];
@@ -976,6 +1006,8 @@ void main(){
           L.push({ type: 'section', label: 'Affichage' });
           L.push({ type: 'slider', label: 'Pose longue', min: 0, max: 1, step: 0.02, value: cfg.trail, fmt: (v) => (v < 0.01 ? 'désactivée' : Math.round(v * 100) + ' %'), set: (v) => { cfg.trail = v; } });
           L.push({ type: 'toggle', label: 'Montrer les dialogues', value: cfg.dialog, set: (v) => { cfg.dialog = v; } });
+          L.push({ type: 'toggle', label: 'Couleurs pour reconnaître les espèces', value: !!cfg.fausses, set: (v) => { cfg.fausses = v; } });
+          if (cfg.fausses) L.push({ type: 'note', text: 'Fausses couleurs : en vrai, toutes ces lucioles brillent d’un jaune-vert presque identique (de 552 à 565 nm). Elles se reconnaissent à leur rythme.' });
           return L;
         },
       };

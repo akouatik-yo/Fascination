@@ -1864,9 +1864,45 @@ void main(){
     return c;
   }
 
+  /* ═══════════════ 7. Veille de cadence : repli automatique (CEO, 13/11) ═══════════════ */
+  // Une machine qui garde son ancien rendu (2D, plus léger) l'appelle quand la cadence RÉELLE de l'appareil reste
+  // sous un seuil. Usage : const v = FKR.veille({ id: 'fourmis', seuil: 24, auRepli: (ips) => passerAuRendu2D() });
+  // puis v.image(t) à chaque image (t = performance.now()). Après « attente » s, on mesure « duree » s ; si la médiane
+  // des images est sous le seuil, auRepli est appelé une fois, et le choix est mémorisé pour cette machine (clé
+  // fkr-repli du stockage local ; v.deja indique un repli déjà mémorisé, FKR.veille.oublier() efface tout).
+  // Inactive sous automate de test (navigator.webdriver) : les bancs mesurent le rendu complet.
+  const CLE_REPLI = 'fkr-repli';
+  const lireRepli = () => { try { return JSON.parse(localStorage.getItem(CLE_REPLI) || '{}') || {}; } catch (e) { return {}; } };
+  function veille(o) {
+    o = Object.assign({ seuil: 24, attente: 1.5, duree: 4 }, o || {});
+    const memo = lireRepli(), auto = typeof navigator !== 'undefined' && navigator.webdriver;
+    let t0 = null, fini = !!auto, ts = [];
+    const V = {
+      deja: !!(o.id && memo[o.id]) && !auto,
+      image(t) {
+        if (fini) return;
+        if (t0 === null) t0 = t;
+        const age = (t - t0) / 1000;
+        if (age < o.attente) return;
+        ts.push(t);
+        if (age < o.attente + o.duree) return;
+        fini = true;
+        const d = []; for (let i = 1; i < ts.length; i++) d.push(ts[i] - ts[i - 1]);
+        d.sort((a, b) => a - b);
+        const ips = d.length ? 1000 / Math.max(1, d[d.length >> 1]) : 0;
+        if (ips && ips < o.seuil) {
+          if (o.id) { const m = lireRepli(); m[o.id] = Math.round(ips); try { localStorage.setItem(CLE_REPLI, JSON.stringify(m)); } catch (e) { /* rien */ } }
+          try { o.auRepli && o.auRepli(ips); } catch (e) { console.warn('FKR : repli', e); }
+        }
+      },
+    };
+    return V;
+  }
+  veille.oublier = () => { try { localStorage.removeItem(CLE_REPLI); } catch (e) { /* rien */ } };
+
   // fond(nom) : un fond de la DA en linéaire ('defaut', 'eau', 'cosmos')
   const fond = (nom) => deCss(FONDS[nom] || nom || FONDS.defaut);
-  window.FKR = { version: '1.2.0', couleur, palette, GLSL: G, glsl, fs, cabine, cabine2D, cabineOuRepli, cabineK, sprite, DEFAUTS, FONDS, fond, courbeLottes };
+  window.FKR = { version: '1.3.0', couleur, palette, GLSL: G, glsl, fs, cabine, cabine2D, cabineOuRepli, cabineK, sprite, veille, DEFAUTS, FONDS, fond, courbeLottes };
 })();
 
 ;
@@ -21622,7 +21658,11 @@ void main(){
   const gauss = () => (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 1.22;
   const fr = (x, d = 0) => x.toFixed(d).replace('.', ',');
   // réglages gardés quand la machine est reconstruite
-  const keep = { scene: 'decouverte', trails: true, evap: 1, n: 900, np: 160, size: 5, psize: 3, bridge: 'inegal', late: false, more: true, style: 'neon', ssize: 3 };
+  // (style « realiste » par défaut : le sol et les fourmis vrais, les phéromones en couche de fausse couleur nommée)
+  // la découverte en vue rapprochée (relecture de Kurt) : à « ×3,5 », sur une tablette de 1280 × 800, le terrain mesure
+  // environ 35 × 22 cm et une ouvrière de 5 mm environ 18 px ; ZDEC règle ce grossissement, SZ ramène la taille à l'ancienne échelle
+  const ZDEC = 3.8, SZ0 = 1.8 / ZDEC;
+  const keep = { scene: 'decouverte', trails: true, evap: 1, n: 90, np: 160, size: 3.5, psize: 3, bridge: 'inegal', late: false, more: true, style: 'realiste', ssize: 3 };
 
   window.FASC.push({
     id: 'fourmis', name: 'La Fourmilière', cat: 'Vivant', glyph: '🜁',
@@ -21635,19 +21675,457 @@ void main(){
       'Si la branche courte n’est ajoutée qu’après l’établissement de la piste sur la longue, beaucoup d’espèces restent prisonnières de leur habitude. Ce comportement a inspiré les « algorithmes de colonies de fourmis » (Marco Dorigo, 1992), qui servent à optimiser des tournées et des réseaux.',
       'Atta cephalotes cultive un champignon sur des feuilles découpées ; les minuscules ouvrières perchées sur les fragments (les « auto-stoppeuses ») protègent les porteuses des mouches parasites. Eciton burchellii, la fourmi légionnaire, n’a pas de nid fixe : ses raids en éventail balaient la litière et font fuir tout ce qui vit.',
     ],
+    // couleurs de la légende : la cuticule des trois espèces ; les deux fausses couleurs (rocket, mako) sont nommées
+    legend: [
+      { color: '#4a3226', name: 'Lasius niger', role: 'fourmi noire des jardins · brun-noir, environ 5 mm', desc: 'La plus commune des fourmis d’Europe. Elle recrute ses sœurs par une piste de phéromone et élève des pucerons pour leur miellat.' },
+      { color: '#9a5028', name: 'Atta cephalotes', role: 'fourmi coupe-feuille · rousse', desc: 'Les ouvrières découpent des fragments de feuilles qu’elles ne mangent pas : elles en nourrissent un champignon cultivé dans le nid.' },
+      { color: '#7a4020', name: 'Eciton burchellii', role: 'fourmi légionnaire · brun-rouge', desc: 'Pas de nid fixe : des raids en éventail balaient le sol. Les soldats ont la tête pâle et de longues mandibules en crochet.' },
+      { color: '#f08c64', name: 'Phéromone de piste', role: 'fausse couleur · échelle rocket', desc: 'Invisible en vrai. La couche ajoutée montre sa concentration au sol : violet sombre, faible ; saumon clair, forte. Elle se retire avec « Montrer la piste ».' },
+      { color: '#5ab4ac', name: 'Odeur du nid et alarme', role: 'fausse couleur · échelle mako', desc: 'Visible seulement avec l’outil CHIMIE, comme la piste : deux autres signaux chimiques que les fourmis sentent avec leurs antennes.' },
+    ],
     tools: [{ id: 'doigt', label: 'doigt' }, { id: 'nourriture', label: 'nourriture' }, { id: 'feuille', label: 'feuille' }, { id: 'chimie', label: 'chimie' }],
     make(env) { return makeAnts(env); },
   });
 
+  /* ═══════════ Le rendu (WebGL2, bibliothèque commune FKR) ═══════════
+     Un sol de terre réelle (brun-ocre) en lumière rasante, avec ses grains, ses cailloux et ses brindilles, éclairé une fois
+     pour toutes (relief, ombres douces, occlusion) ; des fourmis de chitine sombre (abdomen, pétiole, thorax, tête, six pattes,
+     deux antennes) avec leur reflet spéculaire et leur ombre portée floue. Les phéromones, invisibles en vrai, sont une couche
+     ajoutée en fausse couleur nommée (échelle rocket), désactivable. Sans WebGL2, la machine garde son rendu 2D. */
+  const RAD = Math.PI / 180;
+  // le soleil bas (22°) vient du haut à gauche (repère y vers le haut) : les ombres tombent vers le bas à droite
+  const SOLEIL = [Math.cos(140 * RAD) * Math.cos(22 * RAD), Math.sin(140 * RAD) * Math.cos(22 * RAD), Math.sin(22 * RAD)];
+  const ESPECES = ['lasius', 'atta', 'eciton'];
+  // rugosité de la cuticule : la fourmi noire des jardins luit, la coupe-feuille est mate et granuleuse
+  const RUG = { lasius: 0.3, atta: 0.55, eciton: 0.42 };
+
+  const FS_CUISSON = `
+uniform sampler2D uH, uA;
+uniform vec2 uRes;
+uniform float uPxMm, uGraine;
+uniform vec3 uL, uSol, uCielH, uCielB;
+out vec4 o;
+// la carte des hauteurs (mm) : r = hauteur, g = rugosité, b = part de « sol » (grains et couleur procéduraux)
+float hMap(vec2 uv){ return (texture(uH, uv).r - .25) * 16.; }
+// le relief propre du sol, en mm : mottes, grains d'environ 1 mm, petites fissures entre agrégats
+float hSol(vec2 m){
+  float f = fbmG(m * .15 + uGraine, 3) * .6 + fbmG(m * .035 + 4.1, 2) * 1.1;
+  vec2 v = voronoi(m * .95 + uGraine * 3.1);
+  return f + (1. - smoothstep(0., .72, v.x)) * .12;   // des grains discrets : à 3,7 px/mm, plus marqués, ils brouillaient les fourmis
+}
+// la couleur du sol : ocre, taches d'humus sombre, sable plus clair, quelques grains de quartz
+vec3 albSol(vec2 m){
+  float n1 = fbmG(m * .02 + uGraine * .7, 3), n2 = fbmG(m * .085 + 7.3, 2);
+  vec3 c = mix(vec3(.25, .15, .07), vec3(.075, .047, .027), smoothstep(-.1, .7, n1) * .85);
+  c = mix(c, vec3(.38, .27, .15), smoothstep(.15, .8, n2) * .5);
+  c *= .86 + .28 * bruitV(m * 1.9 + 3.);
+  c = mix(c, vec3(.5, .46, .4), step(.985, alea(floor(m * 1.25 + 9.))) * .45);
+  return c;
+}
+void main(){
+  vec2 tx = 1. / uRes, m = vUv * uRes / uPxMm;
+  float e = 1. / uPxMm;
+  vec4 H0 = texture(uH, vUv);
+  float sol = H0.b, rug = max(H0.g, .04);
+  float h0 = hMap(vUv);
+  float dx = hMap(vUv + vec2(tx.x, 0.)) - hMap(vUv - vec2(tx.x, 0.)), dy = hMap(vUv + vec2(0., tx.y)) - hMap(vUv - vec2(0., tx.y));
+  float s0 = hSol(m), sx = hSol(m + vec2(e, 0.)), sy = hSol(m + vec2(0., e));
+  vec3 n = normalize(vec3(-dx * .5 - (sx - s0) * sol, -dy * .5 - (sy - s0) * sol, e));
+  if (rug < .1){ vec3 r = bruitGd(m * .12 + uGraine); n = normalize(n + vec3(r.yz * .05, 0.)); }   // l'eau frémit
+  // ombre portée douce : on remonte vers le soleil au-dessus de la carte des hauteurs
+  vec2 d = normalize(uL.xy); float tanE = uL.z / length(uL.xy);
+  // le relief procédural ne compte pas dans la marche vers le soleil (elle ne lit que la carte peinte) : un creux du sol
+  // ne doit pas se croire sous elle, sinon il passe en ombre totale (les taches bleu-noir de la recette)
+  float hr = h0 + max(s0 * sol, 0.) + .06, sh = 1., t = 1.;
+  for (int i = 0; i < 24; i++){
+    float tm = t * e, w = .1 + tm * .045;
+    sh = min(sh, smoothstep(-w, w, hr + tm * tanE - hMap(vUv + d * t * tx)));
+    t = t * 1.17 + .8;
+    if (tm * tanE > 13. || sh < .02) break;
+  }
+  // occlusion ambiante : ce qui dépasse alentour cache une part du ciel
+  float ao = 0.;
+  for (int i = 0; i < 6; i++){
+    float an = float(i) * 1.0472 + .3; vec2 dd = vec2(cos(an), sin(an)) * uPxMm * tx;
+    ao += max(0., hMap(vUv + dd * 1.6) - h0) / 1.6 + max(0., hMap(vUv + dd * 5.) - h0) / 5.;
+  }
+  ao = clamp(1. - ao * .1, .2, 1.) * mix(1., clamp(.88 + s0 * .22, .62, 1.), sol);
+  vec4 A = texture(uA, vUv);
+  vec3 alb = mix(rug < .1 ? vec3(.006, .011, .014) : albSol(m), versLineaire(A.rgb), A.a);   // eau sombre ou terre
+  float ndl = max(dot(n, uL), 0.), ndv = max(n.z, 1e-3);
+  vec3 h = normalize(uL + vec3(0., 0., 1.));
+  float sp = ggxD(max(dot(n, h), 0.), rug) * smithG(ndv, ndl, rug) * schlick(h.z, .04) / (4. * ndv);
+  vec3 ciel = mix(uCielB, uCielH, n.z * .5 + .5);
+  vec3 c = alb * (uSol * ndl * sh + ciel * ao) + uSol * sp * sh;
+  if (rug < .1) c += uCielH * schlick(ndv, .02) * 1.4 * ao;   // l'eau renvoie un peu de ciel
+  o = vec4(c, 1.);
+}`;
+
+  const FS_SOL = `
+uniform sampler2D uDecor, uG1, uG2, uFeuil, uRocket, uMako;
+uniform vec2 uRes, uGrille;
+uniform float uMode, uPiste, uFeuilOn, uDoux;
+uniform vec3 uPlat, uNuit;
+out vec4 o;
+void main(){
+  vec3 c = texture(uDecor, vUv).rgb;
+  vec2 g = vec2(vUv.x, 1. - vUv.y) * uRes / uGrille;      // la grille des phéromones (ligne 0 en haut)
+  vec4 G1 = texture(uG1, g);
+  if (uFeuilOn > .5){ vec4 f = texture(uFeuil, vUv); c = mix(c, versLineaire(f.rgb) * uPlat, f.a); }
+  c *= 1. + .28 * G1.a;                                   // les sentiers dégagés par le passage (usure)
+  float tf = max(G1.r, max(G1.g, G1.b));                  // phéromone de piste (toutes les sociétés)
+  if (uMode > 1.5){
+    // outil chimie : le sol s'efface, toutes les odeurs paraissent (piste : rocket ; nid et alarme : mako)
+    vec4 G2 = texture(uG2, g);
+    float th = max(G2.r, max(G2.g, G2.b));
+    c *= .16;
+    c += texture(uRocket, vec2(.2 + .78 * tf, .5)).rgb * pow(tf, 1.2) * 1.5;
+    c += texture(uMako, vec2(.3 + .65 * th, .5)).rgb * th * .55;
+  } else if (uMode > .5){
+    // néon : le sol dans la pénombre, la couche des phéromones s'allume
+    c *= uNuit;
+    if (uPiste > .5) c += texture(uRocket, vec2(.22 + .76 * tf, .5)).rgb * pow(tf, 1.3) * (uDoux > .5 ? 1.1 : 1.7);
+  } else if (uPiste > .5){
+    // réaliste : un film translucide, peu opaque, posé sur le sol
+    float a = smoothstep(.03, .55, tf) * (.22 + .3 * tf);
+    c = mix(c, texture(uRocket, vec2(.15 + .8 * tf, .5)).rgb * uPlat * .62, a);
+  }
+  o = vec4(c, 1.);
+}`;
+
+  // une instance = une fourmi, une goutte, une miette ou un collembole : un quadrilatère tourné, en px css
+  const VS_INST = `#version 300 es
+precision highp float; precision highp int;
+layout(location = 0) in vec2 aCoin;
+layout(location = 1) in vec4 aA;   // x, y, angle, taille L (px css)
+layout(location = 2) in vec4 aB;   // allure des pattes, antennes, tête (×), nature (0 fourmi, 1 goutte, 2 miette, 3 collembole)
+layout(location = 3) in vec4 aC;   // albédo (linéaire), charge (0, 1 miette, 2 feuille, 3 proie)
+layout(location = 4) in vec4 aD;   // couleur de la feuille portée (linéaire), rotation de la feuille
+layout(location = 5) in vec4 aE;   // espèce, drapeaux (1 gorgée, 2 soldat légionnaire, 4 auto-stoppeuse), hauteur (mm), graine
+uniform vec2 uRes, uDecal; uniform float uOmbre;
+uniform vec4 uCorps[12];
+out vec2 vUv; out vec2 vLoc; flat out vec4 vA, vB, vC, vD, vE, vG, vP, vT, vH;
+void main(){
+  float L = aA.w; int nat = int(aB.w + .5);
+  int s = clamp(int(aE.x + .5), 0, 2) * 4;
+  vec4 bx = vec4(-1.25, 1.25, -1.25, 1.25);
+  if (nat == 0){
+    float k = uCorps[s].w, ch = aC.w, hk = aB.z;
+    float yb = max(.44 * k + .04, ch > 1.5 && ch < 2.5 ? .82 : 0.);
+    float xb1 = max(uCorps[s + 3].x + uCorps[s + 3].y * .7 * hk + .32, max((int(aE.y + .5) & 2) != 0 ? .8 : 0., ch > .5 ? .92 : 0.));
+    bx = vec4(-max(.46 * k + .05, .68), xb1, -yb, yb);
+  }
+  if (uOmbre > .5) bx += vec4(-.3, .3, -.3, .3);
+  float m = 1.5 / L;
+  vec2 loc = vec2(mix(bx.x - m, bx.y + m, aCoin.x * .5 + .5), mix(bx.z - m, bx.w + m, aCoin.y * .5 + .5));
+  vec2 ax = vec2(cos(aA.z), sin(aA.z)), nr = vec2(-ax.y, ax.x);
+  vec2 p = aA.xy + (ax * loc.x + nr * loc.y) * L;
+  if (uOmbre > .5) p += uDecal * (aE.z + (nat == 1 ? 1.5 : nat == 2 ? 1.2 : .9));   // hauteur de l'objet (mm) ÷ tan(élévation)
+  gl_Position = vec4(p.x / uRes.x * 2. - 1., 1. - p.y / uRes.y * 2., 0., 1.);
+  vUv = vec2(p.x / uRes.x, 1. - p.y / uRes.y);
+  vLoc = loc; vA = aA; vB = aB; vC = aC; vD = aD; vE = aE;
+  vG = uCorps[s]; vP = uCorps[s + 1]; vT = uCorps[s + 2]; vH = uCorps[s + 3];
+}`;
+
+  const FS_OMBRE = `
+in vec2 vLoc; flat in vec4 vA, vB, vC, vD, vE, vG, vP, vT, vH;
+uniform float uPx, uForce;
+out vec4 o;
+void main(){
+  int nat = int(vB.w + .5), fl = int(vE.y + .5);
+  float L = vA.w, b = 1.6 * uPx / L + .06;
+  vec2 p = vLoc;
+  float a;
+  if (nat == 0){
+    vec2 r = vec2(.47, (fl & 1) != 0 ? .2 : .15) + b;
+    a = exp(-2.2 * dot(p / r, p / r)) * .72;
+    if (vC.w > 1.5 && vC.w < 2.5){ vec2 q = rot2(-vD.w) * (p - vec2(.18, 0.)) / (.62 + b); a = max(a, exp(-2.4 * dot(q, q)) * .5); }
+  } else if (nat == 3){
+    vec2 r = vec2(.5, .2) + b + vE.z * .05;
+    a = exp(-2.2 * dot(p / r, p / r)) * .5 / (1. + vE.z * .4);
+  } else {
+    vec2 r = vec2(1., .9) + b + .15;
+    a = exp(-2.4 * dot(p / r, p / r)) * (nat == 1 ? .4 : .6);
+  }
+  o = vec4(0., 0., 0., a * uForce);
+}`;
+
+  const FS_CORPS = `
+in vec2 vLoc; flat in vec4 vA, vB, vC, vD, vE, vG, vP, vT, vH;
+uniform float uPx, uT, uSpec;
+uniform vec3 uL, uSol, uCielH, uCielB;
+out vec4 o;
+vec2 AX, NR; float KSP;
+// un ellipsoïde allongé selon l'axe du corps (centre, demi-axes ; section ronde) : distance signée, hauteur, normale locale
+float ellipsoide(vec2 p, vec3 e, out float z, out vec3 n){
+  vec2 d = (p - vec2(e.x, 0.)) / e.yz;
+  float q = dot(d, d), w = sqrt(max(1. - q, 0.));
+  z = w * e.z;
+  n = normalize(vec3(d.x / e.y, d.y / e.z, w / e.z + 1e-3));
+  return (sqrt(q) - 1.) * min(e.y, e.z);
+}
+// éclairage d'une surface du corps : soleil rasant, ciel, reflet spéculaire (GGX) et liseré de Fresnel
+vec3 eclaire(vec3 nl, vec3 alb, float rug, float f0){
+  vec2 nc = AX * nl.x + NR * nl.y;
+  vec3 n = normalize(vec3(nc.x, -nc.y, nl.z));
+  float ndl = max(dot(n, uL), 0.), ndv = max(n.z, 1e-3);
+  vec3 h = normalize(uL + vec3(0., 0., 1.));
+  float sp = ggxD(max(dot(n, h), 0.), rug) * smithG(ndv, ndl, rug) * schlick(h.z, f0) / (4. * ndv);
+  vec3 ciel = mix(uCielB, uCielH, n.z * .5 + .5);
+  return alb * (uSol * ndl + ciel) + uSol * sp * KSP + ciel * schlick(ndv, f0) * .15;
+}
+float trait(float d, float w, float px){ return clamp((w + .5 * px - d) / px, 0., 1.) * min(1., 2. * w / px + .12); }
+void over(inout vec4 acc, vec3 c, float a){ acc.rgb = c * a + acc.rgb * (1. - a); acc.a = a + acc.a * (1. - a); }
+void main(){
+  int nat = int(vB.w + .5), fl = int(vE.y + .5);
+  float L = vA.w, px = uPx / L;
+  AX = vec2(cos(vA.z), sin(vA.z)); NR = vec2(-AX.y, AX.x);
+  KSP = uSpec * mix(.35, 1., smoothstep(6., 16., L));
+  vec2 p = vLoc;
+  vec4 acc = vec4(0.);
+  vec3 alb = vC.rgb;
+  float z, zb; vec3 n, nb; float s, cb;
+  if (nat == 0){
+    float k = vG.w, hk = vB.z, rug = vT.w;
+    bool rep = (fl & 1) != 0, sold = (fl & 2) != 0;
+    // six pattes (trépied alterné) et deux antennes, sous le corps
+    float dl = 1e3;
+    float rugE = clamp(sqrt(rug * rug + 4. * px * px), rug, .85);   // reflet filtré à la taille du pixel
+    if (L < 10.){
+      float fz = exp(-2.2 * (p.x * p.x) / (.2 * k * k) - 3. * (p.y * p.y) / (.16 * k * k)) * .38;
+      if (fz > .01) over(acc, eclaire(vec3(0., 0., 1.), alb * .85, .6, .04), fz);
+    } else for (int i = 0; i < 3; i++){
+      vec4 lg = i == 0 ? vec4(.08, .42, .28, 0.) : i == 1 ? vec4(.02, .05, .4, 1.) : vec4(-.04, -.34, .36, 0.);
+      float kxo = (i == 0 ? .05 : i == 2 ? -.04 : 0.) * k;
+      for (int j = 0; j < 2; j++){
+        float sg = j == 0 ? -1. : 1.;
+        float ph = vB.x + mod(lg.w + float(j), 2.) * 3.14159265;
+        vec2 pied = vec2((lg.y + sin(ph) * .12) * k, lg.z * k * (cos(ph) > 0. ? .86 : 1.) * sg);
+        vec2 hanche = vec2(lg.x, .045 * sg);
+        vec2 genou = vec2(hanche.x + (pied.x - hanche.x) * .5 + kxo, hanche.y + (pied.y - hanche.y) * .62 + .07 * sg * k);
+        dl = min(dl, min(sdSegment(p, hanche, genou), sdSegment(p, genou, pied)));
+      }
+    }
+    float hx0 = vH.x + vH.y * .7 * hk, da = 1e3;
+    if (L >= 10.) for (int j = 0; j < 2; j++){
+      float sg = j == 0 ? -1. : 1.;
+      float w1 = sin(uT * 7. + vE.w + sg) * .05 * vB.y, w2 = sin(uT * 9.3 + vE.w * 2. + sg) * .07 * vB.y;
+      vec2 b0 = vec2(hx0, .035 * sg), e0 = vec2(hx0 + .09, (.15 + w1) * sg), t0 = vec2(hx0 + .26 + w2 * .3, (.11 + w2) * sg);
+      da = min(da, min(sdSegment(p, b0, e0), sdSegment(p, e0, t0)));
+    }
+    float cl = L < 10. ? 0. : max(trait(dl, .03, px), trait(da, .02, px));
+    if (cl > 0.) over(acc, eclaire(vec3(0., 0., 1.), alb * .85, .5, .04), cl);
+    // le corps : abdomen (gonflé et rayé quand il est plein de sucre), pétiole, thorax, tête
+    vec3 G = rep ? vec3(vG.x * 1.15, vG.y * 1.45, vG.z * 1.45) : vG.xyz;
+    vec3 Hd = vec3(vH.x + (hk - 1.) * .08, vH.y * hk, vH.z * hk);
+    zb = -1.; cb = 0.; nb = vec3(0., 0., 1.); int part = -1;
+    s = ellipsoide(p, G, z, n); { float c = clamp(.5 - s / px, 0., 1.); if (c > 0. && z > zb){ zb = z; nb = n; part = 0; } cb = max(cb, c); }
+    s = ellipsoide(p, vP.xyz, z, n); { float c = clamp(.5 - s / px, 0., 1.); if (c > 0. && z > zb){ zb = z; nb = n; part = 1; } cb = max(cb, c); }
+    s = ellipsoide(p, vT.xyz, z, n); { float c = clamp(.5 - s / px, 0., 1.); if (c > 0. && z > zb){ zb = z; nb = n; part = 2; } cb = max(cb, c); }
+    s = ellipsoide(p, Hd, z, n); { float c = clamp(.5 - s / px, 0., 1.); if (c > 0. && z + .002 > zb){ zb = z; nb = n; part = 3; } cb = max(cb, c); }
+    if (cb > 0.){
+      vec3 a2 = alb;
+      if (part == 0 && rep){
+        // abdomen plein : entre les plaques sombres, les membranes tendues laissent voir le sirop
+        float bnd = abs(fract((p.x - G.x) / (G.y * .42) + .5) - .5) * 2.;
+        a2 = mix(alb, vec3(.42, .24, .06), smoothstep(.55, .85, bnd) * .9);
+      }
+      if (part == 3 && sold) a2 = vec3(.62, .5, .26);   // soldat légionnaire : tête pâle
+      over(acc, eclaire(nb, a2, rugE, .045), cb);
+    }
+    if (sold){
+      // les mandibules en crochet des soldats légionnaires
+      float dm = 1e3;
+      for (int j = 0; j < 2; j++){ float sg = j == 0 ? -1. : 1.; vec2 a0 = vec2(.42, .05 * sg), a1 = vec2(.64, .14 * sg), a3 = vec2(.73, -.02 * sg); dm = min(dm, min(sdSegment(p, a0, a1), sdSegment(p, a1, a3))); }
+      float cm = trait(dm, .035, px); if (cm > 0.) over(acc, eclaire(vec3(0., 0., 1.), vec3(.03, .012, .005), .3, .05), cm);
+    }
+    // ce qu'elle porte : une miette, un fragment de feuille (parfois avec une minuscule auto-stoppeuse), une proie
+    float ch = vC.w;
+    if (ch > .5 && ch < 1.5){ s = ellipsoide(p, vec3(.66, .15, .13), z, n); float c = clamp(.5 - s / px, 0., 1.); if (c > 0.) over(acc, eclaire(n, vec3(.52, .4, .22), .8, .04), c); }
+    else if (ch > 2.5){ vec2 q = rot2(-.5) * (p - vec2(.68, 0.)); s = ellipsoide(q, vec3(0., .3, .14), z, n); float c = clamp(.5 - s / px, 0., 1.); if (c > 0.) over(acc, eclaire(n, vec3(.2, .19, .24), .6, .04), c); }
+    else if (ch > 1.5){
+      vec2 q = rot2(-vD.w) * (p - vec2(.18, 0.));
+      float df = max(length(q) - .6, -q.x - .26);
+      float c = clamp(.5 - df / px, 0., 1.);
+      if (c > 0.){
+        float nerv = trait(abs(q.y), .015, px) * step(-.26, q.x);
+        vec3 cf = eclaire(normalize(vec3(-.25, .2, 1.)), mix(vD.rgb, vD.rgb * 1.5 + .02, nerv * .6), .7, .04);
+        over(acc, cf * (.8 + .2 * smoothstep(.0, -.1, df)), c);
+        if ((fl & 4) != 0){ s = ellipsoide(q, vec3(-.02, .11, .05), z, n); float c2 = clamp(.5 - s / px, 0., 1.); if (c2 > 0.) over(acc, eclaire(n, vec3(.2, .05, .012), .5, .045), c2); }
+      }
+    }
+  } else if (nat == 1){
+    // une goutte de sirop : un dôme brillant, translucide ; la lumière qui la traverse se concentre du côté opposé au soleil
+    vec2 q = p / vec2(1., .9);
+    float r2 = dot(q, q), w = sqrt(max(1. - r2, 0.));
+    float c = clamp(.5 - (sqrt(r2) - 1.) / (px * 1.05), 0., 1.);
+    if (c > 0.){
+      vec3 nl = normalize(vec3(q * .9, w * .55 + .05));
+      vec2 sl = vec2(uL.x, -uL.y);
+      vec2 dl2 = vec2(dot(sl, AX), dot(sl, NR));
+      float caus = exp(-dot(q + dl2 * .45, q + dl2 * .45) * 9.);
+      vec3 sirop = vec3(.78, .5, .13);
+      vec3 col = sirop * (uSol * .3 + uCielH * .5) * (.55 + .45 * w) + sirop * uSol * caus * .9;
+      col += sirop * uSol * .22 * smoothstep(.72, 1., sqrt(r2));   // le ménisque, éclairé par la tranche
+      vec2 nc = AX * nl.x + NR * nl.y; vec3 n3 = normalize(vec3(nc.x, -nc.y, nl.z));
+      vec3 h = normalize(uL + vec3(0., 0., 1.));
+      float ndl = max(dot(n3, uL), 0.), ndv = max(n3.z, 1e-3);
+      col += uSol * ggxD(max(dot(n3, h), 0.), .1) * smithG(ndv, ndl, .1) * schlick(h.z, .04) / (4. * ndv) * uSpec;
+      col += mix(uCielB, uCielH, n3.z * .5 + .5) * schlick(ndv, .04) * .9;
+      over(acc, col, c);
+    }
+  } else if (nat == 2){
+    // une miette : contour irrégulier, relief bosselé, mie poreuse
+    float an = atan(p.y, p.x), sd = vE.w;
+    float rr = 1. + .14 * sin(an * 3. + sd) + .09 * sin(an * 5. + sd * 2.3) + .05 * sin(an * 9. + sd * 1.7);
+    float r = length(p) / rr;
+    float c = clamp(.5 - (r - 1.) / px, 0., 1.);
+    if (c > 0.){
+      float w = sqrt(max(1. - r * r, 0.));
+      vec3 bd = bruitGd(p * 4. + sd);
+      vec3 nl = normalize(vec3(p * .8 / rr - bd.yz * .25, w + .15));
+      float pore = smoothstep(.55, .9, bruitV(p * 7. + sd * 3.));
+      over(acc, eclaire(nl, vec3(.5, .38, .2) * (1. - .45 * pore), .85, .04), c);
+    }
+  } else {
+    // un collembole : corps allongé, tête ronde, deux antennes ; il saute pour fuir
+    float sc = 1. + vE.z * .06;
+    vec2 q = p / sc;
+    float ca = trait(min(sdSegment(q, vec2(.55, .04), vec2(.95, .25)), sdSegment(q, vec2(.55, -.04), vec2(.95, -.25))), .02, px);
+    if (ca > 0.) over(acc, eclaire(vec3(0., 0., 1.), alb * .8, .6, .04), ca);
+    s = ellipsoide(q, vec3(0., .5, .21), z, n); float c = clamp(.5 - s / px, 0., 1.); zb = z; nb = n;
+    s = ellipsoide(q, vec3(.45, .16, .15), z, n); float c2 = clamp(.5 - s / px, 0., 1.); if (c2 > 0. && z > zb) nb = n;
+    c = max(c, c2);
+    if (c > 0.) over(acc, eclaire(nb, alb, .45, .04), c);
+  }
+  o = acc;
+}`;
+
+  // la cabine de la machine : partagée par tous les mondes (changer de scène ne recrée pas le contexte WebGL)
+  function makeVue(env) {
+    if (!window.FKR || !window.FKGL) return null;
+    let R, echelle = 1;
+    try {
+      // WebGL émulé par le processeur (SwiftShader, llvmpipe) : la chaîne commune y coûte cher ; la cabine travaille alors à 0,7
+      const S = window.FKGL.GLKit(2, 2), x = S.gl.getExtension('WEBGL_debug_renderer_info');
+      if (/swiftshader|llvmpipe|software/i.test(String(S.gl.getParameter(x ? x.UNMASKED_RENDERER_WEBGL : S.gl.RENDERER)))) echelle = 0.7;
+      S.lose();
+    } catch (e) { /* la cabine dira si WebGL2 manque */ }
+    try { R = window.FKR.cabine(env, { halo: 0.05, rayon: 0.65, echelle }); } catch (e) { console.warn('La Fourmilière : repli en 2D', e); return null; }
+    try {
+      const K = R.K, gl = R.gl, W = R.W, H = R.H, C = window.FKR.couleur;
+      const prog = (corps, noms, vs) => K.program(window.FKR.fs(noms, corps), vs);
+      const P = {
+        cuisson: prog(FS_CUISSON, ['couleur', 'bruit', 'lumiere', 'matiere']),
+        sol: prog(FS_SOL, ['couleur']),
+        ombre: prog(FS_OMBRE, ['formes'], VS_INST),
+        corps: prog(FS_CORPS, ['couleur', 'bruit', 'lumiere', 'formes', 'matiere'], VS_INST),
+      };
+      // la lumière : un soleil de fin d'après-midi (corps noir à 4 300 K), le bleu du ciel dans les ombres
+      const sol = C.corpsNoir(4300).map((v) => v * 3), cielH = C.rayleigh().map((v) => v * 0.3), cielB = [0.3, 0.25, 0.2];
+      const plat = sol.map((v, i) => v * SOLEIL[2] + cielH[i]);
+      const decor = K.target(R.cw, R.ch);
+      const tex = () => {
+        const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+        for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+        return t;
+      };
+      const tH = tex(), tA = tex(), tG1 = tex(), tG2 = tex(), tF = tex();
+      const lutR = R.lut(window.FKR.palette.carte('rocket')), lutM = R.lut(window.FKR.palette.carte('mako'));
+      const toile = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return { c, g: c.getContext('2d') }; };
+      const cH = toile(), cA = toile(), cF = toile();
+      const envoyer = (t, c) => { gl.bindTexture(gl.TEXTURE_2D, t); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); };
+      // les instances : un quadrilatère partagé, 20 nombres par objet
+      const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+      const qb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, qb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      const ib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ib); gl.bufferData(gl.ARRAY_BUFFER, 1024 * 80, gl.DYNAMIC_DRAW);
+      for (let k = 0; k < 5; k++) { gl.enableVertexAttribArray(1 + k); gl.vertexAttribPointer(1 + k, 4, gl.FLOAT, false, 80, k * 16); gl.vertexAttribDivisor(1 + k, 1); }
+      gl.bindVertexArray(null);
+      let I = new Float32Array(20 * 1024), nI = 0;
+      const corpsU = new Float32Array(48);
+      ESPECES.forEach((k, i) => { const B = SP[k].body; corpsU.set([...B.g, SP[k].legK, ...B.p, 0, ...B.t, RUG[k], ...B.h, 0], i * 16); });
+      const lin = (css) => C.deCss(css);
+      const V = {
+        R, W, H, cH, cA, cF, plat, lin,
+        // le décor : peint en 2D (hauteurs, albédo), puis éclairé une seule fois sur la carte graphique
+        cuire(peindre, pxmm, graine) {
+          for (const T of [cH, cA]) { T.g.setTransform(1, 0, 0, 1, 0, 0); T.g.globalAlpha = 1; T.g.globalCompositeOperation = 'source-over'; }
+          cH.g.fillStyle = 'rgb(64,242,255)'; cH.g.fillRect(0, 0, W, H);
+          cA.g.clearRect(0, 0, W, H);
+          peindre(cH.g, cA.g);
+          envoyer(tH, cH.c); envoyer(tA, cA.c);
+          P.cuisson.use().t('uH', tH).t('uA', tA).f('uRes', W, H).f('uPxMm', pxmm).f('uGraine', graine || 0)
+            .f('uL', SOLEIL[0], SOLEIL[1], SOLEIL[2]).f('uSol', sol[0], sol[1], sol[2]).f('uCielH', cielH[0], cielH[1], cielH[2]).f('uCielB', cielB[0], cielB[1], cielB[2]);
+          K.run(P.cuisson, decor);
+        },
+        // les grilles de phéromones (octets, déjà ramenés à [0, 1]) : r, g, b, a
+        grille(quelle, gw, gh, u8) { gl.bindTexture(gl.TEXTURE_2D, quelle === 2 ? tG2 : tG1); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gw, gh, 0, gl.RGBA, gl.UNSIGNED_BYTE, u8); },
+        feuilles() { envoyer(tF, cF.c); },
+        vider() { nI = 0; },
+        inst(x, y, an, L, g, wig, hk, nat, r, gg, b, ch, lr, lg, lb, lrot, sp, fl, haut, graine) {
+          if (nI * 20 >= I.length) { const N = new Float32Array(I.length * 2); N.set(I); I = N; }
+          const k = nI++ * 20;
+          I[k] = x; I[k + 1] = y; I[k + 2] = an; I[k + 3] = L; I[k + 4] = g; I[k + 5] = wig; I[k + 6] = hk; I[k + 7] = nat;
+          I[k + 8] = r; I[k + 9] = gg; I[k + 10] = b; I[k + 11] = ch; I[k + 12] = lr; I[k + 13] = lg; I[k + 14] = lb; I[k + 15] = lrot;
+          I[k + 16] = sp; I[k + 17] = fl; I[k + 18] = haut; I[k + 19] = graine;
+        },
+        // une image : le sol et ses couches, puis les ombres, puis les corps ; le développement commun (FKR) à la fin
+        image(o) {
+          if (R.perdu) return false;
+          R.debut(o.dt);
+          const mode = o.mode, nuit = mode === 1 ? [0.2, 0.24, 0.34] : [1, 1, 1];
+          P.sol.use().t('uDecor', decor).t('uG1', tG1).t('uG2', tG2).t('uFeuil', tF).t('uRocket', lutR).t('uMako', lutM)
+            .f('uRes', W, H).f('uGrille', o.grille[0], o.grille[1]).f('uMode', mode).f('uPiste', o.piste ? 1 : 0).f('uFeuilOn', o.feuilles ? 1 : 0)
+            .f('uDoux', o.doux ? 1 : 0).f('uPlat', plat[0], plat[1], plat[2]).f('uNuit', nuit[0], nuit[1], nuit[2]);
+          R.passe(P.sol);
+          if (nI) {
+            const lum = R.cibles.lum;
+            gl.bindFramebuffer(gl.FRAMEBUFFER, lum.fb); gl.viewport(0, 0, lum.w, lum.h);
+            gl.bindVertexArray(vao); gl.bindBuffer(gl.ARRAY_BUFFER, ib); gl.bufferData(gl.ARRAY_BUFFER, I.subarray(0, nI * 20), gl.DYNAMIC_DRAW);
+            gl.enable(gl.BLEND);
+            // les ombres floues assombrissent ce qui est déjà là (dst × (1 − a)) ; décalées à l'opposé du soleil
+            const tanE = SOLEIL[2] / Math.hypot(SOLEIL[0], SOLEIL[1]), dlen = o.pxmm / tanE, dn = Math.hypot(SOLEIL[0], SOLEIL[1]);
+            gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
+            P.ombre.use().f('uRes', W, H).f('uDecal', -SOLEIL[0] / dn * dlen, SOLEIL[1] / dn * dlen).f('uOmbre', 1).f('uPx', W / lum.w).f('uForce', mode === 0 ? 1 : 0.6).v4('uCorps', corpsU);
+            gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, nI);
+            // les corps, peints par-dessus (alpha prémultiplié)
+            const k = mode === 0 ? 1 : mode === 1 ? 0.28 : 0.4, s2 = sol.map((v) => v * k), c2 = cielH.map((v) => v * (mode === 0 ? 1 : 0.5)), b2 = cielB.map((v) => v * (mode === 0 ? 1 : 0.4));
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            P.corps.use().f('uRes', W, H).f('uDecal', 0, 0).f('uOmbre', 0).f('uPx', W / lum.w).f('uT', o.t).f('uSpec', o.doux ? 0.45 : 1).v4('uCorps', corpsU)
+              .f('uL', SOLEIL[0], SOLEIL[1], SOLEIL[2]).f('uSol', s2[0], s2[1], s2[2]).f('uCielH', c2[0], c2[1], c2[2]).f('uCielB', b2[0], b2[1], b2[2]);
+            gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, nI);
+            gl.disable(gl.BLEND); gl.bindVertexArray(null);
+          }
+          R.fin(o.dt);
+          return true;
+        },
+        detruire() { R.detruire(); },
+      };
+      return V;
+    } catch (e) {
+      console.warn('La Fourmilière : repli en 2D', e);
+      try { R.detruire(); } catch (e2) { /* rien */ }
+      return null;
+    }
+  }
+
   // la machine garde ses réglages ; changer de scène reconstruit le monde
   function makeAnts(env) {
-    let w = makeWorld(env);
-    const rebuild = () => { try { w.dispose(); } catch (e) { /* rien */ } w = makeWorld(env); };
+    let V = makeVue(env);
+    // repli automatique (FKR.veille, demande du CEO) : si l'appareil ne tient pas 24 i/s, la machine revient à son rendu 2D
+    // d'origine, sans recommencer la simulation ; le choix est retenu pour cet appareil (inactif sous un automate de test)
+    const sans3D = () => { if (!V) return; try { w.sans3D(); } catch (e) { /* rien */ } try { V.detruire(); } catch (e) { /* rien */ } V = null; };
+    const veille = V && window.FKR && window.FKR.veille ? window.FKR.veille({ id: 'fourmis', auRepli: sans3D }) : null;
+    if (veille && veille.deja) { try { V.detruire(); } catch (e) { /* rien */ } V = null; }
+    let w = makeWorld(env, V);
+    const rebuild = () => { try { w.dispose(); } catch (e) { /* rien */ } w = makeWorld(env, V); };
     const setScene = (id) => { keep.scene = id; rebuild(); };
     const api = {
       livePaused: true,
-      frame: (t, dt) => w.frame(t, dt), down: (p) => w.down(p), move: (p) => w.move(p), up: () => w.up(),
-      dispose: () => w.dispose(), clear: () => rebuild(),
+      frame: (t, dt) => { if (veille && V) veille.image(performance.now()); w.frame(t, dt); }, down: (p) => w.down(p), move: (p) => w.move(p), up: () => w.up(),
+      dispose: () => { w.dispose(); if (V) V.detruire(); }, clear: () => rebuild(),
       ui() {
         const L = [{ type: 'section', label: 'Scènes' }, { type: 'buttons', items: [
           { label: 'La découverte', act: () => setScene('decouverte') },
@@ -21658,11 +22136,11 @@ void main(){
           L.push({ type: 'section', label: 'Découverte' });
           L.push({ type: 'toggle', label: 'Montrer la piste', value: keep.trails, set: (x) => { keep.trails = x; } });
           L.push({ type: 'slider', label: 'Évaporation de la piste', min: 0.3, max: 3, step: 0.05, value: keep.evap, fmt: (x) => '×' + fr(x, 2), set: (x) => { keep.evap = x; } });
-          L.push({ type: 'slider', label: 'Taille du terrain', min: 1, max: 6, step: 0.5, value: keep.size, fmt: (x) => '×' + fr(x, 1), set: (x) => { keep.size = x; keep.n = Math.round(clamp(36 * x * x, 40, 1400) / 10) * 10; rebuild(); } });
+          L.push({ type: 'slider', label: 'Taille du terrain', min: 1, max: 13, step: 0.5, value: keep.size, fmt: (x) => '×' + fr(x, 1), set: (x) => { keep.size = x; keep.n = Math.round(clamp(36 * (x * SZ0) * (x * SZ0), 40, 1400) / 10) * 10; rebuild(); } });
           L.push({ type: 'slider', label: 'Fourmis de la colonie', min: 20, max: 1600, step: 10, value: keep.n, fmt: (x) => String(x), set: (x) => { keep.n = x; rebuild(); } });
           L.push({ type: 'toggle', label: 'De nouvelles sources apparaissent', value: keep.more, set: (x) => { keep.more = x; } });
           L.push({ type: 'buttons', items: [{ label: 'Sucre au hasard', act: () => w.sugar() }, { label: 'Effacer toutes les pistes', act: () => w.wipeAll() }] });
-          L.push({ type: 'note', text: 'Au début, les éclaireuses errent sans but. Dès que l’une trouve le sucre, elle rentre en marquant le sol (en ambre) ; celles qu’elle croise font demi-tour et la suivent, et chaque fourmi chargée renforce la trace. Effacez un bout de piste au doigt : le trafic se désorganise, puis la piste se reforme. Évaporation forte : la colonie a du mal à garder ses pistes ; faible : elle s’accroche à des sources épuisées.' });
+          L.push({ type: 'note', text: 'Au début, les éclaireuses errent sans but. Dès que l’une trouve le sucre, elle rentre en marquant le sol d’une phéromone (invisible en vrai : la couche colorée la montre) ; celles qu’elle croise font demi-tour et la suivent, et chaque fourmi chargée renforce la trace. Effacez un bout de piste au doigt : le trafic se désorganise, puis la piste se reforme. Évaporation forte : la colonie a du mal à garder ses pistes ; faible : elle s’accroche à des sources épuisées.' });
         } else if (keep.scene === 'ponts') {
           L.push({ type: 'section', label: 'Double pont' });
           L.push({ type: 'choice', label: 'Branches', value: keep.bridge, set: (x) => { keep.bridge = x; rebuild(); }, options: [{ id: 'inegal', label: 'Une courte, une longue' }, { id: 'egal', label: 'Deux égales' }] });
@@ -21676,11 +22154,15 @@ void main(){
         } else {
           L.push({ type: 'section', label: 'Trois sociétés' });
           L.push({ type: 'slider', label: 'Taille du terrain', min: 1, max: 5, step: 0.5, value: keep.ssize, fmt: (x) => '×' + fr(x, 1), set: (x) => { keep.ssize = x; rebuild(); } });
+          L.push({ type: 'toggle', label: 'Montrer la piste', value: keep.trails, set: (x) => { keep.trails = x; } });
           L.push({ type: 'note', text: 'Vue d’ensemble : Lasius niger (piste de recrutement), Atta cephalotes (coupe des feuilles, auto-stoppeuses), Eciton burchellii (raids en éventail venus du bord de l’écran). Grand terrain : plus de fourmis, de feuilles et de miettes, qui repoussent quand on les a consommées. Outil CHIMIE : les phéromones de chaque société.' });
         }
         L.push({ type: 'section', label: 'Rendu' });
-        L.push({ type: 'choice', label: 'Style', value: keep.style, set: (x) => { keep.style = x; rebuild(); }, options: [{ id: 'realiste', label: 'Réaliste' }, { id: 'neon', label: 'Néon' }] });
-        if (keep.style === 'neon') L.push({ type: 'note', text: 'Néon : cyan, les fourmis en quête ; or, celles qui rapportent du sucre ; violet, celles qui rentrent bredouilles ; magenta, la piste de nourriture ; bleu sombre, l’odeur du nid.' });
+        // un réglage visuel : il ne reconstruit pas la simulation
+        L.push({ type: 'choice', label: 'Style', value: keep.style, set: (x) => { keep.style = x; }, options: [{ id: 'realiste', label: 'Réaliste' }, { id: 'neon', label: 'Néon' }] });
+        L.push({ type: 'note', text: keep.style === 'neon'
+          ? 'Néon : le sol passe dans la pénombre et la couche des phéromones s’allume. Couleurs : concentration de phéromone, échelle rocket (sombre : faible ; clair : forte). En vrai, une phéromone ne se voit pas.'
+          : 'Réaliste : un sol de terre en lumière rasante, des fourmis d’environ 5 mm. Les phéromones sont invisibles : la couche translucide les montre en fausse couleur (concentration, échelle rocket). « Montrer la piste » la retire.' });
         return L;
       },
     };
@@ -21688,7 +22170,7 @@ void main(){
     return api;
   }
 
-  function makeWorld(env) {
+  function makeWorld(env, V) {
     {
       const ctx = env.ctx, W = env.w, H = env.h, au = env.audio;
       let quiet = true, T = 0;
@@ -21696,7 +22178,8 @@ void main(){
       const SCN = keep.scene, SOC = SCN === 'societes', PONT = SCN === 'ponts', DEC = SCN === 'decouverte';
       // la vue rapprochée : tout grandit (fourmis, odorat, grilles de phéromones), le terrain visible rétrécit d'autant
       // ZB : la vue rapprochée d'origine ; « size » agrandit le terrain (×5 par défaut) : tout rétrécit d'autant
-      const ZB = DEC ? 1.8 : PONT ? 1.35 : 1, Z = SOC ? 1 / keep.ssize : ZB / (PONT ? keep.psize : keep.size), NEON = keep.style === 'neon';
+      const ZB = DEC ? ZDEC : PONT ? 1.35 : 1, Z = SOC ? 1 / keep.ssize : ZB / (PONT ? keep.psize : keep.size);
+      const SZ = keep.size * SZ0;   // la taille du terrain de la découverte, ramenée à l'ancienne échelle (cailloux, collemboles)
       // trois sociétés sur grand terrain : les effectifs croissent moins vite que la surface (sinon des milliers de fourmis)
       const MS = SOC ? Math.max(1, keep.ssize * keep.ssize * 0.3) : 1;
       const kS = clamp(Math.min(W, H) / 600, 0.9, 1.8) * 1.5 * Z;
@@ -21721,7 +22204,19 @@ void main(){
       if (DEC) { nestL.x = VX0 + VW * (port ? 0.5 : 0.13); nestL.y = H * (port ? 0.84 : 0.68); }
       // double pont : plate-forme du nid à gauche, plate-forme de la nourriture à droite
       // plates-formes à la mesure des fourmis : trop grandes, l'entrée du pont devient un trou de serrure introuvable
-      const PB = PONT ? { N: [VX0 + VW * 0.08, H * 0.52], F: [VX0 + VW * 0.92, H * 0.52], R: Math.min(Math.min(VW, H) * 0.085, SP.lasius.L * kS * 3.2 * 1.5) } : null;
+      // en portrait, le pont se dresse (nid en bas, nourriture en haut) : couché sur 390 px de large, ses branches se croisaient.
+      // On le trace dans un repère local (u le long du pont, v en travers), puis E() le pose à l'écran.
+      const PV = PONT && port, PY0 = PV ? ((env.view && env.view.y0) || 0) + 165 : 0, PY1 = PV ? H - 190 : 0;
+      const LU = PV ? PY1 - PY0 : VW, LV = PV ? VW : H;
+      const E = PV ? (p) => [VX0 + p[1], PY1 - p[0]] : (p) => [VX0 + p[0], p[1]];
+      // HC : l'échelle en travers. Couché, c'est la hauteur de l'écran (rien ne change sur tablette). Debout, on garde les proportions
+      // du pont couché (HC ≈ 1,19 fois la portée), dans la limite de la largeur : les longueurs relatives des branches restent les mêmes.
+      const PB = PONT ? (() => {
+        const bw = SP.lasius.L * kS * 3.2, R = Math.min(Math.min(LU, LV) * 0.085, bw * 1.5), eq = keep.bridge === 'egal';
+        const HC = PV ? Math.min((LU * 0.68 - 2 * R) * 1.19, (LV * 0.48 - bw * 0.5) / 0.2) : LV;
+        const v0 = PV ? LV * 0.5 - (eq ? 0 : HC * 0.17) : LV * 0.52, n = [LU * 0.08, v0], f = [LU * 0.92, v0];
+        return { n, f, R, HC, N: E(n), F: E(f) };
+      })() : null;
       if (PONT) { nestL.x = PB.N[0]; nestL.y = PB.N[1]; nestL.r = PB.R * 0.55; }
       nestL.holes = [{ x: nestL.x, y: nestL.y }, { x: nestL.x + 13 * kS, y: nestL.y - 9 * kS }];
       const nestA = { kind: 'atta', x: W * 0.78, y: H * (port ? 0.84 : 0.7), r: 34 * kS, holes: [] };
@@ -21795,6 +22290,7 @@ void main(){
           if (lf.mask[i]) { lf.mask[i] = 0; lf.alive--; }
         }
         if (lf.alive < lf.alive0 * 0.04) lf.dying = true;
+        feuillesSale = true;
       }
 
       const keepOut = [[nestL.x, nestL.y, nestL.r * 3], [nestA.x, nestA.y, nestA.r * 2.4]];
@@ -21817,31 +22313,36 @@ void main(){
       }
       if (PONT) { const f = addSugar(PB.F[0], PB.F[1], 1e9); f.r0 = PB.R * 0.45; }
       const pebbles = [];
-      for (let tries = 0; !PONT && pebbles.length < (DEC ? Math.round(3 + keep.size * 3) : Math.round((6 * area + 2) * (SOC ? keep.ssize : 1))) && tries < 400; tries++) {
+      for (let tries = 0; !PONT && pebbles.length < (DEC ? Math.round(3 + SZ * 3) : Math.round((6 * area + 2) * (SOC ? keep.ssize : 1))) && tries < 400; tries++) {
         const p = { x: rnd(W * 0.95, W * 0.05), y: rnd(H * 0.95, H * 0.05), r: rnd(24, 9) * kS * 0.8 };
         if (keepOut.some((k) => Math.hypot(k[0] - p.x, k[1] - p.y) < k[2] + p.r) || pebbles.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < q.r + p.r + 30)) continue;
         pebbles.push(p);
       }
-      let bg = PONT ? null : A.ground(W, H, { k: kS, nests: SOC ? [nestL, nestA] : [nestL], pebbles });
+      // le décor 2D ne sert qu'au repli (sans WebGL2) : il est peint à la première image qui en a besoin
+      let bg = null;
+      const fond2D = () => bg || (bg = PONT ? pontGround() : A.ground(W, H, { k: kS, nests: SOC ? [nestL, nestA] : [nestL], pebbles }));
+      let decorSale = true, feuillesSale = true;
 
       /* double pont : les mêmes tracés servent au décor (pixels) et au masque de marche (grille) */
       let WALK = null, BR = null, lateT = PONT && keep.late ? 50 : 0, lateOn = !(PONT && keep.late);
       const BW = PONT ? SP.lasius.L * kS * 3.2 : 0;
       function bridgeShapes() {
-        const [nx, ny] = PB.N, [fx, fy] = PB.F, P1 = [nx + PB.R + VW * 0.08, ny], P2 = [fx - PB.R - VW * 0.08, fy], dx = P2[0] - P1[0];
-        const eq = keep.bridge === 'egal', h1 = H * (eq ? 0.27 : 0.04), h2 = H * 0.27, a30 = Math.PI / 6;
+        const eq = keep.bridge === 'egal', a30 = Math.PI / 6, HC = PB.HC;
+        const P1 = [PB.n[0] + PB.R + LU * 0.08, PB.n[1]], P2 = [PB.f[0] - PB.R - LU * 0.08, PB.f[1]], dx = P2[0] - P1[0];
+        const h1 = HC * (eq ? 0.27 : 0.04), h2 = HC * 0.27;
         // les deux branches partent du même angle (30°) : à l'embranchement, rien ne dit laquelle est la plus courte
         // une branche = une suite de courbes de Bézier cubiques ; toutes partent de l'embranchement à 30°
         const branch = (h, sg) => { const d = h / Math.sin(a30); return [[P1, [P1[0] + Math.cos(a30) * d, P1[1] + sg * Math.sin(a30) * d], [P2[0] - Math.cos(a30) * d, P2[1] + sg * Math.sin(a30) * d], P2]]; };
         // la longue : elle descend en serpentant, puis remonte (environ deux fois la courte)
         const longB = () => {
-          const d = H * 0.12, c = Math.cos(a30) * d, sn = Math.sin(a30) * d, yb = P1[1] + H * 0.27, n = 5, xs = (i) => P1[0] + dx * (0.12 + (0.76 * i) / (n - 1));
-          const S = [[P1, [P1[0] + c, P1[1] + sn], [xs(0) - dx * 0.06, yb - H * 0.05], [xs(0), yb]]];
-          for (let i = 0; i < n - 1; i++) { const x0 = xs(i), x1 = xs(i + 1), up = i % 2 === 0 ? -1 : 1; S.push([[x0, yb], [x0 + (x1 - x0) * 0.35, yb + up * H * 0.13], [x1 - (x1 - x0) * 0.35, yb + up * H * 0.13], [x1, yb]]); }
-          S.push([[xs(n - 1), yb], [xs(n - 1) + dx * 0.06, yb - H * 0.05], [P2[0] - c, P2[1] + sn], P2]);
+          const d = HC * 0.12, c = Math.cos(a30) * d, sn = Math.sin(a30) * d, yb = P1[1] + HC * 0.27, n = 5, xs = (i) => P1[0] + dx * (0.12 + (0.76 * i) / (n - 1));
+          const S = [[P1, [P1[0] + c, P1[1] + sn], [xs(0) - dx * 0.06, yb - HC * 0.05], [xs(0), yb]]];
+          for (let i = 0; i < n - 1; i++) { const x0 = xs(i), x1 = xs(i + 1), up = i % 2 === 0 ? -1 : 1; S.push([[x0, yb], [x0 + (x1 - x0) * 0.35, yb + up * HC * 0.13], [x1 - (x1 - x0) * 0.35, yb + up * HC * 0.13], [x1, yb]]); }
+          S.push([[xs(n - 1), yb], [xs(n - 1) + dx * 0.06, yb - HC * 0.05], [P2[0] - c, P2[1] + sn], P2]);
           return S;
         };
-        return { stem: [[nx, ny], P1], join: [P2, [fx, fy]], up: branch(h1, -1), dn: eq ? branch(h2, 1) : longB(), P1, P2, dx };
+        const ecran = (S) => S.map((b) => b.map(E));
+        return { stem: [PB.N, E(P1)], join: [E(P2), PB.F], up: ecran(branch(h1, -1)), dn: ecran(eq ? branch(h2, 1) : longB()), P1: E(P1), P2: E(P2), dx };
       }
       function bezLen(S) { return S.reduce((s, b) => s + bezLen1(b), 0); }
       function bezLen1(b) { let L = 0, q = b[0]; for (let i = 1; i <= 60; i++) { const t = i / 60, u = 1 - t, x = u * u * u * b[0][0] + 3 * u * u * t * b[1][0] + 3 * u * t * t * b[2][0] + t * t * t * b[3][0], y = u * u * u * b[0][1] + 3 * u * u * t * b[1][1] + 3 * u * t * t * b[2][1] + t * t * t * b[3][1]; L += Math.hypot(x - q[0], y - q[1]); q = [x, y]; } return L; }
@@ -21884,7 +22385,7 @@ void main(){
         for (const h of nestL.holes) { const hg = g.createRadialGradient(h.x, h.y, 0, h.x, h.y, nestL.r * 0.5); hg.addColorStop(0, 'rgba(0,0,0,.95)'); hg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = hg; g.beginPath(); g.arc(h.x, h.y, nestL.r * 0.5, 0, TAU); g.fill(); }
         return Lr;
       }
-      if (PONT) { nestL.holes = [{ x: nestL.x, y: nestL.y }, { x: nestL.x - PB.R * 0.3, y: nestL.y + PB.R * 0.25 }]; buildWalk(); bg = pontGround(); }
+      if (PONT) { nestL.holes = [{ x: nestL.x, y: nestL.y }, { x: nestL.x - PB.R * 0.3, y: nestL.y + PB.R * 0.25 }]; buildWalk(); }
       const walkAt = (x, y) => { if (!WALK) return 1; const i = gi(x, y); return i < 0 ? 0 : WALK[i]; };
 
       /* colonies */
@@ -21910,7 +22411,7 @@ void main(){
       const ALL = colL.ants.concat(colA.ants, colE.ants);
 
       /* proies : collemboles */
-      const prey = [], nP = SOC ? Math.round((9 * area + 4) * keep.ssize) : DEC ? Math.round(3 * keep.size) : 0;
+      const prey = [], nP = SOC ? Math.round((9 * area + 4) * keep.ssize) : DEC ? Math.round(3 * SZ) : 0;
       const mkPrey = () => ({ prey: true, x: rnd(W * 0.95, W * 0.05), y: rnd(H * 0.95, H * 0.05), a: rnd(TAU), hop: 0, vx: 0, vy: 0, L: rnd(8, 5.5) * kS * 0.8, still: rnd(3), fade: 0, dead: false, hue: rnd(270, 220) });
       for (let i = 0; i < nP; i++) prey.push(mkPrey());
 
@@ -22146,7 +22647,7 @@ void main(){
           alarmT = Math.max(0, alarmT - cd);
           const wf = Math.exp(-cd * 0.004); for (let i = 0; i < NG; i++) WEAR[i] *= wf;
         }
-        if (PONT && !lateOn && (lateT -= dt) <= 0) { lateOn = true; buildWalk(); bg = pontGround(); toast('La branche courte vient d’être ajoutée. La colonie va-t-elle en changer ?'); }
+        if (PONT && !lateOn && (lateT -= dt) <= 0) { lateOn = true; buildWalk(); bg = null; decorSale = true; toast('La branche courte vient d’être ajoutée. La colonie va-t-elle en changer ?'); }
 
         /* raid */
         if (raid.on) {
@@ -22300,78 +22801,28 @@ void main(){
       }
 
       /* rendu */
-      const wearB = buf(GW, GH), chemB = buf(GW, GH), trailB = buf(GW, GH), neonB = buf(GW, GH);
-      /* rendu stylisé : fond nuit, fourmis et pistes au néon */
-      let neonBg = null;
-      function makeNeonBg() {
-        const Lr = layer(W, H), g = Lr.g;
-        g.fillStyle = '#04050b'; g.fillRect(0, 0, W, H);
-        const vg = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.hypot(W, H) / 2); vg.addColorStop(0, 'rgba(30,20,60,.35)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = vg; g.fillRect(0, 0, W, H);
-        g.strokeStyle = 'rgba(120,140,255,.05)'; g.lineWidth = 1; const st = 44;
-        g.beginPath(); for (let x = 0.5; x < W; x += st) { g.moveTo(x, 0); g.lineTo(x, H); } for (let y = 0.5; y < H; y += st) { g.moveTo(0, y); g.lineTo(W, y); } g.stroke();
-        if (PONT) {
-          g.save(); g.shadowColor = 'rgba(80,220,255,.8)'; g.shadowBlur = 14; g.fillStyle = '#5ae0ff'; g.strokeStyle = '#5ae0ff'; strokeBridges(g, 1, BW + 3, lateOn); g.restore();
-          g.fillStyle = '#0a0d1c'; g.strokeStyle = '#0a0d1c'; strokeBridges(g, 1, BW - 1, lateOn);
-        }
-        for (const p of pebbles) {
-          g.fillStyle = '#0b0a18'; g.beginPath(); g.arc(p.x, p.y, p.r, 0, TAU); g.fill();
-          g.save(); g.shadowColor = 'rgba(170,110,255,.9)'; g.shadowBlur = 10; g.strokeStyle = 'rgba(190,140,255,.85)'; g.lineWidth = 1.4; g.stroke(); g.restore();
-        }
-        for (const n of SOC ? [nestL, nestA] : [nestL]) {
-          const R = n.r * 1.5, c = n.kind === 'atta' ? '120,255,150' : '90,230,255';
-          g.save(); g.shadowColor = `rgba(${c},.9)`; g.shadowBlur = 16; g.strokeStyle = `rgba(${c},.8)`; g.lineWidth = 1.6;
-          for (const k of [1, 0.65]) { g.beginPath(); g.arc(n.x, n.y, R * k, 0, TAU); g.stroke(); }
-          g.restore();
-          g.fillStyle = `rgba(${c},.12)`; g.beginPath(); g.arc(n.x, n.y, R, 0, TAU); g.fill();
-          for (const h of n.holes) { g.fillStyle = '#000'; g.beginPath(); g.arc(h.x, h.y, n.r * 0.22, 0, TAU); g.fill(); g.strokeStyle = `rgba(${c},.6)`; g.lineWidth = 1; g.stroke(); }
-        }
-        return Lr;
-      }
-      let neonT = 0;
-      function neonPaint() {
-        // piste de nourriture en magenta, odeur du nid en bleu à peine visible (et, en vue d'ensemble, les autres sociétés)
-        const d = neonB.d, lF = colL.F, lH = colL.Hm, aF = colA.F, eF = colE.F;
-        for (let i = 0; i < NG; i++) {
-          const o = i * 4, f = Math.min(1, lF[i] * 0.16), h = Math.min(1, lH[i] * 0.04), af = SOC ? Math.min(1, aF[i] * 0.4) : 0, ef = SOC ? Math.min(1, eF[i] * 0.3) : 0;
-          const tf = f * f * (3 - 2 * f);
-          d[o] = Math.min(255, tf * 255 + ef * 255 + h * 20); d[o + 1] = Math.min(255, tf * 50 + af * 255 + ef * 120 + h * 90); d[o + 2] = Math.min(255, tf * 210 + af * 120 + h * 255);
-          d[o + 3] = 255;
-        }
-        neonB.flush();
-      }
-      function neonAnts(list) {
-        // chaque fourmi : un trait lumineux ; cyan en quête, or quand elle rapporte, orange et vert pour les autres sociétés
-        const groups = new Map();
-        for (const a of list) {
-          const c = a.sp === SP.eciton ? '#ff8a3c' : a.sp === SP.atta ? (a.carry ? '#b6ff6a' : '#3cff9a') : a.carry || a.rep ? '#ffd84a' : a.st === 'retour' ? '#9a8cff' : '#4df3ff';
-          if (!groups.has(c)) groups.set(c, []); groups.get(c).push(a);
-        }
-        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
-        for (const [c, g] of groups) {
-          for (const [w, al] of [[2.4, 0.18], [0.85, 1]]) {
-            ctx.strokeStyle = c; ctx.globalAlpha = al; ctx.beginPath();
-            for (const a of g) { const L = a.L * 0.45; ctx.moveTo(a.x - a.ca * L, a.y - a.sa * L); ctx.lineTo(a.x + a.ca * L, a.y + a.sa * L); }
-            ctx.lineWidth = w > 1 ? Math.max(2.5, g[0].L * 0.55) : Math.max(1, g[0].L * 0.2); ctx.stroke();
-          }
-        }
-        ctx.globalAlpha = 1; ctx.restore();
-      }
-      function neonFoods() {
-        ctx.save(); ctx.globalCompositeOperation = 'lighter';
-        for (const f of foods) {
-          const r = Math.max(3, f.r), g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r * 3);
-          g.addColorStop(0, 'rgba(255,240,140,.95)'); g.addColorStop(0.3, 'rgba(255,200,60,.5)'); g.addColorStop(1, 'rgba(255,160,0,0)');
-          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, r * 3, 0, TAU); ctx.fill();
-        }
-        for (const p of prey) { ctx.fillStyle = `rgba(200,160,255,${0.6 * p.fade})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.L * 0.3, 0, TAU); ctx.fill(); }
-        ctx.restore();
-      }
+      // l'échelle : une ouvrière de Lasius niger mesure environ 5 mm ; le décor est dessiné à la même échelle
+      const PXMM = (SP.lasius.L * kS) / 5;
+      const wearB = buf(GW, GH), chemB = buf(GW, GH), trailB = buf(GW, GH);
+      // les fausses couleurs nommées de la DA (cartes perceptivement uniformes), en octets sRGB pour le repli 2D et le cartel
+      const FKR = window.FKR;
+      const table = (nom) => {
+        const f = FKR ? FKR.palette.carte(nom) : null, T = new Uint8Array(256 * 3);
+        for (let i = 0; i < 256; i++) { const c = f ? FKR.couleur.css(f(i / 255)) : '#808080'; for (let k = 0; k < 3; k++) T[i * 3 + k] = parseInt(c.slice(1 + k * 2, 3 + k * 2), 16); }
+        return T;
+      };
+      const ROCKET = table('rocket'), MAKO = table('mako');
+      // concentrations ramenées à [0, 1] (courbes monotones, les mêmes en WebGL et en 2D)
+      const tF = (v) => 1 - Math.exp(-v * 0.28), tA = (v) => 1 - Math.exp(-v * 0.5), tE = (v) => 1 - Math.exp(-v * 0.4), tH = (v) => 1 - Math.exp(-v * 0.12), tAl = (v) => 1 - Math.exp(-v * 0.25);
       let trailT = 0;
       function trailPaint() {
-        // la phéromone de piste, en ambre ; une piste fraîche et très parcourue brille davantage
-        const d = trailB.d, F = colL.F;
-        for (let i = 0; i < NG; i++) { const o = i * 4, v = Math.min(1, F[i] * 0.16), s2 = v * v * (3 - 2 * v); d[o] = 255; d[o + 1] = 160 + 60 * s2; d[o + 2] = 40 + 80 * s2; d[o + 3] = s2 * 200; }
+        // repli 2D : la phéromone de piste en fausse couleur (échelle rocket), translucide
+        const d = trailB.d, F = colL.F, aF = colA.F, eF = colE.F;
+        for (let i = 0; i < NG; i++) {
+          const o = i * 4, v = SOC ? Math.max(tF(F[i]), tA(aF[i]), tE(eF[i])) : tF(F[i]), j = Math.round((0.15 + 0.8 * v) * 255) * 3;
+          d[o] = ROCKET[j]; d[o + 1] = ROCKET[j + 1]; d[o + 2] = ROCKET[j + 2];
+          d[o + 3] = v < 0.03 ? 0 : (0.22 + 0.3 * v) * 255 * Math.min(1, (v - 0.03) / 0.5);
+        }
         trailB.flush();
       }
       let wearT = 0;
@@ -22381,14 +22832,196 @@ void main(){
         wearB.flush();
       }
       function chemPaint() {
+        // repli 2D de l'outil chimie : la piste en rocket ; l'odeur du nid et l'alarme en mako
         const d = chemB.d, lF = colL.F, lH = colL.Hm, aF = colA.F, aH = colA.Hm, eF = colE.F;
         for (let i = 0; i < NG; i++) {
-          const o = i * 4, lf = lF[i], lh = lH[i], af = aF[i], ah = aH[i], ef = eF[i], al = ALARM[i];
-          d[o] = lf * 6 + af * 10 + ef * 34 + al * 70;
-          d[o + 1] = lf * 22 + lh * 2 + af * 36 + ah * 5 + al * 12;
-          d[o + 2] = lf * 34 + lh * 7 + ef * 30 + ah * 2;
+          const o = i * 4, f = Math.max(tF(lF[i]), tA(aF[i]), tE(eF[i])), h = Math.max(tH(lH[i]), tH(aH[i]), tAl(ALARM[i]));
+          const jr = Math.round((0.2 + 0.78 * f) * 255) * 3, jm = Math.round((0.3 + 0.65 * h) * 255) * 3, kf = Math.pow(f, 1.2), kh = h * 0.55;
+          for (let k = 0; k < 3; k++) d[o + k] = ROCKET[jr + k] * kf + MAKO[jm + k] * kh;
         }
         chemB.flush();
+      }
+
+      /* rendu WebGL : le décor est cuit une fois ; les couches et les corps sont redessinés à chaque image */
+      // brindilles et feuilles mortes (au hasard, loin des nids)
+      const brindilles = [], mortes = [];
+      if (V && !PONT) {
+        const libre = (x, y) => !keepOut.slice(0, SOC ? 2 : 1).some((k) => Math.hypot(k[0] - x, k[1] - y) < k[2]);
+        for (let i = 0, k = 0; i < 5 && k < 60; k++) { const x = rnd(W), y = rnd(H); if (libre(x, y)) { brindilles.push({ x, y, a: rnd(TAU), len: rnd(160, 70) * kS, w: rnd(5, 2.5) * kS, mx: rnd(20, -20) * kS, my: rnd(20, -20) * kS }); i++; } }
+        for (let i = 0, k = 0; i < 6 && k < 60; k++) { const x = rnd(W), y = rnd(H); if (libre(x, y)) { mortes.push({ x, y, a: rnd(TAU), len: rnd(70, 40) * kS, c: `hsl(${rnd(34, 22) | 0},${rnd(45, 28) | 0}%,${rnd(30, 19) | 0}%)` }); i++; } }
+      }
+      // une hauteur (mm) pour la carte du relief : r = hauteur, g = rugosité, b = part de sol procédural
+      const hc = (mm, rug, sol, a = 1) => `rgba(${Math.round(clamp(64 + (mm / 16) * 255, 0, 255))},${Math.round(rug * 255)},${Math.round(sol * 255)},${a})`;
+      function nidDecor(gH, gA, n, base, R0) {
+        const big = n.kind === 'atta', R = R0 || n.r * (big ? 1.5 : 1.9), haut = big ? 3.2 : 1.6;
+        // le monticule de terre remuée, plus claire (elle vient du sous-sol)
+        const gr = gH.createRadialGradient(n.x, n.y, 0, n.x, n.y, R);
+        gr.addColorStop(0, hc(base + haut, 0.95, 1, 1)); gr.addColorStop(0.55, hc(base + haut * 0.7, 0.95, 1, 0.75)); gr.addColorStop(1, hc(base, 0.95, 1, 0));
+        gH.fillStyle = gr; gH.beginPath(); gH.arc(n.x, n.y, R, 0, TAU); gH.fill();
+        const ga = gA.createRadialGradient(n.x, n.y, 0, n.x, n.y, R);
+        ga.addColorStop(0, 'rgba(176,136,92,.8)'); ga.addColorStop(0.65, 'rgba(160,122,82,.45)'); ga.addColorStop(1, 'rgba(160,122,82,0)');
+        gA.fillStyle = ga; gA.beginPath(); gA.arc(n.x, n.y, R, 0, TAU); gA.fill();
+        // les boulettes de terre déposées par les ouvrières autour des entrées
+        gH.globalCompositeOperation = 'lighter';
+        for (let i = 0, np = big ? 900 : 380; i < np; i++) {
+          const an = rnd(TAU), d = Math.abs(rnd(1, 0) + rnd(1, 0) - 1) * R * 1.05 + n.r * 0.25, r = rnd(1.7, 0.8) * kS * 0.75;
+          const x = n.x + Math.cos(an) * d, y = n.y + Math.sin(an) * d;
+          gH.fillStyle = `rgb(${Math.round((r / PXMM) * 0.8 * 16)},0,0)`; gH.beginPath(); gH.arc(x, y, r, 0, TAU); gH.fill();
+          gA.fillStyle = `hsl(${rnd(38, 26) | 0},${rnd(36, 20) | 0}%,${rnd(60, 42) | 0}%)`; gA.beginPath(); gA.arc(x, y, r, 0, TAU); gA.fill();
+        }
+        gH.globalCompositeOperation = 'source-over';
+        // les entrées : des puits sombres
+        for (const h of n.holes) {
+          const hr = n.r * (big ? 0.2 : 0.3) * 1.6;
+          const g1 = gH.createRadialGradient(h.x, h.y, 0, h.x, h.y, hr);
+          g1.addColorStop(0, hc(base - 3.5, 0.95, 1, 1)); g1.addColorStop(0.45, hc(base - 1.5, 0.95, 1, 0.9)); g1.addColorStop(1, hc(base, 0.95, 1, 0));
+          gH.fillStyle = g1; gH.beginPath(); gH.arc(h.x, h.y, hr, 0, TAU); gH.fill();
+          const g2 = gA.createRadialGradient(h.x, h.y, 0, h.x, h.y, hr);
+          g2.addColorStop(0, 'rgba(6,4,3,1)'); g2.addColorStop(0.5, 'rgba(14,9,6,.85)'); g2.addColorStop(1, 'rgba(14,9,6,0)');
+          gA.fillStyle = g2; gA.beginPath(); gA.arc(h.x, h.y, hr, 0, TAU); gA.fill();
+        }
+      }
+      function pontTrace(g, w, retrait) {
+        const B = bridgeShapes();
+        g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath();
+        g.moveTo(B.stem[0][0], B.stem[0][1]); g.lineTo(B.stem[1][0], B.stem[1][1]);
+        g.moveTo(B.join[0][0], B.join[0][1]); g.lineTo(B.join[1][0], B.join[1][1]);
+        pathB(g, B.dn, 1); if (lateOn) pathB(g, B.up, 1); g.stroke();
+        g.beginPath(); g.arc(PB.N[0], PB.N[1], PB.R - retrait, 0, TAU); g.arc(PB.F[0], PB.F[1], PB.R - retrait, 0, TAU); g.fill();
+      }
+      function peindreDecor(gH, gA) {
+        if (PONT) {
+          // une cuve d'eau sombre ; le pont de carton, 7 mm au-dessus, y jette son ombre ; le nid de terre sur la plate-forme de gauche
+          const ep = 7;
+          gH.fillStyle = hc(0, 0.06, 0); gH.fillRect(0, 0, W, H);
+          [[0, ep - 0.8, 0], [2, ep - 0.25, 1], [4, ep, 2]].forEach(([dw, mm, r]) => { gH.fillStyle = gH.strokeStyle = hc(mm, 0.9, 0); pontTrace(gH, BW - dw, r); });
+          gA.fillStyle = gA.strokeStyle = '#b39b74'; pontTrace(gA, BW, 0);
+          gA.save(); gA.globalCompositeOperation = 'source-atop';
+          for (let i = 0; i < (W * H) / 50; i++) { gA.fillStyle = Math.random() < 0.5 ? 'rgba(255,245,220,.16)' : 'rgba(80,60,30,.14)'; gA.fillRect(rnd(W), rnd(H), rnd(3, 1), 1); }
+          gA.restore();
+          const [nx, ny] = PB.N, rn = PB.R * 0.9;
+          gH.fillStyle = hc(ep + 0.2, 0.95, 1); gH.beginPath(); gH.arc(nx, ny, rn, 0, TAU); gH.fill();
+          gA.save(); gA.globalCompositeOperation = 'destination-out'; gA.beginPath(); gA.arc(nx, ny, rn, 0, TAU); gA.fill(); gA.restore();
+          nidDecor(gH, gA, nestL, ep + 0.2, rn);
+          return;
+        }
+        // feuilles mortes, brindilles, nids, cailloux
+        for (const m of mortes) {
+          const forme = (g) => { const len = m.len, w = len * 0.36; g.save(); g.translate(m.x, m.y); g.rotate(m.a); g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(len * 0.25, -w * 1.2, len * 0.75, -w * 0.9, len, 0); g.bezierCurveTo(len * 0.75, w * 0.9, len * 0.25, w * 1.2, 0, 0); };
+          forme(gH); gH.fillStyle = hc(0.4, 0.8, 0); gH.fill(); gH.restore();
+          forme(gA); gA.fillStyle = m.c; gA.fill(); gA.strokeStyle = 'rgba(190,150,100,.35)'; gA.lineWidth = 0.8; gA.beginPath(); gA.moveTo(0, 0); gA.lineTo(m.len * 0.95, 0); gA.stroke(); gA.restore();
+        }
+        for (const b of brindilles) {
+          const ex = b.x + Math.cos(b.a) * b.len, ey = b.y + Math.sin(b.a) * b.len, mx = (b.x + ex) / 2 + b.mx, my = (b.y + ey) / 2 + b.my, wm = b.w / PXMM;
+          const trace = (g) => { g.beginPath(); g.moveTo(b.x, b.y); g.quadraticCurveTo(mx, my, ex, ey); };
+          gH.lineCap = gA.lineCap = 'round';
+          for (const f of [1, 0.8, 0.6, 0.4, 0.2]) { gH.strokeStyle = hc(wm * 0.5 * (1 + Math.sqrt(1 - f * f)), 0.7, 0); gH.lineWidth = b.w * f; trace(gH); gH.stroke(); }
+          gA.strokeStyle = '#5b4733'; gA.lineWidth = b.w; trace(gA); gA.stroke();
+          gA.strokeStyle = 'rgba(165,135,100,.4)'; gA.lineWidth = b.w * 0.3; trace(gA); gA.stroke();
+        }
+        nidDecor(gH, gA, nestL, 0);
+        if (SOC) nidDecor(gH, gA, nestA, 0);
+        for (const p of pebbles) {
+          const rot = rnd(TAU), hm = (p.r / PXMM) * 0.55;
+          const forme = (g) => { g.save(); g.translate(p.x, p.y); g.rotate(rot); g.scale(1, 0.86); g.beginPath(); g.arc(0, 0, p.r, 0, TAU); };
+          forme(gH); const gr = gH.createRadialGradient(0, 0, 0, 0, 0, p.r);
+          [[0, 1], [0.55, 0.835], [0.8, 0.6], [0.92, 0.39], [1, 0.08]].forEach(([s, k]) => gr.addColorStop(s, hc(hm * k, 0.5, 0)));
+          gH.fillStyle = gr; gH.fill(); gH.restore();
+          forme(gA); gA.fillStyle = `hsl(${rnd(40, 20) | 0},${rnd(18, 6) | 0}%,${rnd(46, 30) | 0}%)`; gA.fill();
+          for (let i = 0; i < p.r * 2; i++) { gA.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.14)'; gA.fillRect(rnd(p.r, -p.r) * 0.75, rnd(p.r, -p.r) * 0.75, 1.3, 1.3); }
+          gA.restore();
+        }
+      }
+      let u1 = null, u2 = null, grilleT = 0, chem0 = null;
+      function grillesGL(chem) {
+        if (!u1) { u1 = new Uint8Array(NG * 4); u2 = new Uint8Array(NG * 4); }
+        const lF = colL.F, aF = colA.F, eF = colE.F;
+        for (let i = 0; i < NG; i++) {
+          const o = i * 4;
+          u1[o] = 255 * tF(lF[i]);
+          if (SOC) { u1[o + 1] = 255 * tA(aF[i]); u1[o + 2] = 255 * tE(eF[i]); }
+          u1[o + 3] = Math.min(255, WEAR[i] * 255);
+        }
+        V.grille(1, GW, GH, u1);
+        if (chem) {
+          const lH = colL.Hm, aH = colA.Hm;
+          for (let i = 0; i < NG; i++) { const o = i * 4; u2[o] = 255 * tH(lH[i]); u2[o + 1] = SOC ? 255 * tH(aH[i]) : 0; u2[o + 2] = 255 * tAl(ALARM[i]); }
+          V.grille(2, GW, GH, u2);
+        }
+      }
+      let feuillesT = 0, feuillesSig = -1;
+      function feuillesGL() {
+        const g = V.cF.g; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+        for (const lf of leaves) { g.globalAlpha = lf.fade; g.drawImage(lf.Lr.c, lf.x - lf.c, lf.y - lf.c); }
+        g.globalAlpha = 1; V.feuilles();
+      }
+      // couleurs de la cuticule (sRGB) : brun-noir pour Lasius niger, roux pour Atta, brun-rouge pour Eciton
+      const CUTI = { lasius: '#2a1c14', atta: SP.atta.col, eciton: '#4a230f' };
+      const ALB = {}, LINC = new Map();
+      const linc = (css) => { let c = LINC.get(css); if (!c) { c = V.lin(css); LINC.set(css, c); } return c; };
+      if (V) for (const k of ESPECES) ALB[k] = V.lin(CUTI[k]);
+      const CHARGE = { miette: 1, feuille: 2, proie: 3 };
+      const hslHex = (h, sa, l) => { const f = (n) => { const k = (n + h / 30) % 12, a = sa * Math.min(l, 1 - l); return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0'); }; return '#' + f(0) + f(8) + f(4); };
+      function instancesGL() {
+        V.vider();
+        for (const f of foods) V.inst(f.x, f.y, f.rot || 0, Math.max(2, f.r), 0, 0, 1, f.kind === 'sucre' ? 1 : 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (f.rot || 0) * 7.1);
+        for (const p of prey) {
+          const h = p.hop > 0 ? Math.sin(Math.PI * (1 - p.hop / 0.28)) : 0, c = p.lin || (p.lin = linc(hslHex(p.hue, 0.14, 0.62)));
+          V.inst(p.x, p.y, p.a, p.L * (0.4 + 0.6 * p.fade), 0, 0, 1, 3, c[0], c[1], c[2], 0, 0, 0, 0, 0, 0, 0, (h * 14 * kS) / PXMM, p.hue);
+        }
+        for (const a of ALL) {
+          if (a.st === 'nid') continue;
+          const k = a.sp.key, c = ALB[k], ch = CHARGE[a.carry] || 0, lc = ch === 2 && a.leafCol ? linc(a.leafCol) : c;
+          V.inst(a.x, a.y, a.a, a.L, a.g, a.wig, a.hk || 1, 0, c[0], c[1], c[2], ch, lc[0], lc[1], lc[2], a.leafRot || 0, ESPECES.indexOf(k), (a.rep ? 1 : 0) | (a.sold ? 2 : 0) | (a.hiker ? 4 : 0), 0, a.id);
+        }
+      }
+      function renduGL(t, dt) {
+        const chem = env.tool === 'chimie';
+        if (decorSale) { V.cuire(peindreDecor, PXMM, (W * 0.37 + H * 0.11) % 53); decorSale = false; }
+        if ((grilleT -= dt) <= 0 || chem !== chem0) { grilleT = 0.1; grillesGL(chem); chem0 = chem; }
+        if (SOC) {
+          let sig = leaves.length * 1000; for (const l of leaves) sig += l.fade;
+          if (sig !== feuillesSig) { feuillesSig = sig; feuillesSale = true; }
+          if (feuillesSale && (feuillesT -= dt) <= 0) { feuillesT = 0.4; feuillesSale = false; feuillesGL(); }
+        }
+        instancesGL();
+        return V.image({ t, dt, mode: chem ? 2 : keep.style === 'neon' ? 1 : 0, piste: keep.trails, feuilles: SOC, grille: [GW * CS, GH * CS], doux: !!env.doux, pxmm: PXMM });
+      }
+      // le cartel : la fausse couleur est nommée à l'écran (DA) ; et l'échelle, pour voir que les fourmis mesurent 5 mm
+      function degrade(g, x, w, nom) {
+        const T = nom === 'mako' ? MAKO : ROCKET, gr = g.createLinearGradient(x, 0, x + w, 0);
+        for (let i = 0; i <= 8; i++) { const j = Math.round((nom === 'mako' ? 0.3 + 0.65 * (i / 8) : 0.15 + 0.83 * (i / 8)) * 255) * 3; gr.addColorStop(i / 8, `rgb(${T[j]},${T[j + 1]},${T[j + 2]})`); }
+        return gr;
+      }
+      function cartel() {
+        const v = env.view || { x0: 0, x1: W }, chem = env.tool === 'chimie', montre = chem || keep.trails;
+        const lignes = chem ? [['rocket', 'phéromone de piste'], ['mako', 'odeur du nid, alarme']] : montre ? [['rocket', 'concentration de phéromone']] : [];
+        const bw = 220, x = v.x1 - 16 - bw - 12, h = 22 + lignes.length * 26 + 14;
+        let y = H - 14 - h - (PV ? 86 : 0);   // pont debout (portrait) : au-dessus de la ligne d'état et des boutons
+        ctx.save();
+        ctx.textBaseline = 'alphabetic';
+        // l'échelle : une barre de 1, 2, 5 ou 10 cm
+        const cm = [1, 2, 5, 10].find((c) => c * 10 * PXMM >= 46) || 10, lw = cm * 10 * PXMM, ex = v.x1 - 28 - lw, ey = (montre ? y : H - 14) - 12;
+        ctx.strokeStyle = 'rgba(245,236,220,.85)'; ctx.lineWidth = 1.5; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 4;
+        ctx.beginPath(); ctx.moveTo(ex, ey - 4); ctx.lineTo(ex, ey); ctx.lineTo(ex + lw, ey); ctx.lineTo(ex + lw, ey - 4); ctx.stroke();
+        ctx.font = '500 10px "JetBrains Mono", monospace'; ctx.fillStyle = 'rgba(245,236,220,.9)'; ctx.textAlign = 'right';
+        ctx.fillText(`${cm} CM`, ex - 6, ey + 1);
+        ctx.shadowBlur = 0; ctx.textAlign = 'left';
+        if (montre) {
+          ctx.fillStyle = 'rgba(14,10,6,.66)'; ctx.fillRect(x, y, bw + 12, h);
+          ctx.fillStyle = 'rgba(245,232,210,.92)'; ctx.font = '500 10px "JetBrains Mono", monospace';
+          ctx.fillText('COULEURS (FAUSSES) :', x + 6, y + 15);
+          y += 22;
+          for (const [nom, txt] of lignes) {
+            ctx.fillStyle = degrade(ctx, x + 6, bw, nom); ctx.fillRect(x + 6, y, bw, 7);
+            ctx.fillStyle = 'rgba(245,232,210,.88)'; ctx.font = '500 9.5px "JetBrains Mono", monospace';
+            ctx.fillText(`${txt} · ${nom}`.toUpperCase(), x + 6, y + 19);
+            y += 26;
+          }
+          ctx.fillStyle = 'rgba(245,232,210,.62)'; ctx.font = 'italic 500 10.5px "Space Grotesk", sans-serif';
+          ctx.fillText('Une phéromone ne se voit pas : couche ajoutée.', x + 6, y + 6);
+        }
+        ctx.restore();
       }
       function drawFoods() {
         for (const f of foods) {
@@ -22474,25 +23107,28 @@ void main(){
           // moyenne des dix dernières secondes
           let su = 0, sd = 0; for (const [t, u, d] of brHist) if (T - t < 10) { su += u; sd += d; }
           const tot = su + sd, pu = tot ? su / tot : 0.5;
-          const bw = Math.min(460, (v.x1 - v.x0) * 0.6), bx = v.x0 + (v.x1 - v.x0) / 2 - bw / 2, by = ((env.view && env.view.y0) || 0) + 70;
+          const bw = Math.min(460, (v.x1 - v.x0) * (PV ? 0.92 : 0.6)), bx = v.x0 + (v.x1 - v.x0) / 2 - bw / 2, by = ((env.view && env.view.y0) || 0) + 70;
           ctx.fillStyle = 'rgba(14,10,6,.62)'; ctx.fillRect(bx - 10, by - 18, bw + 20, 62);
           ctx.fillStyle = 'rgba(255,200,110,.9)'; ctx.fillRect(bx, by, bw * pu, 12);
           ctx.fillStyle = 'rgba(140,180,255,.85)'; ctx.fillRect(bx + bw * pu, by, bw * (1 - pu), 12);
           ctx.fillStyle = 'rgba(245,232,210,.9)';
-          const nu = lateOn ? (keep.bridge === 'egal' ? 'HAUT' : 'COURTE (HAUT)') : 'COURTE : PAS ENCORE LÀ';
+          const BH = PV ? 'GAUCHE' : 'HAUT', BB = PV ? 'DROITE' : 'BAS';   // debout, la branche « du haut » est à gauche
+          const nu = lateOn ? (keep.bridge === 'egal' ? BH : PV ? 'COURTE' : `COURTE (${BH})`) : 'COURTE : PAS ENCORE LÀ';
           ctx.fillText(`${nu} ${tot ? Math.round(pu * 100) + ' %' : '—'}`, bx, by - 5);
-          ctx.textAlign = 'right'; ctx.fillText(`${tot ? Math.round((1 - pu) * 100) + ' %' : '—'} ${keep.bridge === 'egal' ? 'BAS' : 'LONGUE (BAS)'}`, bx + bw, by - 5); ctx.textAlign = 'left';
+          ctx.textAlign = 'right'; ctx.fillText(`${tot ? Math.round((1 - pu) * 100) + ' %' : '—'} ${keep.bridge === 'egal' ? BB : PV ? 'LONGUE' : `LONGUE (${BB})`}`, bx + bw, by - 5); ctx.textAlign = 'left';
           // l'histoire : la part de la branche du haut, seconde après seconde
           ctx.strokeStyle = 'rgba(255,200,110,.85)'; ctx.lineWidth = 1.2; ctx.beginPath(); let k = 0;
           const H0 = brHist.filter(([t]) => T - t < 240);
           for (let i = 0; i < H0.length; i++) { const [t, u, d] = H0[i]; if (u + d < 3) continue; const xx = bx + bw * ((t - (T - 240)) / 240), yy = by + 38 - (u / (u + d)) * 20; k++ ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
           ctx.stroke();
           ctx.fillStyle = 'rgba(245,232,210,.6)'; ctx.font = '500 9.5px "JetBrains Mono", monospace'; ctx.fillText('4 DERNIÈRES MINUTES', bx, by + 40);
-          line(`${mm(T)} · LONGUEURS : HAUT ${fr(lu / (SP.lasius.L * kS))} FOURMIS, BAS ${fr(ld / (SP.lasius.L * kS))} FOURMIS · ${trips} ALLERS-RETOURS`, H - 18);
+          if (PV) { line(`${mm(T)} · ${trips} ALLERS-RETOURS`, H - 88); line(`${BH} ${fr(lu / (SP.lasius.L * kS))}, ${BB} ${fr(ld / (SP.lasius.L * kS))} LONGUEURS DE FOURMI`, H - 70); }
+          else line(`${mm(T)} · LONGUEURS : HAUT ${fr(lu / (SP.lasius.L * kS))} FOURMIS, BAS ${fr(ld / (SP.lasius.L * kS))} FOURMIS · ${trips} ALLERS-RETOURS`, H - 18);
         }
         if (toastM && T - toastM.t < 6) {
           const a = Math.min(1, (6 - (T - toastM.t)) * 1.2), cx = (v.x0 + v.x1) / 2;
-          ctx.globalAlpha = a; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; const w = ctx.measureText(toastM.m).width;
+          ctx.globalAlpha = a; ctx.font = 'italic 500 15px "Space Grotesk", sans-serif'; let w = ctx.measureText(toastM.m).width;
+          if (w > W - 40) { const fs = Math.max(10.5, (15 * (W - 40)) / w); ctx.font = `italic 500 ${fs.toFixed(1)}px "Space Grotesk", sans-serif`; w = ctx.measureText(toastM.m).width; }
           ctx.fillStyle = 'rgba(14,10,6,.7)'; ctx.fillRect(cx - w / 2 - 12, ((env.view && env.view.y0) || 0) + (PONT ? 128 : 54), w + 24, 28);
           ctx.fillStyle = '#fff3e0'; ctx.textAlign = 'center'; ctx.fillText(toastM.m, cx, ((env.view && env.view.y0) || 0) + (PONT ? 147 : 73)); ctx.globalAlpha = 1;
         }
@@ -22523,40 +23159,29 @@ void main(){
         frame(t, dt) {
           const n = Math.max(1, Math.ceil(dt / 0.05)), h = dt / n;
           for (let i = 0; i < n; i++) step(h, t - dt + h * (i + 1));
+          if (V && renduGL(t, dt)) {
+            for (const a of ALL) if (a.label > 0 && a.st !== 'nid') drawLabel(a);
+            cartel(); hud();
+            return;
+          }
+          // repli 2D (sans WebGL2) : le décor peint, la piste translucide en fausse couleur (rocket)
           const chem = env.tool === 'chimie';
           ctx.globalCompositeOperation = 'source-over';
           ctx.imageSmoothingEnabled = true;
-          if (NEON && !chem) {
-            if (!neonBg || neonBg.lateOn !== lateOn) { neonBg = makeNeonBg(); neonBg.lateOn = lateOn; }
-            ctx.drawImage(neonBg.c, 0, 0, W, H);
-            for (const lf of leaves) { ctx.globalAlpha = lf.fade * 0.35; ctx.drawImage(lf.Lr.c, lf.x - lf.c, lf.y - lf.c); }
-            ctx.globalAlpha = 1;
-            if (keep.trails || SOC) {
-              if ((neonT -= dt) <= 0) { neonT = 0.12; neonPaint(); }
-              ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(neonB.c, 0, 0, GW * CS, GH * CS); ctx.globalCompositeOperation = 'source-over';
-            }
-            neonFoods();
-            const out = []; for (const a of ALL) if (a.st !== 'nid') out.push(a);
-            neonAnts(out);
-            for (const a of ALL) if (a.label > 0 && a.st !== 'nid') drawLabel(a);
-            hud();
-            return;
-          }
-          ctx.drawImage(bg.c, 0, 0, W, H);
+          ctx.drawImage(fond2D().c, 0, 0, W, H);
           if ((wearT -= dt) <= 0) { wearT = 0.5; wearPaint(); }
           ctx.drawImage(wearB.c, 0, 0, GW * CS, GH * CS);
           for (const lf of leaves) { ctx.globalAlpha = lf.fade; ctx.drawImage(lf.Lr.c, lf.x - lf.c, lf.y - lf.c); }
           ctx.globalAlpha = 1;
-          if (keep.trails && !SOC && !chem) {
+          if (keep.trails && !chem) {
             if ((trailT -= dt) <= 0) { trailT = 0.15; trailPaint(); }
             ctx.drawImage(trailB.c, 0, 0, GW * CS, GH * CS);
           }
           drawFoods();
           if (chem) {
-            ctx.fillStyle = 'rgba(4,3,10,.72)'; ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = 'rgba(4,3,10,.78)'; ctx.fillRect(0, 0, W, H);
             chemPaint();
             ctx.globalCompositeOperation = 'lighter';
-            ctx.drawImage(chemB.c, 0, 0, GW * CS, GH * CS);
             ctx.drawImage(chemB.c, 0, 0, GW * CS, GH * CS);
             ctx.globalCompositeOperation = 'source-over';
           }
@@ -22570,9 +23195,10 @@ void main(){
           A.drawGroup(ctx, AA, SP.atta, t, SP.atta.L * kS);
           A.drawCarry(ctx, LA); A.drawCarry(ctx, EA); A.drawCarry(ctx, AA);
           for (const a of ALL) if (a.label > 0 && a.st !== 'nid') drawLabel(a);
-          hud();
+          cartel(); hud();
         },
         _step(dt) { step(dt, T); },
+        sans3D() { V = null; },   // le repli : la simulation continue, le dessin passe au rendu 2D
         _stats() { let out = 0; for (const a of colL.ants) if (a.st !== 'nid') out++; const b = brHist.slice(-20).reduce((s, [, u, d]) => [s[0] + u, s[1] + d], [0, 0]); return { T: Math.round(T), out, trips, foods: foods.map((f) => [f.id, f.found && Math.round(f.found - f.t0), Math.round(f.amt)]), spent: spent.length, br: b }; },
         sugar() { const v = env.view || { x0: 0, x1: W }; for (let k = 0; k < 30; k++) { const x = rnd(v.x1 - 70, v.x0 + 70), y = rnd(H - 60, 80); if (Math.hypot(x - nestL.x, y - nestL.y) < nestL.r * 3 || pebbles.some((p) => Math.hypot(p.x - x, p.y - y) < p.r + 40)) continue; addSugar(x, y, rnd(200, 120)); break; } },
         wipeAll() { for (const g of [colL.F, colL.Hm]) g.fill(0); toast('Toutes les pistes effacées : il faut tout réapprendre.'); },
@@ -28108,7 +28734,7 @@ FJ.fiche('fourmis', {
   outil: 'doigt',
   scenes: {
     decouverte: { nom: 'La découverte', via: 'scenes/la decouverte', poids: 3, outil: 'nourriture', outils: ['doigt', 'nourriture', 'chimie'], actions: 'decouverte',
-      exposes: ['odeur', 'taille', 'piste', 'sources'], plages: { odeur: [0.7, 1.4], taille: [3, 4.5] },
+      exposes: ['odeur', 'taille', 'piste', 'sources'], plages: { odeur: [0.7, 1.4], taille: [3, 4] },
       essaie: 'Pose du sucre loin du nid, puis efface un bout de la piste avec ton doigt.' },
     pont: { nom: 'Le double pont', via: 'scenes/le double pont', poids: 2, outil: 'doigt', outils: ['doigt', 'chimie'], actions: 'pont',
       exposes: ['branches', 'retard', 'odeur', 'fourmisP'], plages: { branches: ['inegal', 'inegal', 'egal'], retard: false, odeur: [0.8, 1.2] },
@@ -28144,7 +28770,7 @@ FJ.fiche('fourmis', {
     ],
     pont: [{ chemin: 'double pont/recommencer l experience', nom: 'Recommencer', icone: 'recommencer' }],
   },
-  plages: { style: ['neon', 'neon', 'realiste'] },
+  plages: { style: ['realiste', 'realiste', 'neon'] },   // réaliste le plus souvent (recette du 13/11) ; le néon reste une fausse couleur nommée
   partGraines: 0.3,
   graines: [
     { nom: 'L’expérience du double pont (1989)', scene: 'pont', regle: { branches: 'inegal', retard: false, odeur: 1 } },

@@ -18,6 +18,7 @@
 - vers 18 h 30 (v34) : la **Foudre** entre (orage, figure de Lichtenberg, globe à plasma ; « Au-dessus des orages » reste hors du chemin le temps de sa reprise), les **ronds de sorcières** reviennent, Lave et Turing retouchés.
 - vers 19 h (v35) : la ligne d'état des machines n'est plus cachée par les boutons du bas ; le Soleil dit que la couronne ne se voit « à l'œil nu » qu'aux éclipses ; les ronds de sorcières en vue de drone, avec la vitesse de l'anneau corrigée (une vraie erreur de modèle).
 - vers 19 h 10 (v36) : l'**Eau** revient à sa version d'origine. Pour Constance, la nouvelle mare au repos était moins belle qu'avant ; rendu B la reprend. Le Ciel reste, mais il est à reprendre (couchant gris, arc trop petit au téléphone).
+- vers 20 h 15 (v37) : la **Fourmilière** entre, reprise par rendu B. Les ouvrières font environ 17 px sur un terrain d'environ 35 cm, les taches noires ont disparu, le pont se dresse sur téléphone, et le style réaliste est le plus fréquent. Sur un appareil trop lent (moins de 24 images/s), elle repasse d'elle-même à son ancien rendu 2D : à juger sur ta tablette, aucun test automatique ne le voit. Sur téléphone, le carton d'ouverture se pose sous le titre.
 
 
 Session Fascinations, chef de projet et garant de la science. **Rien n'est sur `main` depuis la fusion de 0 h 40.** Tout est sur `jeunesse`, et l'application unique sur `app-unique` (voir `POUR-YOANN.md`). Le travail s'est arrêté de 1 h 46 à 5 h 10 (limite d'usage).

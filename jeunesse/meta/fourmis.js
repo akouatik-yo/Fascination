@@ -5,7 +5,7 @@ FJ.fiche('fourmis', {
   outil: 'doigt',
   scenes: {
     decouverte: { nom: 'La découverte', via: 'scenes/la decouverte', poids: 3, outil: 'nourriture', outils: ['doigt', 'nourriture', 'chimie'], actions: 'decouverte',
-      exposes: ['odeur', 'taille', 'piste', 'sources'], plages: { odeur: [0.7, 1.4], taille: [3, 4.5] },
+      exposes: ['odeur', 'taille', 'piste', 'sources'], plages: { odeur: [0.7, 1.4], taille: [3, 4] },
       essaie: 'Pose du sucre loin du nid, puis efface un bout de la piste avec ton doigt.' },
     pont: { nom: 'Le double pont', via: 'scenes/le double pont', poids: 2, outil: 'doigt', outils: ['doigt', 'chimie'], actions: 'pont',
       exposes: ['branches', 'retard', 'odeur', 'fourmisP'], plages: { branches: ['inegal', 'inegal', 'egal'], retard: false, odeur: [0.8, 1.2] },
@@ -41,7 +41,7 @@ FJ.fiche('fourmis', {
     ],
     pont: [{ chemin: 'double pont/recommencer l experience', nom: 'Recommencer', icone: 'recommencer' }],
   },
-  plages: { style: ['neon', 'neon', 'realiste'] },
+  plages: { style: ['realiste', 'realiste', 'neon'] },   // réaliste le plus souvent (recette du 13/11) ; le néon reste une fausse couleur nommée
   partGraines: 0.3,
   graines: [
     { nom: 'L’expérience du double pont (1989)', scene: 'pont', regle: { branches: 'inegal', retard: false, odeur: 1 } },

@@ -382,6 +382,23 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   .vignette b { font-size: 15px; }
 }
 
+/* ── retouches de chef-design (13/11, 6 h 10) : l'entrée du musée ── */
+/* la vitrine vivante derrière : un voile de 35 % au plus, une vignette qui n'assombrit que le centre, sous les tuiles ; le bloc au tiers médian */
+.accueil { justify-content: center; background: radial-gradient(ellipse 55% 45% at 50% 50%, rgba(5, 6, 12, .55), rgba(5, 6, 12, .12) 70%, rgba(5, 6, 12, .2)); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.accueil > .tete { position: absolute; top: 0; left: clamp(14px, 3vw, 40px); right: clamp(14px, 3vw, 40px); width: auto; }
+/* des tuiles en verre sombre, de la famille des ronds du signe, avec un liseré lumineux aux couleurs de l'arc-en-ciel (5 rouge → 9 bleu) */
+.ages .age.petit { width: 120px; min-height: 140px; border-radius: 28px; color: #fff; background: rgba(10, 11, 20, .62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 2.5px solid var(--liseré, #fff); box-shadow: 0 0 22px color-mix(in srgb, var(--liseré, #fff) 45%, transparent), inset 0 0 18px color-mix(in srgb, var(--liseré, #fff) 18%, transparent); }
+.ages .age.petit b { color: #fff; font-size: 54px; text-shadow: 0 0 14px color-mix(in srgb, var(--liseré, #fff) 70%, transparent); }
+.ages.grands .age { background: rgba(10, 11, 20, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+/* des bougies de cire crème, sans rayures, avec leur flamme jaune et un petit halo */
+.bougies i { background: linear-gradient(90deg, #efe6cf, #fffaf0 45%, #e3d8bd); }
+.bougies i::before { background: radial-gradient(circle at 50% 70%, #fffbe0, #ffd84a 55%, #ff9f3d); box-shadow: 0 0 10px 2px rgba(255, 216, 74, .75); }
+@media (max-width: 640px) { .ages .age.petit { width: 92px; min-height: 116px; } .ages .age.petit b { font-size: 42px; } }
+
+/* pendant l'accueil, seule la vitrine est derrière : les commandes de la machine s'effacent */
+#fj.accueil-ouvert .grappe, #fj.accueil-ouvert #haut, #fj.accueil-ouvert #scenes, #fj.accueil-ouvert #actions, #fj.accueil-ouvert #carton, #fj.accueil-ouvert #bulle, #fj.accueil-ouvert #main { visibility: hidden; }
+
 </style>
 </head>
 <body>
@@ -22029,7 +22046,7 @@ void main(){
   const FJ = (window.FJ = window.FJ || {});
   FJ.QUESTIONS = [
     // le vivant s'organise
-    { id: 'insectes', q: 'Comment les insectes se parlent-ils ?', icone: 'insecte', chapitres: [['lucioles', 'nuit'], ['lucioles', 'vallee'], ['fourmis', 'decouverte'], ['lucioles', 'mangrove'], ['fourmis', 'pont'], ['lucioles', 'dialogues'], ['fourmis', 'societes']] },
+    { id: 'insectes', q: 'Comment les insectes se parlent-ils ?', icone: 'insecte', chapitres: [['lucioles', 'nuit'], ['abeilles', 'fretillante'], ['fourmis', 'decouverte'], ['lucioles', 'vallee'], ['abeilles', 'ronde'], ['fourmis', 'pont'], ['lucioles', 'mangrove'], ['abeilles', 'journee'], ['lucioles', 'dialogues'], ['fourmis', 'societes']] },
     { id: 'nuee', q: 'Qui commande une nuée de milliers d’oiseaux ?', machines: ['boids'] },
     { id: 'reseaux', q: 'Comment le vivant tisse-t-il des réseaux sans cerveau ?', icone: 'amibe', chapitres: [['blob', 'reseau'], ['mycelium', 'combat'], ['blob', 'cercle'], ['mycelium', 'ronds'], ['blob', 'labyrinthe'], ['mycelium', 'reseau'], ['blob', 'duel']] },
     { id: 'abysses', q: 'Pourquoi tant d’animaux des profondeurs brillent-ils ?', machines: ['meduses'] },
@@ -22070,7 +22087,9 @@ void main(){
   // une question sans liste explicite : toutes les scènes de ses machines (les fiches sont chargées après ce fichier)
   FJ.chapitresDe = (q) => {
     if (!q) return [];
-    if (q.chapitres) return q.chapitres.filter(([m, s]) => FJ.META[m] && (!s || !FJ.META[m].scenes || FJ.META[m].scenes[s]));
+    // un chapitre n'existe que si sa machine et sa fiche sont chargées (une machine en cours de rendu peut manquer)
+    const charge = (m) => FJ.META[m] && (!window.FASC || window.FASC.some((d) => d.id === m));
+    if (q.chapitres) return q.chapitres.filter(([m, s]) => charge(m) && (!s || !FJ.META[m].scenes || FJ.META[m].scenes[s]));
     const out = [];
     for (const m of q.machines || []) {
       const sc = (FJ.META[m] && FJ.META[m].scenes) || {};
@@ -24578,7 +24597,7 @@ FJ.fiche('blob', {
     eclat: { chemin: 'affichage/eclat neon', nom: 'Éclat', bouts: ['mat', 'brillant'] },
   },
   exposes: ['avoine', 'traces', 'memoire', 'vitesse'],
-  plages: { avoine: [0.8, 1.5], traces: [0.07, 0.14], vitesse: [0.9, 1.4], eclat: [0.8, 1.3], memoire: true, vie: true, vue: ['reel', 'reel', 'reel', 'reel', 'reel', 'chimie'] },
+  plages: { avoine: [0.8, 1.5], traces: [0.07, 0.14], vitesse: [0.9, 1.4], memoire: true, vie: true, vue: ['reel', 'reel', 'reel', 'reel', 'reel', 'chimie'] },
   partGraines: 0.25,
   graines: [
     { nom: 'Le réseau ferré, version France', scene: 'reseau', regle: { avoine: 1.2, vue: 'reel' } },
@@ -24856,7 +24875,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
         // des bougies comme sur un gâteau : un enfant se reconnaît sans lire
         const bougies = a <= 9 ? h('span', { class: 'bougies' + (a >= 7 ? ' deux' : ''), 'aria-hidden': 'true' }, ...Array.from({ length: a }, () => h('i'))) : null;
         // une couleur par âge (du chaud au froid), les petits en grand sur la première rangée
-        g.append(h('button', { class: 'age' + (a <= 9 ? ' petit' : ' grand'), style: '--h:' + Math.round(20 + (a - 5) * 26) , 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
+        g.append(h('button', { class: 'age' + (a <= 9 ? ' petit' : ' grand'), style: a <= 9 ? '--liseré:' + ['#FF5A4E', '#FF9F3D', '#FFD84A', '#4FE08A', '#5CB8FF'][a - 5] : null, 'aria-label': a === 16 ? '16 ans et plus' : a + ' ans', onclick: () => { neuf.age = a; son('outil'); etapeSigne(); } },
           bougies, h('b', null, a === 16 ? '16 +' : String(a))));
         if (g2) { g2.append(g.lastChild); }
       }
@@ -25098,7 +25117,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     const t = now / 1000, dt = last ? Math.min(0.05, t - last) : 0.016;
     last = t;
     const sim = S.sim;
-    if (!sim || S.ecran) return; // la carte et le carnet couvrent l'écran : la machine attend
+    if (!sim || (S.ecran && S.ecran !== 'accueil')) return; // la carte et le carnet couvrent l'écran : la machine attend ; l'accueil, lui, se pose sur la vitrine vivante
     govTick(now);
     if (S.pause) { if (sim.livePaused) { try { sim.frame(vt, 0); } catch (e) { /* rien */ } } return; }
     const sp = S.vitesse * SPEED_UNIT;
@@ -25778,7 +25797,7 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
   function ecran(nom) {
     S.ecran = nom;
     for (const k of ['carte', 'carnet', 'parents', 'accueil']) $(k).hidden = k !== nom;
-    app.classList.toggle('ecran-ouvert', !!nom);
+    app.classList.toggle('ecran-ouvert', !!nom); app.classList.toggle('accueil-ouvert', nom === 'accueil');
     if (nom) { fermerTiroir(); $('pastille').hidden = true; } else last = 0;
   }
   function appuiLong(el, fn) {
@@ -25887,7 +25906,9 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     // la toute première arrivée (et chaque ouverture sans lien) commence par une vitrine : une machine belle dès la première seconde,
     // jamais une qui démarre vide (mycélium, blob, jeu de la vie…)
     const VITRINE = ['feu', 'lucioles', 'galaxie', 'bulles', 'eau', 'foudre', 'cristal', 'meduses', 'ciel', 'fluide'].filter((id) => defs.some((d) => d.id === id));
-    aller(defs.some((d) => d.id === voulu) ? voulu : VITRINE[Math.floor(Math.random() * VITRINE.length)] || sac.suivant());
+    // tout premier lancement : l'accueil s'ouvre sur le Feu ou la Galaxie, qui font l'entrée du musée
+    const ENTREE = S.profil ? VITRINE : ['feu', 'galaxie'].filter((id) => defs.some((d) => d.id === id));
+    aller(defs.some((d) => d.id === voulu) ? voulu : ENTREE[Math.floor(Math.random() * ENTREE.length)] || sac.suivant());
     // première ouverture : la machine tourne déjà derrière, on demande l'âge puis le niveau
     if (!S.profil && (!TEST || /[?&]accueil/.test(location.search))) ouvrirAccueil();
   }

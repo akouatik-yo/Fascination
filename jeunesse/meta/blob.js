@@ -32,7 +32,7 @@ FJ.fiche('blob', {
     eclat: { chemin: 'affichage/eclat neon', nom: 'Éclat', bouts: ['mat', 'brillant'] },
   },
   exposes: ['avoine', 'traces', 'memoire', 'vitesse'],
-  plages: { avoine: [0.8, 1.5], traces: [0.07, 0.14], vitesse: [0.9, 1.4], eclat: [0.8, 1.3], memoire: true, vie: true, vue: ['reel', 'reel', 'reel', 'reel', 'reel', 'chimie'] },
+  plages: { avoine: [0.8, 1.5], traces: [0.07, 0.14], vitesse: [0.9, 1.4], memoire: true, vie: true, vue: ['reel', 'reel', 'reel', 'reel', 'reel', 'chimie'] },
   partGraines: 0.25,
   graines: [
     { nom: 'Le réseau ferré, version France', scene: 'reseau', regle: { avoine: 1.2, vue: 'reel' } },

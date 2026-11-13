@@ -372,3 +372,20 @@ input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 
   .ages .age b { font-size: 40px; }
   .vignette b { font-size: 15px; }
 }
+
+/* ── retouches de chef-design (13/11, 6 h 10) : l'entrée du musée ── */
+/* la vitrine vivante derrière : un voile de 35 % au plus, une vignette qui n'assombrit que le centre, sous les tuiles ; le bloc au tiers médian */
+.accueil { justify-content: center; background: radial-gradient(ellipse 55% 45% at 50% 50%, rgba(5, 6, 12, .55), rgba(5, 6, 12, .12) 70%, rgba(5, 6, 12, .2)); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.accueil > .tete { position: absolute; top: 0; left: clamp(14px, 3vw, 40px); right: clamp(14px, 3vw, 40px); width: auto; }
+/* des tuiles en verre sombre, de la famille des ronds du signe, avec un liseré lumineux aux couleurs de l'arc-en-ciel (5 rouge → 9 bleu) */
+.ages .age.petit { width: 120px; min-height: 140px; border-radius: 28px; color: #fff; background: rgba(10, 11, 20, .62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 2.5px solid var(--liseré, #fff); box-shadow: 0 0 22px color-mix(in srgb, var(--liseré, #fff) 45%, transparent), inset 0 0 18px color-mix(in srgb, var(--liseré, #fff) 18%, transparent); }
+.ages .age.petit b { color: #fff; font-size: 54px; text-shadow: 0 0 14px color-mix(in srgb, var(--liseré, #fff) 70%, transparent); }
+.ages.grands .age { background: rgba(10, 11, 20, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+/* des bougies de cire crème, sans rayures, avec leur flamme jaune et un petit halo */
+.bougies i { background: linear-gradient(90deg, #efe6cf, #fffaf0 45%, #e3d8bd); }
+.bougies i::before { background: radial-gradient(circle at 50% 70%, #fffbe0, #ffd84a 55%, #ff9f3d); box-shadow: 0 0 10px 2px rgba(255, 216, 74, .75); }
+@media (max-width: 640px) { .ages .age.petit { width: 92px; min-height: 116px; } .ages .age.petit b { font-size: 42px; } }
+
+/* pendant l'accueil, seule la vitrine est derrière : les commandes de la machine s'effacent */
+#fj.accueil-ouvert .grappe, #fj.accueil-ouvert #haut, #fj.accueil-ouvert #scenes, #fj.accueil-ouvert #actions, #fj.accueil-ouvert #carton, #fj.accueil-ouvert #bulle, #fj.accueil-ouvert #main { visibility: hidden; }

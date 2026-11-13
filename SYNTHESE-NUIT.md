@@ -78,6 +78,22 @@ Questions à te poser :
 
 **Interface** : légendes techniques encore écrites à l'écran pour les 5 ans ; pause des chapitres précédents sans les détruire ; générateur de bruits à reporter ; gestes partis du bord de l'écran.
 
+### La liste de Constance (F2 à F14, telle qu'elle me l'a transmise)
+Tout a été vu en simulation (Chromium, rendu logiciel), rien sur ta tablette. Pour F3, F5, F7 et F13, la v38 contient des livraisons plus récentes que Constance n'a pas recettées.
+- **F2, Galaxie** (8b81836, *pas dans la v38*) : rectangle beige sur la spirale au téléphone, elliptique moche ; on ne sait pas si c'est le rendu logiciel. Gravité haute.
+- **F3, Ciel** (9da0671) : soleil envoyé à −18° d'un glissé, puis écran noir ; couchant gris ; arc réduit à deux traits au téléphone. Gravité haute. La reprise bc7b9ff, dans la v38, n'est pas recettée.
+- **F4, Eau** (9da0671, *pas dans la v38* : l'Eau est l'originale) : mare kaki, cuve sépia, sources sous la barre du haut, carré au centre des gouttes. Gravité moyenne.
+- **F5, Fourmilière** (5340f50) : texte en 5 couches au téléphone ; Trois sociétés aux fourmis de 3 à 5 px ; repli 2D gris-brun. Gravité moyenne. 7201aa3, dans la v38, n'est pas recetté.
+- **F6, Aurores** (16fd5cb) : légende au milieu du ciel au téléphone, « œil nu » tout gris, sol vert fluo, scène absente de la fiche. Gravité moyenne. Sa reprise (bc7b9ff) et la fiche sont dans la v38, sans recette.
+- **F7, Foudre** (22ee8e8) : « Au-dessus des orages » à 60 % de noir ; orage au repos sombre au téléphone. Gravité moyenne. b31a11e, dans la v38, n'est pas recetté.
+- **F8, ronds de sorcières** au téléphone : anneaux en bandes douces. Gravité basse.
+- **F9, ligne d'état** : les états sur plusieurs lignes restent cachés (Soleil, ronds) ; la bande de 28 px couvre le Feu au téléphone. Gravité basse.
+- **F10, Bulles v2** : petit reflet arrière, bulles jeunes laiteuses, « Tout éclater » en donuts, cadre petit au téléphone. Gravité basse.
+- **F11, Galaxie, collision** (*pas dans la v38*) : mode « par vitesse » kaki, anneau de la Roue pas formé. Gravité basse.
+- **F12, non repris chez rendu A** : flaque de la lampe au téléphone, étiquettes « f 0,08 » et « f 0,02 » de l'Atlas, îlots du combat, Cristal « liquide trop froid » en aplat bleu marine. Gravité basse.
+- **F13, jamais recontrôlés** : carton d'ouverture, aide « Regarde », volcans de la Lave, étiquette du Soleil. Gravité inconnue.
+- **F14, à juger par toi sur tablette** : fluidité des machines refaites (Fourmilière à 30-39 % de l'original) ; bascule du repli 2D (invisible aux tests automatiques) ; remplissage de la cuve ; une fermeture de page vue une fois.
+
 ## Ce qui attend ta décision
 1. **Garder l'application unique** (`app-unique`), ou revenir à deux applications.
 2. **Valider la refonte pédagogique** (les regroupements et les ajouts).

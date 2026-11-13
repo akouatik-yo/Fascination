@@ -154,7 +154,7 @@ vec3 env(vec3 r, float k){
   vec3 gl = mix(vec3(dot(glow(), vec3(.3, .5, .2))), glow(), .55);                     // le métal argenté désature les reflets
   c += gl * 1.8 * k * smoothstep(.05, -.75, r.y) * exp(-r.x * r.x * 3.);           // la lampe elle-même
   c += gl * .16 * (1. - abs(r.y)) + vec3(.012, .012, .014) * smoothstep(.6, -.2, r.y);  // le mur qu'elle éclaire, le plafond
-  c += vec3(.9, .95, 1.05) * smoothstep(.1, .0, abs(r.x + .62)) * smoothstep(.75, .1, abs(r.y + .1)) * .6;
+  c += vec3(.9, .95, 1.05) * exp(-pow((r.x + .62) / .16, 2.)) * smoothstep(.75, .1, abs(r.y + .1)) * .3;
   c += BULB * .02 * uOn * smoothstep(0., .8, r.y);
   return c;
 }
@@ -188,7 +188,7 @@ vec3 scene(vec2 px){
       vec4 s = texture(uS, suv);
       // contour arrondi : la phase moyennée sur une case autour
       float ph = s.r * .4 + (texture(uS, suv + vec2(uPx.x, 0.)).r + texture(uS, suv - vec2(uPx.x, 0.)).r + texture(uS, suv + vec2(0., uPx.y)).r + texture(uS, suv - vec2(0., uPx.y)).r) * .15;
-      float w = smoothstep(-.3, .3, ph);
+      float w = smoothstep(-.13, .13, ph);
       vec2 g = vec2(texture(uS, suv + vec2(uPx.x, 0.)).r - texture(uS, suv - vec2(uPx.x, 0.)).r, texture(uS, suv + vec2(0., uPx.y)).r - texture(uS, suv - vec2(0., uPx.y)).r);
       float pR = texture(uS, suv + vec2(3. * uPx.x, 0.)).r, pL = texture(uS, suv - vec2(3. * uPx.x, 0.)).r, pT = texture(uS, suv + vec2(0., 3. * uPx.y)).r, pB = texture(uS, suv - vec2(0., 3. * uPx.y)).r;
       float th = clamp((pR + pL + pT + pB) * .125 + .5, 0., 1.);
@@ -206,7 +206,8 @@ vec3 scene(vec2 px){
       vec3 inside = mix(lq, wx, w);
       // le verre : reflets de Fresnel, une fenêtre à gauche, la lumière piégée dans la paroi qui fait briller les bords
       float F = .04 + .96 * pow(1. - ct, 5.);
-      vec3 refl = vec3(.02, .022, .03) * F + vec3(1.1, 1.15, 1.25) * (smoothstep(.07, .0, abs(X + .46)) * .5 + smoothstep(.03, .0, abs(X - .63)) * .22) * smoothstep(.0, .2, Y) * smoothstep(1., .85, Y);
+      float bandY = smoothstep(.05, .35, Y) * smoothstep(.98, .7, Y);
+      vec3 refl = vec3(.02, .022, .03) * F + vec3(1.05, 1.1, 1.2) * (exp(-pow((X + .48) / .11, 2.)) * .2 + exp(-pow((X - .62) / .06, 2.)) * .07) * bandY;
       inside = inside * (1. - F) + refl + lq * smoothstep(.78, 1., abs(X)) * .9;
       col = mix(col, inside, cov);
     }
@@ -887,6 +888,8 @@ void main(){
     /* ───────── grilles ───────── */
     // profil du verre : un fuseau renflé en bas (demi-largeur en fraction de la grille)
     const hw = (y) => 0.17 + 0.29 * Math.exp(-Math.pow((y - 0.24) / 0.4, 2));
+    // gouttes de départ : x, y (fractions de la grille), rayon (en hauteur de grille), température (0 froid → 1 chaud)
+    const LAMP_BLOBS = [[0.5, 0.3, 0.05, 0.42], [0.43, 0.5, 0.036, 0.4], [0.57, 0.66, 0.042, 0.34], [0.48, 0.84, 0.032, 0.26], [0.53, 0.17, 0.035, 0.45]];
     function build() {
       const Q = QUAL[cfg.q], { K, gl } = G;
       let GW, GH;
@@ -899,8 +902,19 @@ void main(){
         if (cfg.scene === 'lampe') solid = Math.abs(x - 0.5) > hw(y) || y < 0.012 || y > 0.988;
         else solid = i === 0 || i === GW - 1 || j === 0 || j === GH - 1;
         mask[k] = solid ? 1 : 0;
-        if (cfg.scene === 'lampe') { S[k] = y < 0.16 ? 1 : -1; S[k + 1] = 0.25; }
-        else { S[k] = -1; S[k + 1] = 0.5 - (y - 0.5) * 0.02 + rnd(0.01, -0.01); S[k + 2] = y; }
+        if (cfg.scene === 'lampe') {
+          // une lampe déjà en marche (recette qualité : « départ vide ») : une flaque chaude au fond, des gouttes en route,
+          // le liquide plus chaud en bas qu'en haut. Éteindre puis rallumer montre la longue mise en chauffe.
+          let ph = y < 0.1 ? 1 : -1, tt = 0.3 - 0.05 * y;
+          for (const [bx, by, br, bt] of LAMP_BLOBS) { const dx = ((x - bx) * GW) / GH, dy = y - by; if (dx * dx + dy * dy < br * br) { ph = 1; tt = bt; } }
+          S[k] = ph; S[k + 1] = y < 0.1 ? 0.5 : tt;
+        }
+        else {
+          // Bénard (recette qualité : « un rectangle uni, comme une mire ») : on part du profil de conduction (chaud en bas,
+          // froid en haut) avec une petite ondulation en rouleaux ; au-dessus du seuil elle grandit, en dessous elle s'éteint.
+          S[k] = -1; S[k + 2] = y;
+          S[k + 1] = Math.min(1, Math.max(0, 0.82 - 0.64 * y + 0.07 * Math.cos(TAU * x * 6 + 0.4) * Math.sin(Math.PI * y) + rnd(0.01, -0.01)));
+        }
       }
       const F = gl.LINEAR;
       R = {
@@ -909,7 +923,7 @@ void main(){
         V: K.double(GW, GH, 'f16', F), S: K.double(GW, GH, 'f16', F), Mu: K.target(GW, GH, 'f16', F), P: K.double(GW, GH, 'f16', gl.NEAREST), D: K.target(GW, GH, 'f16', gl.NEAREST),
       };
       for (const t of [R.S.r, R.S.w]) { gl.bindTexture(gl.TEXTURE_2D, t.tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, GW, GH, 0, gl.RGBA, gl.FLOAT, S); }
-      warm = 0;
+      warm = cfg.scene === 'lampe' && cfg.on ? 0.6 : 0;
     }
 
     /* ───────── un pas du solveur ───────── */
@@ -1003,7 +1017,7 @@ void main(){
             .f('uBase', baseTop, baseBot, wb, wb * 1.55).f('uCap', capBot, capTop, wt, wt * 0.55).f('uWax', ...C.wax).f('uLiq', ...C.liq)
             .f('uOn', cfg.on ? 1 : 0).f('uT', T).f('uWarm', warm).f('uHeat', cfg.heat).f('uCx', cx).f('uTab', baseBot);
           K.run(pg.lampH, G.cab.scene);
-          G.cab.finish({ expo: 1.3, bloom: 1.0, thr: 0.7, knee: 0.6, radius: 0.8, vig: 0.4, grain: 0.03, grainBlack: 0.4 });
+          G.cab.finish({ tone: 'agx', expo: 1.25, bloom: 0.9, thr: 0.8, knee: 0.6, radius: 0.8, vig: 0.4, grain: 0.03, grainBlack: 0.4 });
         } else {
         pg.lamp.use().t('uS', R.S.r).t('uM', R.M).f('uRes', cw, ch).f('uPx', R.px[0], R.px[1]).f('uBox', b.x * s, b.y * s, b.w * s, b.h * s).f('uWax', ...C.wax).f('uLiq', ...C.liq).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uOn', cfg.on ? 1 : 0.15).f('uT', T);
         K.run(pg.lamp, null);

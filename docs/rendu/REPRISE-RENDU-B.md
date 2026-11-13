@@ -1,6 +1,6 @@
 # Rendu B : point de reprise
 
-Dernière mise à jour : 13/11/2026 vers 13 h 01, heure de Paris (après une seconde limite d'usage de 06 h à 10 h 10).
+Dernière mise à jour : 13/11/2026 vers 13 h 52, heure de Paris. En attente de la décision du CEO sur la suite (rien de neuf lancé depuis le rapport de fin).
 
 Rendu B, c'est la relève B du chantier de rendu, Léa « Frame », branche `rendu-b`. À relire ensemble :
 - le brief de Kurt, `docs/RENDU-BRIEF.md` ;
@@ -21,15 +21,15 @@ Rendu B, c'est la relève B du chantier de rendu, Léa « Frame », branche `ren
 
   Pour les planches « avant », il faut une copie de référence : `git worktree add /home/user/fasc-avant 93ac705 --detach`.
 
-## État à 13 h 25
+## État à 13 h 52
 
 Chaque machine a sa branche de travail, poussée comme point de reprise. Ce ne sont pas des livraisons : leur contenu passera dans `rendu-b` par cherry-pick, après relecture et tests. Les branches seront supprimées ensuite.
 
 | Machine | Branche de travail | État |
 |---|---|---|
-| Bulles | — | **livrée** : v2 `9cbcb86` (science validée ; film 5,5/7,5/6,5 i/s contre 10,5/12/12 pour l'original, bulles 3,5/3/2,5 contre 3,5, hôte calme) |
-| Ciel | — | **livré** : `59ea3d6` (science validée ; arc 60/60/60, couchant 53/50/48 contre 18 pour l'original) ; aurores à faire |
-| Eau | — | **livrée** : `e408368` (mare et cuve, au moins la moitié de l'original) ; reste un rendu un peu laiteux, et la houle à faire ; la simulation non dispersive donne un cône de Mach, pas le Kelvin à 39° |
+| Bulles | — | **livrée et intégrée** : `9cbcb86` puis `82260f8` (coût constant) ; app-unique `6575c76`, artefact de Yoann v28 |
+| Ciel | — | **livré et intégré** : `59ea3d6` ; app-unique `584c2f1` ; aurores à faire |
+| Eau | — | **livrée et intégrée** : `e408368` puis `1def726` (œil vertical, eau peu profonde nommée) ; app-unique `b933b61`, artefact v29 ; houle à faire |
 | Fourmilière | `rendu-b-encours-fourmis` | en pause : sol fait, fourmis peu lisibles |
 | Galaxie | `rendu-b-encours-galaxie` | en pause : couleurs et poussière faites ; reste la lumière diffuse en blocs |
 

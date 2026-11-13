@@ -194,6 +194,10 @@ void main(){
   vec2 p = vec2(uv.x * uRes.x, (1. - uv.y) * uRes.y);
   vNew = p + T.xy / max(-T.z, .2) * uDepth;
   vOld = p + T0.xy / -T0.z * uDepth;
+  // un rayon très dévié ne porte presque plus de lumière : on borne son écart (14 px) pour que les triangles du maillage
+  // ne s'étirent pas sur tout l'écran quand les rides se creusent (le coût reste constant au fil du temps)
+  vec2 dv = vNew - vOld; float ld = length(dv);
+  if (ld > 14.) vNew = vOld + dv * (14. / ld);
   vWall = texture(uD, uv).g;
   gl_Position = vec4(vNew.x / uRes.x * 2. - 1., 1. - vNew.y / uRes.y * 2., 0., 1.);
 }`;
@@ -202,8 +206,8 @@ void main(){
      uMode : 0 la mare (décor) ; 1 la cuve à ondes (une lampe au-dessus, un écran de papier dessous) ; 2 sans décor (la seule
      lumière des caustiques, sur fond sombre). Repère : x à droite, y vers le bas de l'écran, z vers le ciel. */
   const FS_EAU = window.FKR.fs(['couleur', 'bruit', 'lumiere', 'formes', 'matiere'], `
-uniform sampler2D uW, uD, uCau, uFloor, uNuages, uLut;
-uniform vec2 uRes, uWt, uCauT, uOmbre, uDerive;
+uniform sampler2D uW, uD, uFloor, uNuages, uLut;
+uniform vec2 uRes, uWt, uOmbre, uDerive;
 uniform float uCell, uSlope, uProf, uProfM, uSoleil, uCouvert, uGlint, uRug, uMode, uMean, uKS;
 uniform vec3 uOeil, uL, uLt, uSunCol, uCielZ, uCielH, uLampe;
 uniform vec4 uBarre;
@@ -213,8 +217,15 @@ uniform int uNF; uniform vec4 uF0[8]; uniform vec4 uF1[8];
 uniform int uNO; uniform vec4 uO[4];
 out vec4 o;
 vec2 toUv(vec2 q){ return vec2(q.x / uRes.x, 1. - q.y / uRes.y); }
-// caustiques lissées (les facettes du maillage disparaissent) ; éclairement relatif du fond, 1 en moyenne
-float cauAt(vec2 uv){ return (texture(uCau, uv).r * 2. + texture(uCau, uv + vec2(uCauT.x, 0.)).r + texture(uCau, uv - vec2(uCauT.x, 0.)).r + texture(uCau, uv + vec2(0., uCauT.y)).r + texture(uCau, uv - vec2(0., uCauT.y)).r) / 6.; }
+// caustiques tirées de la surface simulée : la lumière qui éclaire le point s du fond a traversé la surface juste
+// au-dessus (décalée selon le soleil) ; là où la surface est bombée, les rayons se resserrent et le fond s'illumine.
+// Éclairement relatif = 1 / |det J| (FKR.caustiqueJacobien), 1 en moyenne ; coût constant, quelles que soient les rides.
+float cauJ(vec2 s){
+  vec2 uv = toUv(s);
+  float h = texture(uW, uv).r;
+  float l = texture(uW, uv - vec2(uWt.x, 0.)).r + texture(uW, uv + vec2(uWt.x, 0.)).r + texture(uW, uv - vec2(0., uWt.y)).r + texture(uW, uv + vec2(0., uWt.y)).r;
+  return caustiqueJacobien((l - 4. * h) / (uCell * uCell) * uSlope, uProf, 1.333);
+}
 // le ciel que reflète l'eau : dégradé de Rayleigh (bleu profond au zénith, pâle vers l'horizon), nuages sur un plan, soleil
 vec3 ciel(vec3 r){
   r.z = max(r.z, .02);
@@ -336,7 +347,7 @@ void main(){
     vec2 c = (p - uRes * .5) / (.5 * length(uRes));
     float lampe = 1. / pow(1. + dot(c, c) * 1.3, 2.);
     vec3 pap = versLineaire(texture(uFloor, vUv).rgb);
-    float E = lampe * cauAt(vUv) * (1. - .94 * D.g);
+    float E = lampe * cauJ(p) * (1. - .94 * D.g);
     // les plaques immergées : un verre un peu absorbant, dont les bords dévient la lumière (liseré sombre)
     float dr = abs(texture(uD, vUv + vec2(uWt.x, 0.)).r - texture(uD, vUv - vec2(uWt.x, 0.)).r) + abs(texture(uD, vUv + vec2(0., uWt.y)).r - texture(uD, vUv - vec2(0., uWt.y)).r);
     E *= (D.r < .9 ? .88 : 1.) * (1. - .55 * clamp(dr * 2.5, 0., 1.));
@@ -359,7 +370,7 @@ void main(){
     if (uGlint > .5){ vec3 hv = normalize(V + uL); brille = min(ggxD(max(dot(n, hv), 0.), uRug) * fresnelDielectrique(max(dot(V, hv), 0.), 1.333) * .25 / cv, 12.); }
     vec3 eclat = uSunCol * uSoleil * 3.4 * brille;
     vec2 q = p + dec * uProf;                          // le point du fond que l'on voit, réfracté
-    float cau = cauAt(toUv(q));
+    float cau = cauJ(q - uOmbre);
     if (uMode > 1.5){
       // sans décor : il ne reste que la lumière — le filet des caustiques en blanc chaud, le ciel sur les flancs des rides
       col = uSunCol * uSoleil * pow(max(cau - .8, 0.), 1.3) * 1.3 + Lc * F * .5 + eclat;
@@ -409,8 +420,6 @@ void main(){
     }
   }
   // couche de fausse couleur, désactivable : l'amplitude moyenne des oscillations (échelle magma)
-  // le tirage AgX pâlit les tons moyens : on rend d'avance à la lumière du jour sa couleur (saturation en linéaire, peu coûteuse)
-  if (uMode < .5) col = max(mix(vec3(luminance(col)), col, 1.38), 0.);
   if (uMean > .5){ float m = clamp(sqrt(W4.b) * 2.2, 0., 1.); col = mix(col, texture(uLut, vec2(m, .5)).rgb * 1.5, .78); }
   o = vec4(col, 1.);
 }`);
@@ -579,7 +588,7 @@ void main(){
     ],
     about: [
       'À la surface d’une mare, deux forces ramènent l’eau à plat : la pesanteur pour les vagues, la tension superficielle pour les petites rides. Les ondes les plus lentes avancent à 23 cm/s, pour une longueur d’onde de 1,7 cm : en dessous, ce sont des ondes capillaires, au-dessus des ondes de gravité. Ici, la simulation résout l’équation d’onde ; la profondeur règle la vitesse, comme dans une cuve à ondes.',
-      'Les caustiques sont calculées rayon par rayon : la lumière du soleil traverse la surface, se plie selon l’indice de l’eau (1,33) et frappe le fond. Là où les rayons se resserrent, le fond s’illumine. Les pattes des gerris creusent de petites fossettes qui agissent comme des lentilles divergentes : au fond, chaque patte projette une ombre ronde cerclée de lumière.',
+      'Les caustiques sont calculées d’après la forme de la surface : la lumière du soleil la traverse, se plie selon l’indice de l’eau (1,33) et frappe le fond. Là où la surface est bombée, les rayons se resserrent et le fond s’illumine ; vue de loin, l’eau devient un miroir du ciel (Fresnel). Les pattes des gerris creusent de petites fossettes qui agissent comme des lentilles divergentes : au fond, chaque patte projette une ombre ronde cerclée de lumière.',
       'Comment les jeunes gerris avancent-ils, alors que leurs pattes vont moins vite que les ondes les plus lentes ? Ce « paradoxe de Denny » (1993) a été résolu en 2003 par David Hu, Brian Chan et John Bush : en ramant, le gerris lance surtout de petits tourbillons sous la surface. Ses pattes portent jusqu’à quinze fois son poids grâce à des milliers de poils striés.',
       'Au début des années 1800, Thomas Young fait passer la lumière par deux fentes et observe des franges : la lumière se comporte comme une onde. La cuve à ondes rend l’expérience visible. Deux sources font naître des lignes calmes (nœuds) et des lignes agitées (ventres), des hyperboles ; une fente étroite fait s’épanouir l’onde, une plaque immergée la ralentit et la dévie, comme un prisme.',
       'Quand on tape près d’une carpe, elle fuit en quelques millisecondes en se pliant en C : c’est le « départ en C », commandé par deux neurones géants, les cellules de Mauthner. Et le « plic » de la pluie vient d’une bulle d’air qui vibre à une fréquence d’environ 3,3 divisé par son rayon (Minnaert, 1933).',
@@ -1078,17 +1087,17 @@ void main(){
       const bare = env.decor === false, ink = bare && env.theme === 'light';
       const tank = cfg.scene === 'cuve';
       const slope = 30, depthPx = profPx();
-      // caustiques : chaque sommet du maillage suit un rayon réfracté jusqu'au fond (le soleil, ou la lampe de la cuve)
-      const I = tank ? [0, 0, -1] : SOL.L.map((v) => -v);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, R.cau.fb); gl.viewport(0, 0, R.cau.w, R.cau.h);
-      gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
-      pg.caust.use().t('uW', R.Wv.r).t('uD', R.D).f('uRes', W, H).f('uWt', 1 / R.GW, 1 / R.GH).f('uI', I[0], I[1], I[2]).f('uSlope', slope).f('uDepth', depthPx).f('uCell', cell()).f('uGain', 1);
-      gl.bindVertexArray(R.mesh.vao);
-      gl.drawElements(gl.TRIANGLES, R.mesh.n, gl.UNSIGNED_SHORT, 0);
-      gl.disable(gl.BLEND);
       packScene();
       if (ink) {
+        // caustiques de l'encre : chaque sommet du maillage suit un rayon réfracté jusqu'au fond
+        const I = tank ? [0, 0, -1] : SOL.L.map((v) => -v);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, R.cau.fb); gl.viewport(0, 0, R.cau.w, R.cau.h);
+        gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+        pg.caust.use().t('uW', R.Wv.r).t('uD', R.D).f('uRes', W, H).f('uWt', 1 / R.GW, 1 / R.GH).f('uI', I[0], I[1], I[2]).f('uSlope', slope).f('uDepth', depthPx).f('uCell', cell()).f('uGain', 1);
+        gl.bindVertexArray(R.mesh.vao);
+        gl.drawElements(gl.TRIANGLES, R.mesh.n, gl.UNSIGNED_SHORT, 0);
+        gl.disable(gl.BLEND);
         // sans décor, thème clair : l'encre sur papier (l'ancien tirage direct, sans cabine)
         pg.comp.use().t('uW', R.Wv.r).t('uD', R.D).t('uCau', R.cau).t('uFloor', R.floor)
           .f('uRes', W, H).f('uWt', 1 / R.GW, 1 / R.GH).f('uSunDir', 0.175, 0.275).f('uTime', VT)
@@ -1105,8 +1114,8 @@ void main(){
       const A = ambiance(), E = oeil(), mode = tank ? 1 : bare ? 2 : 0;
       cab.regler({ fond: window.FKR.fond(tank ? 'defaut' : 'eau'), vignetage: tank ? 0.5 : 0.39, contraste: tank ? 1.06 : 1.12 });
       cab.debut(rdt);
-      pg.eau.use().t('uW', R.Wv.r).t('uD', R.D).t('uCau', R.cau).t('uFloor', R.floor).t('uNuages', R.nuages).t('uLut', R.lut)
-        .f('uRes', W, H).f('uWt', 1 / R.GW, 1 / R.GH).f('uCauT', 1 / R.cau.w, 1 / R.cau.h)
+      pg.eau.use().t('uW', R.Wv.r).t('uD', R.D).t('uFloor', R.floor).t('uNuages', R.nuages).t('uLut', R.lut)
+        .f('uRes', W, H).f('uWt', 1 / R.GW, 1 / R.GH)
         .f('uOmbre', tank ? 0 : SOL.ombre[0] * depthPx, tank ? 0 : SOL.ombre[1] * depthPx).f('uDerive', VT * 0.004, VT * 0.0013)
         .f('uCell', cell()).f('uSlope', slope).f('uProf', depthPx).f('uProfM', (10 + cfg.depth * 50) / 100)
         .f('uSoleil', A.soleil).f('uCouvert', A.couvert).f('uGlint', cfg.glint && !tank ? 1 : 0).f('uRug', env.doux ? 0.3 : 0.13)
@@ -1378,7 +1387,7 @@ void main(){
         L.push({ type: 'toggle', label: 'Reflets du soleil', value: cfg.glint, set: (x) => { cfg.glint = x; } });
         L.push({ type: 'section', label: 'Affichage' });
         L.push({ type: 'choice', label: 'Qualité du calcul', value: cfg.q, set: setQuality, options: [{ id: 'legere', label: 'Légère' }, { id: 'normale', label: 'Normale' }, { id: 'haute', label: 'Haute' }] });
-        L.push({ type: 'note', text: `Grille de ${R.GW}×${R.GH} pour l’onde · ${(R.mesh.n / 6).toLocaleString('fr-FR')} rayons lumineux suivis.` });
+        L.push({ type: 'note', text: `Grille de ${R.GW}×${R.GH} pour l’onde · caustiques calculées en chaque point, d’après la courbure de la surface.` });
         return L;
       },
     };

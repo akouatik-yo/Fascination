@@ -51,17 +51,31 @@ void main(){
   dens = clamp(dens + scud * .7, 0., 1.);
   vec3 lc = vec3(.78, .76, 1.);
   // dans le nuage, la lumière diffuse : les parties épaisses s'éclairent, les trous restent sombres
-  vec3 cloud = vec3(.026, .028, .040) * (.6 + .8 * n2) + lc * L * (.2 + 1.2 * n2 * n2);
-  // le dessous du nuage reçoit la lueur de la ville : les bourrelets ressortent, les creux restent sombres
-  cloud += ville * (.25 + 1.6 * n2 * n2) * smoothstep(base - .32, base + .02, y);
+  vec3 cloud = vec3(.038, .042, .068) * (.55 + .9 * n2) + lc * L * (.25 + 1.4 * n2 * n2);
+  // seul le bas du nuage reçoit la lueur de la ville (un liseré ambré sur les bourrelets), le corps reste bleu ardoise
+  cloud += ville * (.1 + .9 * n2 * n2) * smoothstep(base - .14, base + .02, y);
   vec3 col = mix(sky + lc * L * .2, cloud, dens);
+  // des rideaux de pluie pendent sous la base : la lueur de la ville et celle des éclairs les font apparaître
+  float sh = smoothstep(.44, .76, fbm5(vec2(x * 2.2 + y * .3 + uT * .012, y * .5 + uT * .02))) * smoothstep(base - .02, base + .1, y) * smoothstep(.98, .4, y) * clamp(uRain, 0., 1.);
+  col = mix(col, vec3(.042, .046, .068) + ville * .3 + lc * L * .7, sh * .45);
   float rn = rainL(px, 3., .9, .3) * .55 + rainL(px + 50., 5., 1.25, .22);
   col += rn * uRain * smoothstep(base - .02, base + .08, y) * (vec3(.035, .04, .05) + ville * .5 + lc * L * .45);
   col += (hash12(px + fract(uT) * 97.) - .5) / 255.;   // tramage : pas de bandes dans les dégradés sombres
   o = vec4(col, 1.);
 }`;
   const FS_ATMO = HEAD + FBM + `
-uniform float uHz, uKm, uGlow, uCurv; out vec4 o;
+uniform float uHz, uKm, uGlow, uCurv; uniform vec4 uSt[3]; out vec4 o;
+// un cumulonimbus vu de côté (km) : une colonne bosselée jusqu'à 11-15 km, l'enclume plate sous la tropopause,
+// étirée par le vent d'altitude, et le dôme qui la perce au-dessus de la colonne
+float cb(float dxk, float h, float q, float n){
+  float H0 = 11. + 4. * q, w = 7. + 3.5 * q;
+  float wc = w * (.7 + .3 * smoothstep(H0, 0., h)) * (.8 + .4 * n);
+  float colm = smoothstep(wc + 1.2, wc - 1.2, abs(dxk)) * smoothstep(-.5, .8, h) * smoothstep(H0 - .3, H0 - 2.2, h);
+  float ax = dxk - w * .9, aw = w * 2.8, ea = clamp(abs(ax) / aw, 0., 1.);
+  float anv = smoothstep(aw + 2.5, aw - 2.5, abs(ax)) * smoothstep(H0 + .3, H0 - .4, h - (n - .5) * .8) * smoothstep(H0 - 4.4 + 2.2 * ea, H0 - 3. + 2.2 * ea, h);
+  float dome = smoothstep(1., .75, length(vec2(dxk / (w * .5), (h - H0 + .4) / 1.7)));
+  return max(max(colm, anv), dome);
+}
 void main(){
   vec2 px = vec2(vUv.x * uRes.x, (1. - vUv.y) * uRes.y);
   float dx = (px.x - uRes.x * .5) / uRes.y;
@@ -80,14 +94,21 @@ void main(){
     col = vec3(.004, .006, .012) + cl * vec3(.028, .032, .042) + city * vec3(.5, .3, .1) * .5 + cl * lc * L * .9;
     col += vec3(.02, .05, .12) * exp(-t * 60.); // la mince couche d'air vue par la tranche
   } else {
-    // sommets d'orage : enclumes jusqu'à 15 km, éclairées de l'intérieur
-    float top = 4. + 11. * clamp(L * 2.5, 0., 1.) + 4. * fbm5(vec2(px.x / uRes.y * 9., 3.));
-    float cd = smoothstep(top, top - 2.5, h) * smoothstep(-1., 1., h);
-    col += cd * (vec3(.02, .022, .03) + lc * L * (.5 + .6 * fbm5(px / uRes.y * 14.)));
     col += vec3(.02, .05, .13) * exp(-h / 6.) * .8;
-    // lueur nocturne de l'oxygène atomique (557,7 nm), ondulée par les ondes de gravité
-    float wv = .75 + .25 * sin(px.x / uRes.y * 22. + uT * .15 + 2.5 * sin(px.x / uRes.y * 4.1 - uT * .05));
-    col += uGlow * vec3(.07, .24, .09) * exp(-pow((h - 95.) / 3.2, 2.)) * wv;
+    // les orages : trois cumulonimbus toujours là, sombres, que leurs éclairs allument de l'intérieur
+    float cl = 0., nn = .5, top = 0.;
+    for (int i = 0; i < 3; i++){
+      float dxk = (px.x - uSt[i].x) / uKm;
+      if (dxk < -40. || dxk > 70.) continue;
+      float n = fbm5(vec2(px.x / uKm * .16 + float(i) * 7.3, h * .3 - uT * .01));
+      float c = cb(dxk, h, uSt[i].y, n);
+      if (c > cl){ cl = c; nn = n; top = smoothstep(7., 15., h); }
+    }
+    // la nuit, le dessus des nuages reçoit un peu de la lueur du ciel ; les éclairs les allument de l'intérieur
+    col = mix(col, vec3(.04, .045, .066) * (.55 + .9 * nn) + vec3(.018, .045, .03) * top + lc * L * (.6 + 1.2 * nn * nn), cl);
+    // lueur nocturne de l'oxygène atomique (557,7 nm) vers 95 km : une couche lumineuse, ondulée par les ondes de gravité
+    float wv = .72 + .28 * sin(px.x / uRes.y * 22. + uT * .15 + 2.5 * sin(px.x / uRes.y * 4.1 - uT * .05));
+    col += uGlow * vec3(.07, .26, .1) * (exp(-pow((h - 95.) / 3.6, 2.)) * wv + .28 * exp(-pow((h - 94.) / 11., 2.)) * (.8 + .2 * wv));
     col += uGlow * vec3(.035, .006, .006) * exp(-pow((h - 150.) / 25., 2.));
     col += lc * L * .25 * exp(-max(h, 0.) / 20.);
   }
@@ -620,10 +641,13 @@ void main(){
 
     /* ───────── figure de Lichtenberg ───────── */
     let blk = null, lich = null;
+    // le bloc se dimensionne sur la partie visible de l'écran (les panneaux latéraux la réduisent)
+    function lichIdeal() { const v = view(), bw = Math.min(v.w * 0.86, H * 1.2), bh = Math.min(H * 0.72, bw * 0.7); return { x0: v.cx - bw / 2, y0: H * 0.5 - bh / 2, w: bw, h: bh }; }
+    const lichStale = () => { if (!blk) return false; const b = lichIdeal(); return Math.abs(b.w - blk.w) > 4 || Math.abs(b.x0 - blk.x0) > 4; };
     function buildLich() {
       const Q = QUAL[cfg.q];
-      const v = view(), bw = Math.min(v.w * 0.86, H * 1.2), bh = Math.min(H * 0.72, bw * 0.7);
-      blk = { x0: v.cx - bw / 2, y0: H * 0.5 - bh / 2, w: bw, h: bh };
+      const bw = lichIdeal().w, bh = lichIdeal().h;
+      blk = lichIdeal();
       const cs = bw / Q.lich;
       const GW = Math.ceil(bw / cs) + 2, GH = Math.ceil(bh / cs) + 2;
       allocGrid(cs, GW, GH, blk.x0 - cs, blk.y0 - cs);
@@ -653,7 +677,11 @@ void main(){
     function stepLich(dt) {
       if (!lich.live) {
         lich.idle += dt;
+        // panneau fermé ou écran tourné : un bloc vide se recalcule tout de suite ; un bloc gravé, au début de la figure suivante
+        // (jamais en effaçant une figure qu'on regarde)
+        if (lich.figs === 0 && lichStale()) { buildLich(); return; }
         if (cfg.lichAuto && lich.idle > (lich.figs ? 7 : 0.4)) {
+          if (lich.figs >= 1 && lichStale()) { buildLich(); return; }
           if (lich.figs >= 1) { etch.g.setTransform(1, 0, 0, 1, 0, 0); etch.g.clearRect(0, 0, etch.c.width, etch.c.height); lich.figs = 0; }
           discharge(blk.x0 + blk.w * rnd(0.7, 0.3), blk.y0 + blk.h * rnd(0.7, 0.3));
         }
@@ -738,6 +766,9 @@ void main(){
     }
     function stepGlobe(dt) {
       globe.cx += (view().cx - globe.cx) * Math.min(1, dt * 3);
+      // la taille suit aussi la partie visible (panneau fermé : le globe grandit doucement)
+      const Rt = Math.min(view().w * 0.42, H * 0.33);
+      globe.R += (Rt - globe.R) * Math.min(1, dt * 3); globe.r0 = globe.R * 0.13;
       const n = Math.round(6 + cfg.tension * 12);
       const F = finger ? (() => { const dx = (finger.x - globe.cx) / globe.R, dy = (finger.y - globe.cy) / globe.R, r2 = dx * dx + dy * dy; if (r2 > 1.05) return null; const z = Math.sqrt(Math.max(0, 1 - Math.min(1, r2))); const l = Math.hypot(dx, dy, z); return [dx / l, dy / l, z / l]; })() : null;
       for (let i = 0; i < n; i++) {
@@ -777,9 +808,24 @@ void main(){
     }
 
     /* ───────── vie autonome ───────── */
+    // lueurs dans le nuage (éclairs intranuageux cachés, trois fois plus fréquents que les coups au sol) : le nuage
+    // s'éclaire de l'intérieur entre deux coups. Lueurs locales et douces (jamais plein écran), et pas d'effet sur le sol.
+    const glows = [];
+    let glowCd = 0.6;
+    function stepGlows(dt) {
+      glowCd -= dt * (0.5 + cfg.act * 0.9) * (env.doux ? 0.6 : 1);
+      if (glowCd <= 0) {
+        glowCd = rnd(1.15, 0.35);
+        const v = view(), np = 1 + rint(2), dur = rnd(0.8, 0.3);
+        glows.push({ x: v.x0 + rnd(0.95, 0.05) * v.w, y: cbY * rnd(0.85, 0.2), r: rnd(0.28, 0.14), a: rnd(0.85, 0.35) * (env.doux ? 0.5 : 1), t: 0, dur, p: Array.from({ length: np }, () => rnd(dur * 0.7, 0)) });
+      }
+      for (let i = glows.length - 1; i >= 0; i--) { glows[i].t += dt; if (glows[i].t > glows[i].dur + 0.8) glows.splice(i, 1); }
+    }
+    const glowI = (g) => { const up = env.doux ? 0.12 : 0.04; let e = 0; for (const p of g.p) if (g.t >= p) e += Math.exp(-(g.t - p) / 0.2) * (1 - Math.exp(-(g.t - p) / up)); return e * g.a; };
     function update(dt) {
       VT += dt;
       if (cfg.scene === 'orage') {
+        stepGlows(dt);
         charge += dt * (0.04 + 0.42 * cfg.act);
         if (charge > thr && !strike) {
           thr = rnd(1.05, 0.7);
@@ -949,6 +995,7 @@ void main(){
       veil += (target - veil) * (!cfg.soft ? 1 : target > veil ? 0.22 : 0.035);
       const kL = tot > 1e-4 ? veil / tot : 0;
       const L2 = lights.map((l) => [l[0], l[1], l[2] * kL, l[3]]);
+      for (const g of glows) { const I = glowI(g); if (I > 0.01) L2.push([g.x, g.y, I, g.r]); }
       if (!bare) {
         if (G) skyGL(G.sky, (P) => P.f('uBase', cbY / H + 0.02).f('uRain', cfg.rain ? 0.5 + cfg.act : 0), L2);
         else sky2D(L2);
@@ -996,7 +1043,8 @@ void main(){
       for (const st of storms) for (const f of st.fl) lights.push([st.x, alt(st.x, 10), f.a * Math.exp(-f.t / 0.08) * (0.7 + 0.3 * Math.sin(f.t * 90)), 0.05]);
       lights.sort((a, b) => b[2] - a[2]);
       if (!bare) {
-        if (G) skyGL(G.atmo, (P) => P.f('uHz', HZ).f('uKm', KM).f('uGlow', cfg.glow ? 1 : 0).f('uCurv', CURV), lights.slice(0, 8));
+        const ST = new Float32Array(12); storms.slice(0, 3).forEach((st, i) => ST.set([st.x, st.q, 0, 0], i * 4));
+        if (G) skyGL(G.atmo, (P) => P.f('uHz', HZ).f('uKm', KM).f('uGlow', cfg.glow ? 1 : 0).f('uCurv', CURV).v4('uSt', ST), lights.slice(0, 8));
         else {
           ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
           ctx.fillStyle = '#05070c'; ctx.beginPath(); ctx.moveTo(0, H); for (let x = 0; x <= W; x += 8) ctx.lineTo(x, limbY(x)); ctx.lineTo(W, H); ctx.fill();

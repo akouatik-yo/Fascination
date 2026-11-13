@@ -67,6 +67,8 @@ Défauts qui reviennent partout : **bandes dans les dégradés sombres** (Lave, 
 
 ## 4. Outil commun : la cabine de projection (`app/js/fkcabine.js`)
 
+> **Mise à jour du 13/11, 5 h 30** : une seule bibliothèque commune, FKR (`app/js/fkrendu.js`, propriété de rendu B, décision du CEO). La cabine y est portée à l'identique sous le même nom, `FKGL.cabine` ; `fkcabine.js` est retiré de `rendu-a`. Ce qui suit décrit la cabine telle qu'elle a été écrite.
+
 Pour que toutes les machines refaites partagent la même « pellicule » que le Feu. Une machine WebGL2 dessine sa scène en lumière linéaire dans `cab.scene`, puis `cab.finish({...})` fait le reste :
 
 - halo à 6 échelles, filtre double de Bjørge (2015), pensé pour les GPU mobiles : environ le coût d'une passe plein écran à demi-résolution ;

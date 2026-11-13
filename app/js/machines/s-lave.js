@@ -364,13 +364,9 @@ void main(){
   const FS_SUN_HDR = HEAD + `
 uniform vec2 uRes, uC; uniform float uT, uZoom, uSpot, uR; out vec4 o;
 vec2 h22(vec2 p){ p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
-vec3 bb(float T){
-  T = clamp(T, 1000., 40000.) / 100.;
-  float r = T <= 66. ? 1. : clamp(1.29293618 * pow(T - 60., -.1332047592), 0., 1.);
-  float g = T <= 66. ? clamp(.39008157876 * log(T) - .63184144378, 0., 1.) : clamp(1.12989086 * pow(T - 60., -.0755148492), 0., 1.);
-  float b = T >= 66. ? 1. : (T <= 19. ? 0. : clamp(.54320678911 * log(T - 10.) - 1.19625408914, 0., 1.));
-  return pow(vec3(r, g, b), vec3(2.2));
-}
+// l'image est déjà colorisée : on défait d'avance la courbe ACES de la cabine (inverse exacte de l'ajustement de Narkowicz)
+float acesInv(float y){ float a = 2.51 - 2.43 * y, b = .03 - .59 * y, c = -.14 * y; return (-b + sqrt(b * b - 4. * a * c)) / (2. * a); }
+vec3 vecInv(vec3 y){ return vec3(acesInv(y.r), acesInv(y.g), acesInv(y.b)); }
 // distance au bord de la cellule (0 dans les couloirs), âge de la cellule, et son identité
 vec4 gran(vec2 p, float t){
   vec2 i = floor(p), f = fract(p); float d1 = 9., d2 = 9., life = 0., idh = 0.;
@@ -431,7 +427,7 @@ void main(){
     }
     // comme les images des observatoires : une luminance colorisée par une palette or (brun, orange, or pâle)
     float Y = clamp(I * (zoom > .5 ? .6 : .92), 0., 1.5);
-    col = vec3(Y * Y, .51 * Y * Y * Y, .08 * pow(Y, 5.));
+    col = vecInv(min(vec3(Y * Y, .51 * Y * Y * Y, .08 * pow(Y, 5.)), vec3(.97)));
   }
   if (zoom < .5 && rr > .99){
     // chromosphère rose et couronne, très ténues
@@ -613,7 +609,7 @@ void main(){
         if (!bare && G.cab) {
           pg.sunH.use().f('uRes', cw, ch).f('uC', v.cx * s, (H / 2) * s).f('uT', T * cfg.sunSpeed).f('uZoom', cfg.zoom).f('uSpot', cfg.spot ? 1 : 0).f('uR', cfg.zoom ? Math.max(v.w, H) * 0.5 * s : R0);
           K.run(pg.sunH, G.cab.scene);
-          G.cab.finish({ tone: 'none', expo: 1, bloom: cfg.zoom ? 0.25 : 0.6, thr: 0.8, knee: 0.5, radius: 0.85, vig: cfg.zoom ? 0.3 : 0.2, grain: 0.025, grainBlack: 0.3 });
+          G.cab.finish({ tone: 'aces', expo: 1, bloom: cfg.zoom ? 0.2 : 0.5, thr: 2.5, knee: 0.5, radius: 0.85, vig: cfg.zoom ? 0.3 : 0.2, grain: 0.025, grainBlack: 0.3 });
         } else {
         pg.sun.use().f('uRes', cw, ch).f('uC', v.cx * s, (H / 2) * s).f('uT', T * cfg.sunSpeed).f('uZoom', cfg.zoom).f('uSpot', cfg.spot ? 1 : 0).f('uDecor', bare ? 0 : 1).f('uInk', ink ? 1 : 0).f('uR', cfg.zoom ? Math.max(v.w, H) * 0.5 * s : R0);
         K.run(pg.sun, null);

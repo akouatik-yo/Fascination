@@ -28989,7 +28989,16 @@ window.FJ.VIGNETTES = {"boids":"data:image/webp;base64,UklGRkoSAABXRUJQVlA4WAoAA
     const q = questionParId(S.q);
 
     c.hidden = false; c.classList.remove('part'); void c.offsetWidth; c.classList.add('vient');
+    placerCarton();
     clearTimeout(cartonT); cartonT = setTimeout(effacerCarton, 4200);
+  }
+  // téléphone : le carton se pose sous le titre, au lieu de couvrir le bas de l'image (orages, sol) et les pastilles d'action
+  function placerCarton() {
+    const c = $('carton'), t = $('haut'); if (!c || !t) return;
+    c.style.top = ''; c.style.bottom = '';
+    if (window.innerWidth > 640) return;
+    const k = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k')) || 1;
+    c.style.top = (t.getBoundingClientRect().bottom + 10) / k + 'px'; c.style.bottom = 'auto';
   }
   function effacerCarton() { const c = $('carton'); if (c.hidden) return; c.classList.add('part'); clearTimeout(cartonT); cartonT = setTimeout(() => { c.hidden = true; }, 450); }
 

@@ -21,15 +21,15 @@ Rendu B, c'est la relève B du chantier de rendu, Léa « Frame », branche `ren
 
   Pour les planches « avant », il faut une copie de référence : `git worktree add /home/user/fasc-avant 93ac705 --detach`.
 
-## En cours : chaque machine est reprise par un agent (état à 13 h 01)
+## État à 13 h 25
 
 Chaque machine a sa branche de travail, poussée comme point de reprise. Ce ne sont pas des livraisons : leur contenu passera dans `rendu-b` par cherry-pick, après relecture et tests. Les branches seront supprimées ensuite.
 
 | Machine | Branche de travail | État |
 |---|---|---|
-| Bulles | `rendu-b-encours-bulles` | v1 livrée sur `rendu-b` (`b0e4e72`, science validée) ; v2 en cours : plafond de coût (échelle 0,75, 8 bulles), reflet, éclat (retours du CEO et de la recette) |
-| Ciel | `rendu-b-encours-ciel` | v1 livrée sur `rendu-b` (`d9d82d0`, science validée, trop coûteux) ; correctif de coût et contraste de l'arc en cours ; aurores ensuite |
-| Eau | `rendu-b-encours-eau` | quatre scènes faites (la cuve en dernier), tests à passer ; la houle ensuite |
+| Bulles | — | **livrée** : v2 `9cbcb86` (science validée ; film 5,5/7,5/6,5 i/s contre 10,5/12/12 pour l'original, bulles 3,5/3/2,5 contre 3,5, hôte calme) |
+| Ciel | — | **livré** : `59ea3d6` (science validée ; arc 60/60/60, couchant 53/50/48 contre 18 pour l'original) ; aurores à faire |
+| Eau | — | **livrée** : `e408368` (mare et cuve, au moins la moitié de l'original) ; reste un rendu un peu laiteux, et la houle à faire ; la simulation non dispersive donne un cône de Mach, pas le Kelvin à 39° |
 | Fourmilière | `rendu-b-encours-fourmis` | en pause : sol fait, fourmis peu lisibles |
 | Galaxie | `rendu-b-encours-galaxie` | en pause : couleurs et poussière faites ; reste la lumière diffuse en blocs |
 

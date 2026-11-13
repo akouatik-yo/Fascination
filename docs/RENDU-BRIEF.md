@@ -50,10 +50,11 @@ Ce qui est le plus visible et le plus améliorable passe en premier. Rendu B pos
 
 **Échange (13/11 vers 00 h 40)** : les Lucioles passent à rendu A, car c'est la machine d'accueil de l'application adulte, donc la plus vue. La Galaxie passe à rendu B : elle a déjà la chaîne de lumière du Feu, le gain y est moindre.
 
-**Fichiers communs** :
-- `app/js/fkcabine.js` (le développement de l'image : halo, ACES ou AgX, vignettage, grain, tramage) est écrit par rendu A sur `rendu-a` (79f63a2), et rendu A en reste propriétaire.
-- `app/js/fkgl.js` (le cœur WebGL) appartient à rendu B.
-- Personne ne duplique le post-traitement : rendu B utilise `fkcabine.js`.
+**Fichiers communs** (le CEO a tranché le 13/11 vers 0 h 55, heure de Paris) :
+- **Une seule bibliothèque de rendu, FKR** (`app/js/fkrendu.js`). Rendu B en est la propriétaire.
+- Elle reprend à l'identique la cabine de rendu A (`FKGL.cabine`, même API) : les machines de A n'ont rien à changer.
+- **Tout le monde utilise FKR.** `fkgl.js` reste à rendu B, avec son API intacte.
+- Les sources de couleur (CIE 1931, raies, absorption de l'eau, bioluminescence) sont dans `docs/RENDU-COMMUN.md` sur `rendu-b`. Elles sont relues et validées par la session Fascinations le 13/11.
 
 **Seul le Feu est intouchable.** Le 13/11 vers 0 h 45, Yoann a écrit : « Oui, embellissez aussi l'eau et les fourmis ». L'**Eau** et la **Fourmilière** reviennent donc à rendu B, en tête de sa liste après la chaîne commune. La DA de chef-design (059035f) les précise. L'Attracteur et les Fractales restent à B, en fin de liste.
 

@@ -1212,7 +1212,7 @@ void main(){
         const oeil = keep.auVision === 'oeil' ? 1 : 0, a = keep.auForce, I = (0.12 + 0.6 * a) * 0.45;
         // le paysage n'est éclairé que par l'aurore (surtout son vert) et par la lueur du ciel
         // la neige : éclairée surtout par le ciel de nuit (bleuté), avec un reflet vert discret de l'aurore
-        const Ec = [0, 1, 2].map((q) => (cv[q] * 0.8 + cr[q] * 0.1 * a) * I * 0.07 + [0.007, 0.0105, 0.024][q]) * (oeil ? 1 : 2);   // la pose longue accumule aussi la lumière du sol
+        const Ec = [0, 1, 2].map((q) => ((cv[q] * 0.8 + cr[q] * 0.1 * a) * I * 0.07 + [0.007, 0.0105, 0.024][q]) * (oeil ? 1 : 2));   // la pose longue accumule aussi la lumière du sol
         R.regler({ expo: 1 }).debut(dt);
         lueurs.vider();
         for (const st of stars) { const p = C.proj(st); if (!p) continue; const e = 1.1 * st[3] * (1 + 0.08 * Math.sin(T * 1.3 + st[3] * 57)); lueurs.point(p[0], p[1], 0.5 + 0.25 * st[3], e * (oeil ? 0.85 : 0.95), e * (oeil ? 0.92 : 0.97), e); }

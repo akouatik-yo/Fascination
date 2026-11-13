@@ -68,10 +68,11 @@ vec3 piece(vec3 d){
   if (k > .05){
     vec2 w = vec2(dot(d, ax), dot(d, ay)) / k;
     float bord = max(abs(w.x) / uFenT.x, abs(w.y) / uFenT.y);
-    float f = smoothstep(1.04, .96, bord);
-    if (uFenT.z > .5) f *= smoothstep(.01, .026, abs(w.x)) * smoothstep(.01, .026, abs(w.y - .18 * uFenT.y));
+    float sf = uFenT.z > .5 ? .03 : .22;           // bords nets (fenêtre) ou diffus (grand écran de lumière)
+    float f = smoothstep(1. + sf, 1. - sf, bord);
+    if (uFenT.z > .5) f *= smoothstep(.006, .016, abs(w.x)) * smoothstep(.006, .016, abs(w.y - .2 * uFenT.y));
     c += uFenT.w * f * (.78 + .3 * w.y / uFenT.y) * vec3(.98, .99, 1.);
-    c += uFenT.w * .03 / (1. + bord * bord * 2.5);
+    c += uFenT.w * .22 / (1. + bord * bord * 1.6);   // le mur et le plafond, éclairés par la fenêtre
     // un coin de soleil dans la fenêtre : un petit éclat très lumineux (il bave dans le halo)
     c += uScint * uFenT.w * 6. * pow(max(dot(d, normalize(uFenC + .55 * uFenT.x * ax + .7 * uFenT.y * ay)), 0.), 900.);
   }
@@ -98,9 +99,9 @@ vec3 fond(vec2 uv){
   for (int i = 0; i < 6; i++){
     float fi = float(i);
     vec2 p = vec2(fract(sin(fi * 12.9 + 3.) * 437.) * a, .25 + .6 * fract(sin(fi * 7.3 + 1.) * 91.));
-    float r = .07 + .09 * fract(sin(fi * 3.1) * 51.), dd = length(vec2(uv.x * a, uv.y) - p);
+    float r = .05 + .07 * fract(sin(fi * 3.1) * 51.), dd = length(vec2(uv.x * a, uv.y) - p);
     vec3 tc = mod(fi, 3.) < 1. ? vec3(1., .62, .3) : (mod(fi, 3.) < 2. ? vec3(.45, .6, 1.) : vec3(.8, .85, .7));
-    c += tc * .022 * smoothstep(r, r * .82, dd) * (.7 + .3 * smoothstep(r * .5, r, dd));
+    c += tc * .011 * smoothstep(r, r * .82, dd) * (.7 + .3 * smoothstep(r * .5, r, dd));
   }
   return c;
 }
@@ -224,10 +225,13 @@ void main(){
   float tAnn = 1e9; vec3 cAnn = vec3(0.);
   for (int s = 0; s < 2; s++){
     float zz = s == 0 ? uH : -uH;
-    float t = max(c0 - .05, 0.);
-    for (int i = 0; i < 90; i++){
+    float t = max(c0 - .05, 0.), dmin = 1e9, tmin = 0.;
+    for (int i = 0; i < 220; i++){
       vec3 p = ro + rd * t; float dd = length(vec2(length(p.xy) - 1., p.z - zz)) - .03;
-      if (dd < .002){
+      if (dd < dmin){ dmin = dd; tmin = t; }
+      bool fin = t > c1 + .05 || i == 219;
+      if (fin && dmin < .004){ t = tmin; p = ro + rd * t; dd = 0.; }   // rayon rasant : on garde le point le plus proche du tube
+      if (dd < .0008){
         if (t < tAnn){
           tAnn = t;
           vec3 n = normalize(p - vec3(normalize(p.xy), zz));
@@ -237,7 +241,7 @@ void main(){
         }
         break;
       }
-      t += max(dd, .004); if (t > c1 + .05) break;
+      t += max(dd, .0012); if (t > c1 + .05 && dmin >= .004) break;
     }
   }
   if (tAnn < 1e8) col = cAnn;
@@ -250,9 +254,12 @@ void main(){
     for (int i = 0; i < 160; i++){
       if (t > tB) break;
       float tn = t + .035; vec3 p = ro + rd * tn; float f = F(p);
-      if (abs(p.z) < uH && sign(f) != sign(prev)){
-        float a = t, b = tn; for (int k = 0; k < 8; k++){ float m = .5 * (a + b); if (sign(F(ro + rd * m)) == sign(prev)) a = m; else b = m; }
-        vec3 h = ro + rd * (.5 * (a + b));
+      if (sign(f) != sign(prev)){
+        float a = t, b = tn; for (int k = 0; k < 10; k++){ float m = .5 * (a + b); if (sign(F(ro + rd * m)) == sign(prev)) a = m; else b = m; }
+        float th = .5 * (a + b);
+        if (th > tB) break;                                   // derrière un anneau (ou hors du volume) : caché
+        vec3 h = ro + rd * th;
+        if (abs(h.z) >= uH){ prev = f; t = tn; continue; }   // le film s'arrête aux anneaux (test au point exact : bord net)
         float rr = length(h.xy), sh = sinh(h.z / uA) * uNeck;
         vec3 n = normalize(vec3(h.xy / rr, -sh));
         // épaisseur : le film s'écoule vers le bas, le haut s'amincit ; tourbillons sur la surface (raccord autour de l'axe)
@@ -320,7 +327,7 @@ void main(){
     /* ───────── la cabine FKR : lumière HDR, halo, AgX, grain ───────── */
     let R, P, lutT, marT, gouttes;
     function construire() {
-      R = FKR.cabine(env, { halo: 0.06, rayon: 0.7 });
+      R = FKR.cabine(env, { halo: 0.06, rayon: 0.7, saturation: 1.12 });
       const K = R.K, gl = R.gl;
       P = { lut: K.program(FS_LUT), marbre: K.program(FS_MARBRE), bub: K.program(FS_BUB), frame: K.program(FS_FRAME), cat: K.program(FS_CAT) };
       lutT = K.target(LUTN, 1);
@@ -408,9 +415,9 @@ void main(){
     }
     // ce que reflète chaque scène : la fenêtre (direction, demi-taille, croisillons, luminance) et la lampe
     const FEN = {
-      bulles: { c: [-0.42, 0.36, 0.83], t: [0.62, 0.78, 1, 15] },
-      cadre: { c: [0.06, 0.1, 1], t: [0.36, 0.44, 0, 13] },
-      cate: { c: [-0.36, 0.32, 0.88], t: [0.7, 0.85, 1, 14] },
+      bulles: { c: [-0.42, 0.36, 0.83], t: [0.85, 1.05, 1, 14] },
+      cadre: { c: [0.05, 0.22, 1], t: [0.5, 0.33, 0, 13] },
+      cate: { c: [-0.36, 0.32, 0.88], t: [0.9, 1.1, 1, 14] },
     };
     function render() {
       if (R.perdu) { if (R.gl.isContextLost()) return; try { construire(); } catch (e) { return; } }
@@ -432,7 +439,7 @@ void main(){
       } else if (cfg.scene === 'cadre') {
         const bx = cadreBox();
         const VV = new Float32Array(32); vort.slice(0, 8).forEach((q, i) => VV.set([q.x, q.y, q.s, 0], i * 4));
-        commun(P.frame.use()).f('uRes', cw, ch).f('uBox', bx.x * sx, bx.y * sx, bx.w * sx, bx.h * sx).f('uAge', filmAge).f('uSwirl', cfg.swirl).f('uFil', 2.6 * sx)
+        commun(P.frame.use()).f('uRes', cw, ch).f('uBox', bx.x * sx, bx.y * sx, bx.w * sx, bx.h * sx).f('uAge', filmAge).f('uSwirl', cfg.swirl).f('uFil', 3 * sx)
           .i('uNV', Math.min(8, vort.length)).v4('uV', VV);
         R.passe(P.frame);
       } else {

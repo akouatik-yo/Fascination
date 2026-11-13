@@ -344,7 +344,7 @@ vec3 albArbre(float m){ vec3 a = mix(vec3(.014, .026, .012), vec3(.03, .045, .01
 vec3 albRoche(float m, float hr){
   if (uSol > 1.5) return albSol(m);
   vec3 a = mix(vec3(.06, .065, .06), vec3(.12, .115, .105), m);
-  float ne = uSol > .5 ? .5 : smoothstep(.7, .78, hr + .12 * m);                       // neiges éternelles
+  float ne = uSol > .5 ? .5 : smoothstep(1.5, 1.7, hr + .25 * m);                      // neiges éternelles, au-dessus de 1,5 km
   return mix(a, vec3(.8, .82, .86), ne);
 }
 // le paysage dans la direction d : 0 ciel, 1 sol ou relief (1 à 1,5 : flaques), 2 lac ; dist : distance (km)
@@ -363,9 +363,9 @@ float paysage(vec3 d, out vec3 alb, out vec3 n, out float dist){
       float rive = .012 + .0015 * bruitG(vec2(ph * 5., 3.1));
       if (uLac > .5 && tg > rive) return 2.;
       float lod = clamp(tg * 5., 0., 1.);
-      vec3 g = bruitGd(p * vec2(300., 900.));
-      float m = .5 + .5 * mix(fbmG(p * vec2(260., 700.), 3), 0., lod) + .3 * fbmG(p * 22., 3);
-      n = normalize(vec3(g.yz * .35 * (1. - lod), 1.));
+      vec3 g = bruitGd(p * vec2(900., 2600.));
+      float m = .5 + .22 * mix(fbmG(p * vec2(800., 2400.), 3), 0., lod) + .4 * fbmG(p * 18., 3);
+      n = normalize(vec3(g.yz * .12 * (1. - lod), 1.));
       alb = albSol(clamp(m, 0., 1.));
       if (uLac > .5) alb *= .6 + .4 * smoothstep(.0, .006, rive - tg);   // la berge, plus sombre au bord de l'eau
       float k = 1.;
@@ -376,18 +376,19 @@ float paysage(vec3 d, out vec3 alb, out vec3 n, out float dist){
   bool arb = uSol < 1.5;
   for (int i = 0; i < 3; i++){
     vec4 r = uRangs[i]; float D = r.x;
-    float ht = relief(r, cs, i), ha = (arb && r.z > 0.) ? arbres(ph * D, r.z, r.w) : 0.;
+    float val = i == 0 ? 1. : .3 + .7 * smoothstep(.05, .38, abs(ph));
+    float ht = relief(r, cs, i) * val, ha = (arb && r.z > 0.) ? arbres(ph * D, r.z, r.w) : 0.;
     float hp = uOeil + D * te + D * D / 12742.;
     if (hp < ht + ha){
       dist = D;
       float u = clamp((ht + ha - hp) / max(r.y * .5, r.z * 2.), 0., 1.);
-      float dl = .004, h1 = relief(r, normalize(cs + vec2(-cs.y, cs.x) * dl), i);
+      float dl = .004, h1 = relief(r, normalize(cs + vec2(-cs.y, cs.x) * dl), i) * val;
       float sl = clamp((h1 - ht) / (dl * D), -2., 2.);
       vec3 vers = -vec3(cs, 0.), cote = vec3(-cs.y, cs.x, 0.);
       n = normalize(vec3(0., 0., 1.) * (1.1 - .75 * u) + vers * (.25 + .75 * u) - cote * sl * .8);
       float m = .5 + .5 * fbmG(vec2(ph * D / (r.y * 3. + .02), hp / (r.y + .005) * 2.5) + r.w, 3);
       if (hp > ht){ alb = albArbre(m); n = normalize(n + vers * .3); }
-      else alb = i == 2 ? albRoche(m, hp / max(r.y, 1e-3)) : albSol(m * .7 + .1);
+      else alb = i == 2 ? albRoche(m, hp) : albSol(m * .7 + .1);
       return 1.;
     }
   }
@@ -633,14 +634,14 @@ void main(){
   // l'arc : le profil d'Airy calculé plus haut (gouttes réelles, disque solaire), éclairé par la lumière du soleil du moment
   float th = degrees(acos(clamp(dot(d, uAnti), -1., 1.)));
   vec3 bow = th < 70. ? texture(uLut, vec2(th / 70., .5)).rgb : vec3(0.);
-  vec3 arcL = bow * g2.z * uLight * uEs0 * .06;
+  vec3 arcL = bow * g2.z * uLight * uEs0 * .045;
   vec3 L;
   if (g0.a > .5){ L = decorEclaire(g0, g1, d); if (g1.w > uPluieD) L += arcL * .8; }   // l'arc passe devant les collines lointaines
   else {
     float el = asin(clamp(d.z, -1., 1.));
     vec3 hor = horizonDir(d);
     // le nuage d'averse derrière la pluie : gris bleuté, plus clair au ras de l'horizon (stylisé)
-    vec3 orage = hor * (.09 + .06 * g2.x + .03 * g2.y + .22 * exp(-max(el, 0.) * 14.));
+    vec3 orage = mix(hor, vec3(luminance(hor)) * vec3(.78, .88, 1.08), .55) * (.1 + .06 * g2.x + .03 * g2.y + .22 * exp(-max(el, 0.) * 14.));
     float clair = smoothstep(.55, .95, el + .3 * g2.x);
     L = mix(orage, cielA(vUv).rgb, clair * .7) + arcL;
     float stk = alea(floor(vec2(vUv.x * 900. + vUv.y * 180., vUv.y * 40. - uT * 30.)));
@@ -820,7 +821,7 @@ void main(){
   o = vec4(strie(vec2(r.x * .35, r.y * 2.), 5), 0., t, 0.);
 }`;
   const HALO_FS = `
-uniform sampler2D uHalo; uniform vec3 uDisque; uniform float uRs;
+uniform sampler2D uHalo; uniform vec3 uDisque; uniform float uRs, uFlou;
 out vec4 o;
 void main(){
   bool ok; vec3 d = viewDir(ok);
@@ -834,8 +835,9 @@ void main(){
     L = cielA(vUv).rgb;
     L = mix(L, uEc / PI * 1.1, .14 * c * smoothstep(0., .15, d.z));
     // la lumière des halos : les rayons tracés à travers les cristaux, éclairés par le soleil transmis
-    vec3 h = texture(uHalo, vec2(vUv.x, 1. - vUv.y)).rgb;
-    L += h * h * 64. * uEs0 * (.75 + .4 * c);
+    vec2 uh = vec2(vUv.x, 1. - vUv.y), tx = uFlou / vec2(textureSize(uHalo, 0));
+    vec3 h = texture(uHalo, uh).rgb, h1 = texture(uHalo, uh + tx).rgb, h2 = texture(uHalo, uh - tx).rgb, h3 = texture(uHalo, uh + vec2(tx.x, -tx.y)).rgb, h4 = texture(uHalo, uh - vec2(tx.x, -tx.y)).rgb;
+    L += (h * h * 2. + h1 * h1 + h2 * h2 + h3 * h3 + h4 * h4) / 6. * 64. * uEs0 * (.75 + .4 * c);
     L += disque(d, uDisque, uRs);
   }
   o = vec4(L + uFondE, 0.);
@@ -961,7 +963,7 @@ void main(){
         const mix = [keep.mix.plaques, keep.mix.colonnes, keep.mix.desordre], ms = mix[0] + mix[1] + mix[2];
         if (ms > 0) {
           const t0 = performance.now();
-          while (performance.now() - t0 < 14) {
+          while (performance.now() - t0 < (nT < 1.5e6 ? 22 : 14)) {
             for (let r = 0; r < 400; r++) {
               let u = Math.random() * ms, type = 0; while (type < 2 && u > mix[type]) { u -= mix[type]; type++; }
               trace(type, rint(BANDS.length)); nT++;
@@ -981,7 +983,7 @@ void main(){
         R.regler({ expo }).debut(dt);
         PH.use(); setCam(PH, C, W, H);
         setLum(PH, { s, Es0: info.Es0, Es1: info.Es1, Ec: info.Ec, ext: info.ext, oeil: 0.004, T, expo }).t('uCiel', atmo.AE);
-        dec.lier(PH).t('uHalo', texH).f('uDisque', ...dq).f('uRs', rs);
+        dec.lier(PH).t('uHalo', texH).f('uDisque', ...dq).f('uRs', rs).f('uFlou', 1.6 * clamp(1 - nT / 4e6, 0, 1));
         passeCiel(R, PH);
         // poussière de diamant : les cristaux tout près scintillent (doucement)
         lueurs.vider();

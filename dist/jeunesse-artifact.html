@@ -16763,12 +16763,12 @@ void main(){
       I *= smoothstep(1., .995, rr);
     }
     // comme les images des observatoires : une luminance colorisée par une palette or (brun, orange, or pâle)
-    float Y = clamp(I * (zoom > .5 ? .6 : 1.12), 0., 1.5);          // vue d'ensemble : centre or pâle, bord orangé (une boule, pas une assiette)
+    float Y = clamp(I * (zoom > .5 ? .6 : 1.), 0., 1.5);            // vue d'ensemble : centre or, bord orangé et plus sombre (une boule, pas une assiette)
     col = vecInv(min(vec3(Y * Y, .51 * Y * Y * Y, .08 * pow(Y, 5.)), vec3(.97)));
   }
   if (zoom < .5 && rr > .99){
     float e = rr - 1., ang = atan(q.y, q.x);
-    // la chromosphère : un liseré rose ; des protubérances : flammes et arches de gaz (vers 10 000 °C) au bord du disque,
+    // la chromosphère : un liseré rose ; des protubérances : flammes et arches de gaz (environ 5 000 à 10 000 °C) au bord du disque,
     // regroupées autour de quelques régions actives
     float chro = exp(-max(e, 0.) * 110.);
     float pmask = smoothstep(.55, .85, vnoise(vec2(ang * 3.2 + 1.7, 3.)));
@@ -17182,6 +17182,7 @@ void main(){
       { color: '#cc2010', name: 'Plaque chaude', role: 'cellules de Bénard', desc: 'Chauffé par le bas, un liquide reste immobile tant que l’écart de température est faible, puis s’organise d’un coup en rouleaux réguliers.' },
       { color: '#ffd27a', name: 'Granule solaire', role: '~1 000 km · 10 minutes', desc: 'Du gaz à 6 000 °C monte au centre de chaque granule, se refroidit en surface et replonge dans les couloirs sombres.' },
       { color: '#7a4a20', name: 'Tache solaire', role: 'champ magnétique intense', desc: 'Le champ magnétique y bloque la convection : la surface refroidit à 3 500 °C et paraît noire par contraste.' },
+      { color: '#ff6a3c', name: 'Protubérance', role: 'environ 5 000 à 10 000 °C', desc: 'Des flammes et des arches de gaz tenues par le champ magnétique, au bord du disque. Elles sont bien plus froides que la couronne autour d’elles, à plus d’un million de degrés : personne ne sait encore tout à fait pourquoi la couronne est si chaude.' },
     ],
     about: [
       'L’Anglais Edward Craven Walker invente la lampe à lave en 1963, après avoir vu dans un pub un minuteur d’œuf fait de cire dans un liquide. La recette exacte reste secrète, mais le principe est connu : une cire à peine plus dense que le liquide à température ambiante, mais qui se dilate davantage en chauffant. Quand elle dépasse la température d’équilibre, la poussée d’Archimède l’emporte et elle monte ; arrivée en haut, loin de l’ampoule, elle refroidit et redescend.',
@@ -17541,7 +17542,12 @@ void main(){
         if (yk > 3.1 * Math.pow(Math.max(1 - Math.abs(xk) / 9, 0), 1.25)) return cfg.magma === 'visqueux' ? ['Panache', 'cendres : du magma pulvérisé par ses gaz, refroidi en verre', '#c8c8c8'] : ['Fontaine de lave', 'basalte à environ 1 150 °C : jaune-orange, puis rouge en refroidissant', '#ffb070'];
         return ['Roche', yk > 0 ? 'couches de laves et de cendres des éruptions passées' : 'roches et sédiments sous la plaine', '#c8b8a0'];
       }
-      if (cfg.scene === 'soleil') return l.x && Math.hypot(l.x - view().cx, l.y - H / 2) > Math.min(view().w, H) * 0.44 && !cfg.zoom ? ['Couronne', 'l’atmosphère du Soleil, à plus d’un million de degrés', '#ffb070'] : ['Granulation', 'gaz chaud qui monte au centre des granules (≈ 6 000 °C), plus froid dans les couloirs sombres', '#ffd27a'];
+      if (cfg.scene === 'soleil') {
+        const R = Math.min(view().w, H) * 0.44, d = l.x ? Math.hypot(l.x - view().cx, l.y - H / 2) / R : 0;
+        if (!cfg.zoom && d > 1.0 && d < 1.12) return ['Protubérance', 'gaz à environ 5 000 à 10 000 °C, bien plus froid que la couronne autour, à plus d’un million de degrés', '#ff6a3c'];
+        if (!cfg.zoom && d >= 1.12) return ['Auréole', 'de la lumière diffusée (dans l’instrument et dans l’air) ; la vraie couronne, l’atmosphère du Soleil à plus d’un million de degrés, ne se voit qu’aux éclipses', '#ffb070'];
+        return ['Granulation', 'gaz chaud qui monte au centre des granules (≈ 6 000 °C), plus froid dans les couloirs sombres', '#ffd27a'];
+      }
       const m = l.m;
       if (!m || m.m[0] > 0.5) return ['Verre', 'paroi de la bouteille', '#c8c8c8'];
       const wax = m.s[0] > 0 && cfg.scene === 'lampe', Tc = cfg.scene === 'lampe' ? 20 + m.s[1] * 45 : 20 + m.s[1] * 30, vy = m.v[1];
@@ -17558,9 +17564,19 @@ void main(){
       const side = label.x > v.x0 + v.w * 0.5 ? -1 : 1, lx = label.x + side * 40, ly = label.y < 70 ? label.y + 46 : label.y - 36;
       ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(label.x, label.y, 11, 0, TAU); ctx.stroke();
+      // un fond sombre sous le texte : il reste lisible même posé sur le disque doré du Soleil ou sur la lave ;
+      // la description passe à la ligne au-delà d'une largeur raisonnable (téléphone)
+      ctx.font = 'italic 500 14px "Space Grotesk", sans-serif'; const w1 = ctx.measureText(name).width;
+      ctx.font = '500 9.5px "JetBrains Mono", monospace';
+      const maxW = Math.min(v.w * 0.62, 420), lines = [];
+      let cur = '';
+      for (const wd of role.toUpperCase().split(' ')) { const nx = cur ? cur + ' ' + wd : wd; if (cur && ctx.measureText(nx).width > maxW) { lines.push(cur); cur = wd; } else cur = nx; }
+      if (cur) lines.push(cur);
+      const bw = Math.max(w1, ...lines.map((t) => ctx.measureText(t).width)) + 16;
+      ctx.fillStyle = 'rgba(6,6,12,.62)'; ctx.fillRect(side > 0 ? lx - 8 : lx - bw + 8, ly - 16, bw, 26 + lines.length * 12);
       ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6; ctx.textAlign = side > 0 ? 'left' : 'right';
       ctx.fillStyle = 'rgba(250,250,245,.96)'; ctx.font = 'italic 500 14px "Space Grotesk", sans-serif'; ctx.fillText(name, lx, ly);
-      ctx.fillStyle = col; ctx.font = '500 9.5px "JetBrains Mono", monospace'; ctx.fillText(role.toUpperCase(), lx, ly + 15);
+      ctx.fillStyle = col; ctx.font = '500 9.5px "JetBrains Mono", monospace'; lines.forEach((t, i) => ctx.fillText(t, lx, ly + 15 + i * 12));
       ctx.restore();
     }
 
